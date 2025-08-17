@@ -84,13 +84,12 @@ app.get("/api/current-user-role", authenticate, (req, res) => {
 });
 
 // -------------------- VEGETABLE PRODUCT ROUTES --------------------
-const Product = require("./models/Product");
+const Product = require("./model/Product");
 
 // Add new vegetable product
 app.post("/product/add", upload.single("productImage"), async (req, res) => {
   try {
     const { productName, category, quantity, price } = req.body;
-
     const productImage = req.file ? `/uploads/${req.file.filename}` : "";
 
     const newProduct = new Product({
@@ -118,6 +117,27 @@ app.get("/product/category/:category", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Update product quantity and price
+app.patch("/product/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity, price } = req.body;
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { quantity: Number(quantity), price: Number(price) },
+      { new: true }
+    );
+
+    if (!updatedProduct) return res.status(404).json({ message: "Product not found" });
+
+    res.json(updatedProduct);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 

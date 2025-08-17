@@ -6,17 +6,14 @@
   height: 50px;
 }
 
-/* VegetablePage.css */
-
-/* Style for the main container */
+/* ------------------ PRODUCT GRID ------------------ */
 .products-container-veg {
   display: grid;
-  grid-template-columns: repeat(5, 1fr); /* Display 5 items in one row */
-  gap: 20px; /* Spacing between products */
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
   padding: 10px;
 }
 
-/* Style for individual product items */
 .products-item-veg {
   background-color: #c9dbc9;
   border: 1px solid #e0e0e0;
@@ -26,45 +23,63 @@
   transition: transform 0.3s ease-in-out;
   gap: 10px;
   width: 250px;
-  height: 250px;
-  border-radius: 15px;
-  justify-content: center;
-  align-items: center;
-  margin-left: 20px;
-}
-
-.product-item-veg:hover {
-  transform: translateY(-5px); /* Lifts the product item slightly on hover */
-}
-
-/* Style for product images */
-.products-item-veg img {
-  max-width: 100%;
   height: auto;
-  border-radius: 10px;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.products-item-veg:hover {
+  transform: translateY(-5px);
+}
+
+.products-item-veg img {
   width: 200px;
   height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
 }
 
-/* Style for product names */
 .products-item-veg p {
-  margin-top: 15px;
-  font-size: 20px;
+  margin-top: 10px;
+  font-size: 18px;
   color: #333;
 }
 
-.products-details-veg img {
-  max-width: 200px; /* Ensures the image doesn't exceed the width of its container */
-  height: 200px; /* Maintains the image's aspect ratio */
-  max-height: 100px;
-  border-radius: 10px; /* Set a maximum height for the product images */
+/* ------------------ PRODUCT INPUTS ------------------ */
+.products-item-veg label {
+  margin-top: 10px;
+  font-weight: bold;
 }
 
-/* You can add more styles or modify the existing ones as per your design requirements */
-.product-btn-veg {
-  background-color: none;
+.products-item-veg input[type="number"] {
+  width: 80px;
+  padding: 5px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  text-align: center;
+  margin-bottom: 5px;
 }
 
+/* ------------------ UPDATE BUTTON ------------------ */
+.products-item-veg button {
+  margin-top: 10px;
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  background-color: #2f855a;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.products-item-veg button:hover {
+  background-color: #276749;
+}
+
+/* ------------------ SEARCH & BUTTONS ------------------ */
 .search-container-veg {
   margin: 20px 10px 20px 50px;
   display: flex;
@@ -72,45 +87,51 @@
   justify-content: space-between;
   padding: 10px 0;
   width: 1000px;
-  /* Change background color as needed */
 }
 
-/* Style for the "Add Products" button */
-.add-products-button {
-  background-color: #79ac78; /* Change background color as needed */
+.add-products-button,
+.make-order-button-veg {
+  background-color: #79ac78;
   border: none;
   border-radius: 5px;
   color: white;
   padding: 10px 10px;
   cursor: pointer;
   transition: background-color 0.3s ease-in-out;
+}
+
+.add-products-button {
   width: 200px;
   margin-left: 30px;
 }
 
-.add-products-button:hover {
-  background-color: #79ac78; /* Darker shade on hover */
+.make-order-button-veg {
+  width: 170px;
+  margin-left: 30px;
 }
 
-/* Style for the search input */
+.add-products-button:hover,
+.make-order-button-veg:hover {
+  background-color: #276749;
+}
+
 .search-input-veg {
   padding: 10px 15px;
   border: 1px solid #ccc;
-  border-radius: 5px 0 0 5px; /* Rounded corners on the left side */
-  width: 300px; /* Adjust width as needed */
+  border-radius: 5px 0 0 5px;
+  width: 300px;
   outline: none;
   transition: border-color 0.3s ease-in-out;
 }
 
 .search-input-veg:focus {
-  border-color: #79ac78; /* Highlight border on focus */
+  border-color: #79ac78;
 }
 
-/* Style for the search button */
 .search-button-veg {
   background-color: #79ac78;
   border: none;
-  border-radius: 0 5px 5px 0; /* Rounded corners on the right side */
+  border-radius: 0 5px 5px 0;
   color: white;
   padding: 10px;
   cursor: pointer;
@@ -119,19 +140,7 @@
 }
 
 .search-button-veg:hover {
-  background-color: #79ac78; /* Darker shade on hover */
-}
-
-.make-order-button-veg {
-  background-color: #79ac78;
-  justify-content: right;
-  margin-left: 30px;
-  align-items: center;
-  width: 170px;
-}
-
-.product-item-veg-link {
-  text-decoration: none;
+  background-color: #276749;
 }
 
 /* ------------------ MODAL STYLES ------------------ */
@@ -193,4 +202,12 @@
 
 .modal-content form button:hover {
   background-color: #276749;
+}
+
+/* ------------------ TOTAL DISPLAY ------------------ */
+.products-item-veg p.total {
+  font-weight: bold;
+  margin-top: 8px;
+  color: #2f855a;
+  font-size: 16px;
 }

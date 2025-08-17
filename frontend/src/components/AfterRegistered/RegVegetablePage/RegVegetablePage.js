@@ -20,7 +20,8 @@ function RegVegetablePage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch("http://localhost:8070/product");
+        // Fetch only vegetable products
+        const response = await fetch("http://localhost:8070/product/category/vegetable");
         if (!response.ok) {
           console.error("Error fetching products:", response.status, response.statusText);
           setProducts([]);
@@ -41,7 +42,6 @@ function RegVegetablePage() {
   }, []);
 
   useEffect(() => {
-    // Filter products as the user types
     const filtered = products.filter((product) =>
       product.productName.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -64,6 +64,7 @@ function RegVegetablePage() {
       formData.append("productName", newProduct.productName);
       formData.append("quantity", newProduct.quantity);
       formData.append("price", newProduct.price);
+      formData.append("category", "vegetable"); // ensure category is vegetable
       if (newProduct.productImage) {
         formData.append("productImage", newProduct.productImage);
       }
@@ -128,7 +129,18 @@ function RegVegetablePage() {
                 )}`}
                 className="product-item-veg-link"
               >
-                <img src={`http://localhost:8070${product.productImage}`} alt={product.productName} />
+                <img
+                  src={`http://localhost:8070/${product.productImage}`}
+                  alt={product.productName}
+                  style={{
+                    width: "150px",
+                    height: "150px",
+                    objectFit: "cover",
+                    borderRadius: "8px",
+                    outline: "none",   // remove blue shadow
+                    boxShadow: "none", // remove any shadow
+                  }}
+                />
                 <p>{product.productName}</p>
                 <p>Qty: {product.quantity}</p>
                 <p>Price: ${product.price}</p>
