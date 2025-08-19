@@ -3,8 +3,10 @@ import axios from "axios";
 import "./GovernmentPage.css";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
+import { useNavigate } from "react-router-dom";
 
 function GovernmentPage() {
+  const navigate = useNavigate();
   // Login states
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
@@ -57,7 +59,6 @@ function GovernmentPage() {
       alert("Please enter a scheme name");
       return;
     }
-
     try {
       const res = await axios.post("http://localhost:8070/schemes", {
         name: newScheme.trim(),
@@ -81,7 +82,6 @@ function GovernmentPage() {
       alert("Scheme name cannot be empty");
       return;
     }
-
     const scheme = schemes[index];
     try {
       const res = await axios.put(`http://localhost:8070/schemes/${scheme._id}`, {
@@ -120,13 +120,12 @@ function GovernmentPage() {
       alert("Please enter a salary amount");
       return;
     }
-
     try {
       await axios.put(`http://localhost:8070/deliverymen/${id}/salary`, {
         salary: salaryInputs[id],
       });
       alert("Salary updated successfully!");
-      fetchDeliveryMen(); // refresh delivery men data
+      fetchDeliveryMen();
     } catch (err) {
       console.error("Failed to update salary:", err);
       alert("Failed to update salary. Please try again.");
@@ -136,7 +135,6 @@ function GovernmentPage() {
   // Handle login submit
   const handleLogin = (e) => {
     e.preventDefault();
-    // Default credentials check
     if (username === "admin" && password === "admin123") {
       setLoggedIn(true);
       setLoginError("");
@@ -147,176 +145,276 @@ function GovernmentPage() {
     }
   };
 
-  // If NOT logged in, show login form
-  if (!loggedIn) {
-    return (
-      <div className="container" style={{ maxWidth: "400px", margin: "100px auto" }}>
-        <h2 style={{ textAlign: "center", marginBottom: "20px" }}>Government Login</h2>
-        <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="input-field"
-            autoFocus
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input-field"
-            required
-          />
-          {loginError && <p style={{ color: "red", textAlign: "center" }}>{loginError}</p>}
-          <button type="submit" className="add-button">
-            Login
-          </button>
-        </form>
-      </div>
-    );
-  }
+  // Logout handler
+  const handleLogout = () => {
+    setLoggedIn(false);
+    // Optional: clear other states if needed
+    setSchemes([]);
+    setDeliveryMen([]);
+    setShowDeliveryMen(false);
+    setSalaryInputs({});
+  };
 
-  // If logged in, show the whole government page
   return (
     <div className="container">
-      <Navbar />
+      {/* Always visible "Back to Home Page" button */}
+      <button
+        style={{
+          backgroundColor: "black",
+          color: "white",
+          padding: "10px 20px",
+          border: "none",
+          cursor: "pointer",
+          marginBottom: "20px",
+          borderRadius: "4px",
+        }}
+        onClick={() => navigate('/')}
+      >
+        Back to Home Page
+      </button>
 
-      <div className="government-banner">
-        <h1 className="government-title">Government Schemes Management</h1>
-      </div>
-
-      {/* Add Scheme Input */}
-      <div className="input-section">
-        <input
-          type="text"
-          placeholder="Enter new scheme"
-          value={newScheme}
-          onChange={(e) => setNewScheme(e.target.value)}
-          className="input-field"
-        />
-        <button className="add-button" onClick={handleAddScheme}>
-          Add Scheme
-        </button>
-      </div>
-
-      {/* Schemes Table */}
-      <table className="schemes-table">
-        <thead>
-          <tr>
-            <th>Scheme Name</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {schemes.map((scheme, index) => (
-            <tr key={scheme._id}>
-              <td>
-                {editIndex === index ? (
-                  <input
-                    type="text"
-                    value={editScheme}
-                    onChange={(e) => setEditScheme(e.target.value)}
-                    className="edit-input"
-                  />
-                ) : (
-                  scheme.name
-                )}
-              </td>
-              <td>
-                {editIndex === index ? (
-                  <>
-                    <button className="save-btn" onClick={() => handleSaveEdit(index)}>
-                      Save
-                    </button>
-                    <button className="cancel-btn" onClick={() => setEditIndex(null)}>
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button className="edit-btn" onClick={() => handleEditScheme(index)}>
-                      Edit
-                    </button>
-                    <button className="delete-btn" onClick={() => handleDeleteScheme(index)}>
-                      Delete
-                    </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-          {schemes.length === 0 && (
-            <tr>
-              <td colSpan="2" style={{ textAlign: "center" }}>
-                No schemes available.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      {/* Toggle Delivery Men Section */}
-      <div style={{ marginTop: "30px", marginBottom: "20px" }}>
+      {/* Show logout button after login, fixed at bottom */}
+      {loggedIn && (
         <button
-          className="toggle-deliverymen-btn"
-          onClick={() => {
-            if (!showDeliveryMen) fetchDeliveryMen();
-            setShowDeliveryMen(!showDeliveryMen);
+          onClick={handleLogout}
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            right: "20px",
+            padding: "10px 20px",
+            backgroundColor: "#c00",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            zIndex: 9999,
           }}
         >
-          {showDeliveryMen ? "Hide Delivery Men" : "View Delivery Men"}
+          Logout
         </button>
-      </div>
-
-      {/* Delivery Men Table */}
-      {showDeliveryMen && (
-        <table className="deliverymen-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>District</th>
-              <th>Current Salary</th>
-              <th>Set New Salary</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {deliveryMen.map((dm) => (
-              <tr key={dm._id}>
-                <td>{dm.fname} {dm.lname}</td>
-                <td>{dm.email}</td>
-                <td>{dm.district}</td>
-                <td>{dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
-                <td>
-                  <input
-                    type="number"
-                    value={salaryInputs[dm._id] || ""}
-                    onChange={(e) => handleSalaryChange(dm._id, e.target.value)}
-                    placeholder="Enter salary"
-                    className="salary-input"
-                  />
-                </td>
-                <td>
-                  <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
-                </td>
-              </tr>
-            ))}
-            {deliveryMen.length === 0 && (
-              <tr>
-                <td colSpan="6" style={{ textAlign: "center" }}>
-                  No delivery men found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
       )}
 
-      <FooterNew />
+      {/* Optional: invisible redirect area */}
+      {loggedIn && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            right: 0,
+            width: "50px",
+            height: "50px",
+            cursor: "pointer",
+            zIndex: 9998,
+            backgroundColor: "transparent",
+            border: "none",
+          }}
+          onClick={() => {
+            navigate('/');
+          }}
+        />
+      )}
+
+      {/* Show login form if not logged in */}
+      {!loggedIn ? (
+        <div style={{ maxWidth: "400px", margin: "100px auto" }}>
+          <h2 style={{ textAlign: "center", marginBottom: "20px" }}>Government Login</h2>
+          <form
+            onSubmit={handleLogin}
+            style={{ display: "flex", flexDirection: "column", gap: "15px" }}
+          >
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="input-field"
+              autoFocus
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input-field"
+              required
+            />
+            {loginError && (
+              <p style={{ color: "red", textAlign: "center" }}>{loginError}</p>
+            )}
+            <button type="submit" className="add-button">
+              Login
+            </button>
+          </form>
+          {/* Add "Back to Home Page" button below the login form */}
+          <div style={{ textAlign: "center", marginTop: "20px" }}>
+            <button
+              style={{
+                backgroundColor: "black",
+                color: "white",
+                padding: "10px 20px",
+                border: "none",
+                cursor: "pointer",
+                borderRadius: "4px",
+              }}
+              onClick={() => navigate('/')}
+            >
+              Back to Home Page
+            </button>
+          </div>
+        </div>
+      ) : (
+        // Main content after login
+        <>
+          <Navbar />
+
+          <div className="government-banner">
+            <h1 className="government-title">Government Schemes Management</h1>
+          </div>
+
+          {/* Add Scheme Input */}
+          <div className="input-section">
+            <input
+              type="text"
+              placeholder="Enter new scheme"
+              value={newScheme}
+              onChange={(e) => setNewScheme(e.target.value)}
+              className="input-field"
+            />
+            <button className="add-button" onClick={handleAddScheme}>
+              Add Scheme
+            </button>
+          </div>
+
+          {/* Schemes Table */}
+          <table className="schemes-table">
+            <thead>
+              <tr>
+                <th>Scheme Name</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {schemes.map((scheme, index) => (
+                <tr key={scheme._id}>
+                  <td>
+                    {editIndex === index ? (
+                      <input
+                        type="text"
+                        value={editScheme}
+                        onChange={(e) => setEditScheme(e.target.value)}
+                        className="edit-input"
+                      />
+                    ) : (
+                      scheme.name
+                    )}
+                  </td>
+                  <td>
+                    {editIndex === index ? (
+                      <>
+                        <button
+                          className="save-btn"
+                          onClick={() => handleSaveEdit(index)}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="cancel-btn"
+                          onClick={() => setEditIndex(null)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="edit-btn"
+                          onClick={() => handleEditScheme(index)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="delete-btn"
+                          onClick={() => handleDeleteScheme(index)}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {schemes.length === 0 && (
+                <tr>
+                  <td colSpan="2" style={{ textAlign: "center" }}>
+                    No schemes available.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* Toggle Delivery Men Section */}
+          <div style={{ marginTop: "30px", marginBottom: "20px" }}>
+            <button
+              className="toggle-deliverymen-btn"
+              onClick={() => {
+                if (!showDeliveryMen) fetchDeliveryMen();
+                setShowDeliveryMen(!showDeliveryMen);
+              }}
+            >
+              {showDeliveryMen ? "Hide Delivery Men" : "View Delivery Men"}
+            </button>
+          </div>
+
+          {/* Delivery Men Table */}
+          {showDeliveryMen && (
+            <table className="deliverymen-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>District</th>
+                  <th>Current Salary</th>
+                  <th>Set New Salary</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveryMen.map((dm) => (
+                  <tr key={dm._id}>
+                    <td>{dm.fname} {dm.lname}</td>
+                    <td>{dm.email}</td>
+                    <td>{dm.district}</td>
+                    <td>{dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
+                    <td>
+                      <input
+                        type="number"
+                        value={salaryInputs[dm._id] || ""}
+                        onChange={(e) => handleSalaryChange(dm._id, e.target.value)}
+                        placeholder="Enter salary"
+                        className="salary-input"
+                      />
+                    </td>
+                    <td>
+                      <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
+                    </td>
+                  </tr>
+                ))}
+                {deliveryMen.length === 0 && (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: "center" }}>
+                      No delivery men found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+
+          <FooterNew />
+        </>
+      )}
     </div>
   );
 }

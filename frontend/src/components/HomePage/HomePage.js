@@ -61,7 +61,16 @@ function HomePage() {
             className="img-user"
           />
         </a>
-        <p className="profile-name">Deliveryman</p>
+        <p className="profile-name">DeliveryMan</p>
+        <a className="profile" href="/GovernmentPage">
+          <img
+            src={process.env.PUBLIC_URL + "/Profile/both.png"}
+            alt="Deliveryman profile"
+            className="img-user"
+          />
+        </a>
+        <p className="profile-name">Government</p>
+
       </div>
 
       <div className="button-container">
