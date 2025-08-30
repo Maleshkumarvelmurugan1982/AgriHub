@@ -21,7 +21,7 @@ function RegVegetablePage() {
     const fetchProducts = async () => {
       try {
         // Fetch only vegetable products
-        const response = await fetch("http://localhost:8070/product/category/vegetable");
+        const response = await fetch("https://agrihub-1.onrender.com/product/category/vegetable");
         if (!response.ok) {
           console.error("Error fetching products:", response.status, response.statusText);
           setProducts([]);
@@ -69,7 +69,7 @@ function RegVegetablePage() {
         formData.append("productImage", newProduct.productImage);
       }
 
-      const response = await fetch("http://localhost:8070/product/add", {
+      const response = await fetch("https://agrihub-1.onrender.com/product/add", {
         method: "POST",
         body: formData,
       });
@@ -113,7 +113,7 @@ function RegVegetablePage() {
 
         <button
           className="make-order-button-veg"
-          onClick={() => (window.location.href = "http://localhost:3000/order")}
+          onClick={() => (window.location.href = "https://agrihub-1.onrender.com/order")}
         >
           <FontAwesomeIcon icon={faCartPlus} /> Make an Order
         </button>
