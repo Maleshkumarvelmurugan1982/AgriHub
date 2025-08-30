@@ -12,8 +12,8 @@ function Login() {
   const navigate = useNavigate();
 
   // ✅ Use Render API URL instead of localhost
-  const API_BASE =
-    process.env.REACT_APP_API_URL || "https://agrihub-1.onrender.com";
+  //const API_B =
+    //process.env.REACT_APP_API_URL || "https://agrihub-1.onrender.com";
 
   async function handleSubmit(e) {
     e.preventDefault();
