@@ -16,7 +16,8 @@ export default function SignUp() {
   const userRole = watch("userRole");
   const navigate = useNavigate();
 
-  const API_BASE = process.env.REACT_APP_API_URL || "https://agrihub-1.onrender.com";
+  // ✅ Use Render backend in production, localhost only in dev
+  const API_URL ="https://agrihub-1.onrender.com";
 
   const onSubmit = async (data) => {
     if (userRole === "Farmer") {
@@ -31,13 +32,13 @@ export default function SignUp() {
 
     switch (data.userRole) {
       case "Farmer":
-        url = `${API_BASE}/farmer/register`;
+        url = `${API_URL}/farmer/register`;
         break;
       case "Seller":
-        url = `${API_BASE}/seller/register`;
+        url = `${API_URL}/seller/register`;
         break;
       case "Deliveryman":
-        url = `${API_BASE}/deliveryman/register`;
+        url = `${API_URL}/deliveryman/register`;
         break;
       default:
         break;
@@ -54,11 +55,11 @@ export default function SignUp() {
       });
 
       if (response.ok) {
-        alert("Registration Successful");
-        navigate("/login"); // redirect after success
+        alert("Registration Successful ✅");
+        navigate("/login");
       } else {
         const errorData = await response.json();
-        alert(errorData.error || "Registration failed");
+        alert(errorData.error || "Registration failed ❌");
       }
     } catch (error) {
       console.error("❌ Fetch error:", error);
@@ -137,7 +138,9 @@ export default function SignUp() {
                 placeholder="Enter email"
                 {...register("email", { required: true })}
               />
-              {errors.email && <span className="error">Email is required</span>}
+              {errors.email && (
+                <span className="error">Email is required</span>
+              )}
             </div>
 
             <div className="password">
