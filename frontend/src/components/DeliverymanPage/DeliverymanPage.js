@@ -19,7 +19,7 @@ function DeliverymanPage() {
   useEffect(() => {
     const fetchSellerOrders = async () => {
       try {
-        const response = await fetch("http://localhost:8070/sellerorder/");
+        const response = await fetch(`${API_URL}/sellerorder/`);
         const data = await response.json();
         setSellerOrders(data);
       } catch (error) {
@@ -29,7 +29,7 @@ function DeliverymanPage() {
 
     const fetchFarmerOrders = async () => {
       try {
-        const response = await fetch("http://localhost:8070/farmerorder/");
+        const response = await fetch(`${API_URL}/farmerorder/');
         const data = await response.json();
         setFarmerOrders(data);
       } catch (error) {
@@ -39,7 +39,7 @@ function DeliverymanPage() {
 
     const fetchDeliveryPosts = async () => {
       try {
-        const response = await fetch("http://localhost:8070/deliverypost/");
+        const response = await fetch(`${API_URL}/deliverypost/');
         const data = await response.json();
         setDeliveryPosts(data);
       } catch (error) {
