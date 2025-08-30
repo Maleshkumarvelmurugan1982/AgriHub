@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
-import API_URL from "../../config"; // ✅ Import the backend URL
+import API_URL from "../../config"; // ✅ make sure config.js exists at src/config.js
 
 function Login() {
   const [email, setEmail] = useState("");
