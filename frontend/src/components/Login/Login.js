@@ -1,6 +1,6 @@
 import "./login.css";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
 
@@ -9,67 +9,62 @@ function Login() {
   const [password, setPassword] = useState("");
   const [userRole, setUserRole] = useState("");
 
-  const navigate = useNavigate(); // Initialize navigate
+  const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  // ✅ API base URL (use .env in Vercel/Render for flexibility)
+  const API_URL ="https://agrihub-1.onrender.com";
+
+  async function handleSubmit(e) {
     e.preventDefault();
 
-    // Check if email or userRole is empty
     if (!email || !password || !userRole) {
       alert("Please fill in all fields.");
       return;
     }
 
     let url = "";
-
     switch (userRole) {
       case "Farmer":
-        url = "http://localhost:8070/farmer/login";
+        url = `${API_URL}/farmer/login`;
         break;
       case "Seller":
-        url = "http://localhost:8070/seller/login";
+        url = `${API_URL}/seller/login`;
         break;
       case "Deliveryman":
-        url = "http://localhost:8070/deliveryman/login";
+        url = `${API_URL}/deliveryman/login`;
         break;
       default:
         break;
     }
 
-    fetch(url, {
-      method: "POST",
-      crossDomain: true,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        userRole,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log(data, "userRegister");
-        if (data.status === "ok") {
-          alert("Login successful");
-          window.localStorage.setItem("token", data.data);
-          window.location.href = "/homepage-registeredusers"; // Redirect to homepage based on user role
-        } else {
-          alert("Login failed. Please check your credentials.");
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        alert("Login failed. Please try again later.");
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ email, password, userRole }),
       });
+
+      const data = await res.json();
+      console.log("🔑 Login response:", data);
+
+      if (res.ok && data.status === "ok") {
+        alert("✅ Login successful");
+        window.localStorage.setItem("token", data.data);
+        navigate("/homepage-registeredusers"); // redirect
+      } else {
+        alert(data.error || "Login failed. Please check your credentials.");
+      }
+    } catch (error) {
+      console.error("❌ Login error:", error);
+      alert("Unable to reach server. Please try again later.");
+    }
   }
 
-  // Handle back button click
   const handleBack = () => {
-    navigate("/"); // Redirect to home page
+    navigate("/");
   };
 
   return (
@@ -79,7 +74,7 @@ function Login() {
         <div className="login-image">
           <img
             src="https://assets-global.website-files.com/5d2fb52b76aabef62647ed9a/6195c8e178a99295d45307cb_allgreen1000-550.jpg"
-            alt=""
+            alt="login"
             className="img-login"
           />
         </div>
@@ -93,6 +88,7 @@ function Login() {
                 type="email"
                 className="form-control"
                 placeholder="Enter email"
+                value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
@@ -103,6 +99,7 @@ function Login() {
                 type="password"
                 className="form-control"
                 placeholder="Enter password"
+                value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
@@ -111,6 +108,7 @@ function Login() {
               <label>Role</label>
               <select
                 className="form-control"
+                value={userRole}
                 onChange={(e) => setUserRole(e.target.value)}
               >
                 <option value="">Select Role</option>
@@ -133,7 +131,6 @@ function Login() {
               </button>
             </div>
 
-            {/* Back Button */}
             <div className="back-button-container" style={{ marginTop: "10px" }}>
               <button
                 type="button"
