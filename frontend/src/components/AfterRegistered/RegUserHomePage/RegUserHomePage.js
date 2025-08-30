@@ -16,7 +16,7 @@ function RegUserHomePage() {
       return;
     }
 
-    fetch("http://localhost:8070/user/userdata", {
+    fetch("https://agrihub-1.onrender.com/user/userdata", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
