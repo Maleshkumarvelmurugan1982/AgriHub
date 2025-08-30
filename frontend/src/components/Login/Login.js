@@ -11,8 +11,9 @@ function Login() {
 
   const navigate = useNavigate();
 
-  // ✅ API base URL (use .env in Vercel/Render for flexibility)
-  const API_URL ="https://agrihub-1.onrender.com";
+  // ✅ Use Render API URL instead of localhost
+  const API_BASE =
+    process.env.REACT_APP_API_URL || "https://agrihub-1.onrender.com";
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -48,18 +49,18 @@ function Login() {
       });
 
       const data = await res.json();
-      console.log("🔑 Login response:", data);
+      console.log("Login Response:", data);
 
       if (res.ok && data.status === "ok") {
-        alert("✅ Login successful");
+        alert("Login successful ✅");
         window.localStorage.setItem("token", data.data);
-        navigate("/homepage-registeredusers"); // redirect
+        navigate("/homepage-registeredusers");
       } else {
         alert(data.error || "Login failed. Please check your credentials.");
       }
     } catch (error) {
-      console.error("❌ Login error:", error);
-      alert("Unable to reach server. Please try again later.");
+      console.error("Error:", error);
+      alert("Failed to connect to server. Please try again later.");
     }
   }
 
