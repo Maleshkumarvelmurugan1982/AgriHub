@@ -25,7 +25,7 @@ function RegDeliverymanPage() {
   useEffect(() => {
     const fetchSellerOrders = async () => {
       try {
-        const response = await fetch("http://localhost:8070/sellerorder/");
+        const response = await fetch("https://agrihub-1.onrender.com/sellerorder/");
         const data = await response.json();
         setSellerOrders(data);
       } catch (error) {
@@ -35,7 +35,7 @@ function RegDeliverymanPage() {
 
     const fetchFarmerOrders = async () => {
       try {
-        const response = await fetch("http://localhost:8070/farmerorder/");
+        const response = await fetch("https://agrihub-1.onrender.com/farmerorder/");
         const data = await response.json();
         setFarmerOrders(data);
       } catch (error) {
