@@ -11,11 +11,7 @@ function Login() {
 
   const navigate = useNavigate();
 
-  // ✅ Use Render API URL instead of localhost
-  //const API_B =
-    //process.env.REACT_APP_API_URL || "https://agrihub-1.onrender.com";
-
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
 
     if (!email || !password || !userRole) {
@@ -24,6 +20,10 @@ function Login() {
     }
 
     let url = "";
+
+    // ✅ Replace with your actual Render backend URL
+    const API_URL = "https://agrihub-1.onrender.com";
+
     switch (userRole) {
       case "Farmer":
         url = `${API_URL}/farmer/login`;
@@ -38,30 +38,33 @@ function Login() {
         break;
     }
 
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ email, password, userRole }),
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        userRole,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data, "userLogin");
+        if (data.status === "ok") {
+          alert("Login successful");
+          window.localStorage.setItem("token", data.data);
+          window.location.href = "/homepage-registeredusers";
+        } else {
+          alert("Login failed. Please check your credentials.");
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("Login failed. Please try again later.");
       });
-
-      const data = await res.json();
-      console.log("Login Response:", data);
-
-      if (res.ok && data.status === "ok") {
-        alert("Login successful ✅");
-        window.localStorage.setItem("token", data.data);
-        navigate("/homepage-registeredusers");
-      } else {
-        alert(data.error || "Login failed. Please check your credentials.");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Failed to connect to server. Please try again later.");
-    }
   }
 
   const handleBack = () => {
@@ -75,7 +78,7 @@ function Login() {
         <div className="login-image">
           <img
             src="https://assets-global.website-files.com/5d2fb52b76aabef62647ed9a/6195c8e178a99295d45307cb_allgreen1000-550.jpg"
-            alt="login"
+            alt=""
             className="img-login"
           />
         </div>
@@ -89,7 +92,6 @@ function Login() {
                 type="email"
                 className="form-control"
                 placeholder="Enter email"
-                value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
@@ -100,7 +102,6 @@ function Login() {
                 type="password"
                 className="form-control"
                 placeholder="Enter password"
-                value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
@@ -109,7 +110,6 @@ function Login() {
               <label>Role</label>
               <select
                 className="form-control"
-                value={userRole}
                 onChange={(e) => setUserRole(e.target.value)}
               >
                 <option value="">Select Role</option>
