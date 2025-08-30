@@ -12,31 +12,32 @@ export default function SignUp() {
     formState: { errors },
   } = useForm();
 
-  const [generatedFarmerId, setGeneratedFarmerId] = useState(""); // store generated ID
-  const userRole = watch("userRole"); // watch role selection
+  const [generatedFarmerId, setGeneratedFarmerId] = useState("");
+  const userRole = watch("userRole");
   const navigate = useNavigate();
 
+  const API_BASE = process.env.REACT_APP_API_URL || "https://agrihub-1.onrender.com";
+
   const onSubmit = async (data) => {
-    // Generate unique Farmer ID if role is Farmer
     if (userRole === "Farmer") {
-      const randomNumber = Math.floor(Math.random() * 100); // 0-99
-      const formattedNumber = randomNumber.toString().padStart(2, "0"); // ensures two digits
+      const randomNumber = Math.floor(Math.random() * 100);
+      const formattedNumber = randomNumber.toString().padStart(2, "0");
       const farmerId = `FR-AH${formattedNumber}`;
       data.farmerId = farmerId;
-      setGeneratedFarmerId(farmerId); // save for display
+      setGeneratedFarmerId(farmerId);
     }
 
     let url = "";
 
     switch (data.userRole) {
       case "Farmer":
-        url = "https://agrihub-1.onrender.com/farmer/register";
+        url = `${API_BASE}/farmer/register`;
         break;
       case "Seller":
-        url = "https://agrihub-1.onrender.com/seller/register";
+        url = `${API_BASE}/seller/register`;
         break;
       case "Deliveryman":
-        url = "https://agrihub-1.onrender.com/deliveryman/register";
+        url = `${API_BASE}/deliveryman/register`;
         break;
       default:
         break;
@@ -54,13 +55,14 @@ export default function SignUp() {
 
       if (response.ok) {
         alert("Registration Successful");
+        navigate("/login"); // redirect after success
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Registration failed");
       }
     } catch (error) {
-      console.error(error);
-      alert("Registration failed");
+      console.error("❌ Fetch error:", error);
+      alert("Unable to reach server. Please try again later.");
     }
   };
 
@@ -97,7 +99,6 @@ export default function SignUp() {
               )}
             </div>
 
-            {/* Display generated Farmer ID if role is Farmer */}
             {userRole === "Farmer" && generatedFarmerId && (
               <div className="farmer-id-display">
                 <label>Generated Farmer ID:</label>
