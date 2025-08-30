@@ -3,8 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
-import API_URL from "../../config";
-
+import API_URL from "../../config"; // ✅ Import the backend URL
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -13,7 +12,7 @@ function Login() {
 
   const navigate = useNavigate();
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
 
     if (!email || !password || !userRole) {
@@ -37,33 +36,33 @@ function Login() {
         break;
     }
 
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          userRole,
-        }),
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        userRole,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data, "userLogin");
+        if (data.status === "ok") {
+          alert("Login successful");
+          window.localStorage.setItem("token", data.data);
+          window.location.href = "/homepage-registeredusers";
+        } else {
+          alert("Login failed. Please check your credentials.");
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("Login failed. Please try again later.");
       });
-
-      const data = await res.json();
-      console.log(data, "userLogin");
-
-      if (data.status === "ok") {
-        alert("Login successful");
-        window.localStorage.setItem("token", data.data);
-        navigate("/homepage-registeredusers");
-      } else {
-        alert("Login failed. Please check your credentials.");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Login failed. Please try again later.");
-    }
   }
 
   const handleBack = () => {
