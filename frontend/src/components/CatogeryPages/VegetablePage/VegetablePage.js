@@ -15,7 +15,7 @@ function VegetablePage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch("http://localhost:8070/product/Veg");
+        const response = await fetch("https://agrihub-1.onrender.com/product/Veg");
         const data = await response.json();
         setProducts(data);
       } catch (error) {
@@ -43,7 +43,7 @@ function VegetablePage() {
           <button
             className="add-products-button"
             onClick={() => {
-              window.location.href = "http://localhost:3000/contactadmin";
+              window.location.href = "https://agrihub-1.onrender.com/contactadmin";
             }}
           >
             <FontAwesomeIcon icon={faSquarePlus} /> {"  "} Add New Vegetable{" "}
@@ -54,7 +54,7 @@ function VegetablePage() {
           <button
             className="make-order-button-veg"
             onClick={() => {
-              window.location.href = "http://localhost:3000/order";
+              window.location.href = "https://agrihub-1.onrender.com/order";
             }}
           >
             <FontAwesomeIcon icon={faCartPlus} /> {"  "} Make an Order
