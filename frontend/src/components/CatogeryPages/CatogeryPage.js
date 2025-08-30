@@ -16,19 +16,19 @@ function CatogeryPage() {
 
         switch (catogery) {
           case "Veg":
-            url = "http://localhost:8070/product/Vegetable";
+            url = "https://agrihub-1.onrender.com/product/Vegetable";
             break;
           case "Fruit":
-            url = "http://localhost:8070/product/fruit";
+            url = "https://agrihub-1.onrender.com/product/fruit";
             break;
           case "Grain":
-            url = "http://localhost:8070/product/Grain";
+            url = "https://agrihub-1.onrender.com/product/Grain";
             break;
           case "Spices":
-            url = "http://localhost:8070/product/spices";
+            url = "https://agrihub-1.onrender.com/product/spices";
             break;
           case "Other":
-            url = "http://localhost:8070/product/other";
+            url = "https://agrihub-1.onrender.com/product/other";
             break;
           default:
             break;
@@ -44,7 +44,7 @@ function CatogeryPage() {
       /*
 
       try {
-        const response_add = await fetch("http://localhost:8070/product/add");
+        const response_add = await fetch("https://agrihub-1.onrender.com/product/add");
         const data = await response_add.json();
         setProducts(data);
       } catch (error) {
