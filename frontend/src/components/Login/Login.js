@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
-import API_URL from "../config"; // ✅ Import API_URL
+import API_URL from "../../config";
+
 
 function Login() {
   const [email, setEmail] = useState("");
