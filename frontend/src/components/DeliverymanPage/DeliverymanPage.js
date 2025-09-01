@@ -5,6 +5,8 @@ import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
 //import Categories from "../Catoegories/Categories";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import API_URL from "../../config";
+
 import {
   faChevronRight,
   faInfoCircle,
