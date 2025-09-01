@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
-import API_URL from "../../config";
+import API_URL from "../../config"; // ✅ central config
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -53,7 +53,7 @@ function Login() {
         if (data.status === "ok") {
           alert("Login successful");
           window.localStorage.setItem("token", data.data);
-          navigate("/homepage-registeredusers");
+          navigate("/homepage-registeredusers"); // ✅ cleaner than window.location.href
         } else {
           alert("Login failed. Please check your credentials.");
         }
@@ -75,7 +75,7 @@ function Login() {
         <div className="login-image">
           <img
             src="https://assets-global.website-files.com/5d2fb52b76aabef62647ed9a/6195c8e178a99295d45307cb_allgreen1000-550.jpg"
-            alt=""
+            alt="Login Illustration"
             className="img-login"
           />
         </div>
@@ -89,6 +89,7 @@ function Login() {
                 type="email"
                 className="form-control"
                 placeholder="Enter email"
+                value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
@@ -99,6 +100,7 @@ function Login() {
                 type="password"
                 className="form-control"
                 placeholder="Enter password"
+                value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
@@ -107,6 +109,7 @@ function Login() {
               <label>Role</label>
               <select
                 className="form-control"
+                value={userRole}
                 onChange={(e) => setUserRole(e.target.value)}
               >
                 <option value="">Select Role</option>
