@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
-import API_URL from "../../config"; // ✅ make sure config.js exists at src/config.js
+import API_URL from "../../config";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -45,7 +45,6 @@ function Login() {
       body: JSON.stringify({
         email,
         password,
-        userRole,
       }),
     })
       .then((res) => res.json())
@@ -54,7 +53,7 @@ function Login() {
         if (data.status === "ok") {
           alert("Login successful");
           window.localStorage.setItem("token", data.data);
-          window.location.href = "/homepage-registeredusers";
+          navigate("/homepage-registeredusers");
         } else {
           alert("Login failed. Please check your credentials.");
         }
