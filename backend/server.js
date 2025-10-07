@@ -18,6 +18,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "https://agri-hub-lful.vercel.app"
+      "https://agri-hub-th8q.vercel.app"
     ],
     credentials: true,
   })
