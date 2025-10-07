@@ -24,13 +24,13 @@ function Login() {
 
     switch (userRole) {
       case "Farmer":
-        url = "http://localhost:8070/farmer/login";
+        url = `${process.env.REACT_APP_API_URL}/farmer/login`;
         break;
       case "Seller":
-        url = "http://localhost:8070/seller/login";
+        url = `${process.env.REACT_APP_API_URL}/seller/login`;
         break;
       case "Deliveryman":
-        url = "http://localhost:8070/deliveryman/login";
+        url = `${process.env.REACT_APP_API_URL}/deliveryman/login`;
         break;
       default:
         break;
