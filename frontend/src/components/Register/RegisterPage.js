@@ -18,13 +18,13 @@ export default function SignUp() {
 
     switch (data.userRole) {
       case "Farmer":
-        url = "http://localhost:8070/farmer/register";
+        url = `${process.env.REACT_APP_API_URL}/farmer/register`;
         break;
       case "Seller":
-        url = "http://localhost:8070/seller/register";
+        url = `${process.env.REACT_APP_API_URL}/seller/register`;
         break;
       case "Deliveryman":
-        url = "http://localhost:8070/deliveryman/register";
+        url = `${process.env.REACT_APP_API_URL}/deliveryman/register`;
         break;
       default:
         break;
