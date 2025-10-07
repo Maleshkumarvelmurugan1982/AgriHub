@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -16,7 +15,10 @@ const PORT = process.env.PORT || 8070;
 // -------------------- MIDDLEWARE --------------------
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: [
+      "http://localhost:3000",
+      "https://agri-hub-lful.vercel.app"
+    ],
     credentials: true,
   })
 );
