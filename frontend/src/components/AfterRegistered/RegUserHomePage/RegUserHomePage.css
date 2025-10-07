@@ -1,0 +1,29 @@
+.page-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.profile-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.profile-img {
+  width: 320px;
+  height: 320px;
+  border-radius: 20px;   /* rounded corners, not circle */
+  object-fit: cover;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease-in-out;
+  cursor: pointer;
+}
+
+.profile-img:hover {
+  transform: scale(1.05);
+}

@@ -1,0 +1,224 @@
+/* ======================== */
+/* General Page Background  */
+/* ======================== */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Open Sans", sans-serif;
+  background: linear-gradient(135deg, #a8e6a1, #79ac78); /* ✅ green gradient */
+  color: #333;
+  min-height: 100vh;
+}
+
+/* ======================== */
+/* Banner Section */
+/* ======================== */
+.government-banner {
+  height: 160px;
+  width: 100%;
+  margin-top: 75px;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #5b8b5b, #79ac78); /* ✅ darker green banner */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  border-radius: 14px;
+  animation: fadeInDown 0.8s ease;
+}
+
+.government-title {
+  font-size: 32px;
+  color: white;
+  font-weight: 900;
+  text-shadow: 1px 2px 4px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+/* ======================== */
+/* Input Section */
+/* ======================== */
+.input-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 25px 0;
+  gap: 12px;
+}
+
+.input-field {
+  padding: 12px 15px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 2px solid #5b8b5b;
+  width: 260px;
+  transition: all 0.3s ease;
+  background-color: #f1f9f1;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #2f6d2f;
+  background-color: #ffffff;
+  box-shadow: 0 0 8px rgba(47, 109, 47, 0.3);
+}
+
+.add-button {
+  padding: 12px 22px;
+  font-size: 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #79ac78, #5b8b5b);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+
+.add-button:hover {
+  background: linear-gradient(135deg, #5b8b5b, #446944);
+  transform: scale(1.05);
+}
+
+/* ======================== */
+/* Tables */
+/* ======================== */
+.schemes-table,
+.deliverymen-table {
+  width: 92%;
+  margin: 35px auto;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  background: rgba(255, 255, 255, 0.1); /* ✅ semi-transparent background */
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  border-radius: 14px;
+  overflow: hidden;
+  animation: fadeInUp 0.9s ease;
+}
+
+/* Header */
+.schemes-table thead tr,
+.deliverymen-table thead tr {
+  background: linear-gradient(90deg, #5b8b5b, #79ac78);
+  color: white;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.schemes-table th,
+.schemes-table td,
+.deliverymen-table th,
+.deliverymen-table td {
+  padding: 16px 20px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* Rows */
+.schemes-table tbody tr,
+.deliverymen-table tbody tr {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.schemes-table tbody tr:hover,
+.deliverymen-table tbody tr:hover {
+  background: #e1f5e1;
+  transform: scale(1.01);
+}
+
+/* ======================== */
+/* Inputs inside tables */
+/* ======================== */
+.edit-input,
+.salary-input {
+  width: 100%;
+  padding: 9px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  transition: border-color 0.3s ease;
+}
+
+.edit-input:focus,
+.salary-input:focus {
+  outline: none;
+  border-color: #5b8b5b;
+  background-color: #f6fff6;
+}
+
+/* ======================== */
+/* Buttons */
+/* ======================== */
+.edit-btn,
+.delete-btn,
+.save-btn,
+.cancel-btn,
+.toggle-deliverymen-btn,
+.deliverymen-table button {
+  padding: 9px 15px;
+  margin-right: 6px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+
+.edit-btn { background: #007bff; color: #fff; }
+.edit-btn:hover { background: #0056b3; transform: scale(1.05); }
+
+.delete-btn { background: #dc3545; color: #fff; }
+.delete-btn:hover { background: #a71d2a; transform: scale(1.05); }
+
+.save-btn { background: #28a745; color: #fff; }
+.save-btn:hover { background: #1c7d31; transform: scale(1.05); }
+
+.cancel-btn { background: #6c757d; color: #fff; }
+.cancel-btn:hover { background: #565e64; transform: scale(1.05); }
+
+.toggle-deliverymen-btn,
+.deliverymen-table button {
+  background: linear-gradient(135deg, #79ac78, #5b8b5b);
+  color: #fff;
+}
+
+.toggle-deliverymen-btn:hover,
+.deliverymen-table button:hover {
+  background: linear-gradient(135deg, #5b8b5b, #446944);
+  transform: scale(1.05);
+}
+
+/* ======================== */
+/* Animations */
+/* ======================== */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ======================== */
+/* Responsive */
+/* ======================== */
+@media screen and (max-width: 900px) {
+  .government-banner {
+    height: auto;
+    padding: 20px;
+  }
+  .input-section {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .schemes-table,
+  .deliverymen-table {
+    width: 95%;
+  }
+}
