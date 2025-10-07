@@ -41,7 +41,7 @@ function OrderPage() {
     console.log("Product name from URL:", productNameFromUrl);
     
     if (productNameFromUrl) {
-      fetch(`http://localhost:8070/product/name/${productNameFromUrl}`)
+      fetch(`${process.env.REACT_APP_API_URL}/product/name/${productNameFromUrl}`)
         .then((response) => {
           if (!response.ok) {
             throw new Error("Product not found");
@@ -130,7 +130,7 @@ function OrderPage() {
       console.log("Submitting order:", orderData);
 
       // Submit order to backend
-      const orderResponse = await fetch("http://localhost:8070/sellerorder/add", {
+      const orderResponse = await fetch(`${process.env.REACT_APP_API_URL}/sellerorder/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -147,7 +147,7 @@ function OrderPage() {
 
       // Update product quantity in database
       const newQuantity = availableQuantity - Number(formData.quantity);
-      const updateResponse = await fetch(`http://localhost:8070/product/${productId}`, {
+      const updateResponse = await fetch(`${process.env.REACT_APP_API_URL}/product/${productId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -182,7 +182,7 @@ function OrderPage() {
         {formData.productImage && (
           <div className="image-preview">
             <img 
-              src={`http://localhost:8070${formData.productImage}`} 
+              src={`${process.env.REACT_APP_API_URL}${formData.productImage}`} 
               alt="Product" 
             />
           </div>
