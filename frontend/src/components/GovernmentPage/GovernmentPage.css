@@ -1,200 +1,213 @@
-/* Container for main header or banner section */
+/* ======================== */
+/* General Page Background  */
+/* ======================== */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Open Sans", sans-serif;
+  background: linear-gradient(135deg, #a8e6a1, #79ac78); /* ✅ green gradient */
+  color: #333;
+  min-height: 100vh;
+}
+
+/* ======================== */
+/* Banner Section */
+/* ======================== */
 .government-banner {
-  height: 150px; /* Adjust height as needed */
+  height: 160px;
   width: 100%;
   margin-top: 75px;
-  margin-bottom: 10px;
-  background-color: #f0f0f0;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #5b8b5b, #79ac78); /* ✅ darker green banner */
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: brightness(0.9);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  border-radius: 14px;
+  animation: fadeInDown 0.8s ease;
 }
 
-/* Title or heading styles */
 .government-title {
-  font-size: 28px;
-  color: #333;
-  font-family: "Open Sans", sans-serif;
-  font-weight: 800;
-  margin-top: 5px;
+  font-size: 32px;
+  color: white;
+  font-weight: 900;
+  text-shadow: 1px 2px 4px rgba(0,0,0,0.3);
   text-align: center;
 }
 
-/* Input section styling */
+/* ======================== */
+/* Input Section */
+/* ======================== */
 .input-section {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 20px;
-  gap: 10px;
+  margin: 25px 0;
+  gap: 12px;
 }
 
 .input-field {
-  padding: 10px;
+  padding: 12px 15px;
   font-size: 16px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  width: 250px;
-  transition: border-color 0.3s ease;
+  border-radius: 10px;
+  border: 2px solid #5b8b5b;
+  width: 260px;
+  transition: all 0.3s ease;
+  background-color: #f1f9f1;
 }
 
 .input-field:focus {
   outline: none;
-  border-color: #79ac78;
+  border-color: #2f6d2f;
+  background-color: #ffffff;
+  box-shadow: 0 0 8px rgba(47, 109, 47, 0.3);
 }
 
 .add-button {
-  padding: 10px 20px;
+  padding: 12px 22px;
   font-size: 16px;
-  border-radius: 8px;
-  background-color: #79ac78;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #79ac78, #5b8b5b);
   color: #fff;
+  font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: transform 0.2s ease, background 0.3s ease;
 }
 
 .add-button:hover {
-  background-color: #5b8b5b;
+  background: linear-gradient(135deg, #5b8b5b, #446944);
+  transform: scale(1.05);
 }
 
-/* Table styling for schemes and delivery men */
+/* ======================== */
+/* Tables */
+/* ======================== */
 .schemes-table,
 .deliverymen-table {
-  width: 90%;
-  margin: 30px auto;
+  width: 92%;
+  margin: 35px auto;
   border-collapse: separate;
-  border-spacing: 0 10px;
-  background: #fff;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-radius: 12px;
+  border-spacing: 0 12px;
+  background: rgba(255, 255, 255, 0.1); /* ✅ semi-transparent background */
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  border-radius: 14px;
   overflow: hidden;
-  font-family: "Open Sans", sans-serif;
+  animation: fadeInUp 0.9s ease;
 }
 
 /* Header */
 .schemes-table thead tr,
 .deliverymen-table thead tr {
-  background-color: #79ac78;
+  background: linear-gradient(90deg, #5b8b5b, #79ac78);
   color: white;
   text-transform: uppercase;
   font-weight: 700;
-  font-size: 14px;
-  border-radius: 12px;
+  font-size: 15px;
 }
 
-/* Table cells */
 .schemes-table th,
 .schemes-table td,
 .deliverymen-table th,
 .deliverymen-table td {
-  padding: 15px 20px;
+  padding: 16px 20px;
   text-align: left;
   vertical-align: middle;
 }
 
-/* Add subtle row backgrounds and spacing */
+/* Rows */
 .schemes-table tbody tr,
 .deliverymen-table tbody tr {
-  background: #fafafa;
-  border-radius: 8px;
-  transition: background-color 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  cursor: default;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
+  transition: background 0.3s ease, transform 0.2s ease;
 }
 
 .schemes-table tbody tr:hover,
 .deliverymen-table tbody tr:hover {
-  background-color: #e6f2d9;
+  background: #e1f5e1;
+  transform: scale(1.01);
 }
 
+/* ======================== */
 /* Inputs inside tables */
+/* ======================== */
 .edit-input,
 .salary-input {
   width: 100%;
-  padding: 8px;
-  border-radius: 6px;
+  padding: 9px;
+  border-radius: 8px;
   border: 1px solid #ccc;
-  font-family: "Open Sans", sans-serif;
   transition: border-color 0.3s ease;
 }
 
 .edit-input:focus,
 .salary-input:focus {
   outline: none;
-  border-color: #79ac78;
+  border-color: #5b8b5b;
+  background-color: #f6fff6;
 }
 
-/* Buttons styling */
+/* ======================== */
+/* Buttons */
+/* ======================== */
 .edit-btn,
 .delete-btn,
 .save-btn,
 .cancel-btn,
 .toggle-deliverymen-btn,
 .deliverymen-table button {
-  padding: 8px 14px;
-  margin-right: 8px;
+  padding: 9px 15px;
+  margin-right: 6px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  font-family: "Open Sans", sans-serif;
   font-size: 14px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  font-weight: 600;
+  transition: transform 0.2s ease, background 0.3s ease;
 }
 
-/* Specific button colors */
-.edit-btn {
-  background-color: #007bff;
-  color: #fff;
-}
+.edit-btn { background: #007bff; color: #fff; }
+.edit-btn:hover { background: #0056b3; transform: scale(1.05); }
 
-.edit-btn:hover {
-  background-color: #0069d9;
-}
+.delete-btn { background: #dc3545; color: #fff; }
+.delete-btn:hover { background: #a71d2a; transform: scale(1.05); }
 
-.delete-btn {
-  background-color: #dc3545;
-  color: #fff;
-}
+.save-btn { background: #28a745; color: #fff; }
+.save-btn:hover { background: #1c7d31; transform: scale(1.05); }
 
-.delete-btn:hover {
-  background-color: #c82333;
-}
-
-.save-btn {
-  background-color: #28a745;
-  color: #fff;
-}
-
-.save-btn:hover {
-  background-color: #218838;
-}
-
-.cancel-btn {
-  background-color: #6c757d;
-  color: #fff;
-}
-
-.cancel-btn:hover {
-  background-color: #5a6268;
-}
+.cancel-btn { background: #6c757d; color: #fff; }
+.cancel-btn:hover { background: #565e64; transform: scale(1.05); }
 
 .toggle-deliverymen-btn,
 .deliverymen-table button {
-  background-color: #79ac78;
-  color: white;
+  background: linear-gradient(135deg, #79ac78, #5b8b5b);
+  color: #fff;
 }
 
 .toggle-deliverymen-btn:hover,
 .deliverymen-table button:hover {
-  background-color: #5b8b5b;
+  background: linear-gradient(135deg, #5b8b5b, #446944);
+  transform: scale(1.05);
 }
 
-/* Responsive adjustments */
+/* ======================== */
+/* Animations */
+/* ======================== */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ======================== */
+/* Responsive */
+/* ======================== */
 @media screen and (max-width: 900px) {
   .government-banner {
     height: auto;
@@ -202,108 +215,10 @@
   }
   .input-section {
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
   .schemes-table,
   .deliverymen-table {
     width: 95%;
-  }
-  .edit-input,
-  .salary-input {
-    width: 100%;
-  }
-  .schemes-table th,
-  .schemes-table td,
-  .deliverymen-table th,
-  .deliverymen-table td {
-    padding: 10px 12px;
-  }
-}
-
-
-/* ======================== */
-/* Government Login Page CSS */
-/* ======================== */
-
-/* Container for login page */
-.login-container {
-  max-width: 400px;
-  margin: 120px auto 40px;
-  padding: 30px 25px;
-  background-color: #f9f9f9;
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
-  font-family: "Open Sans", sans-serif;
-}
-
-/* Login page header/banner */
-.login-banner {
-  text-align: center;
-  margin-bottom: 25px;
-}
-
-.login-title {
-  font-size: 28px;
-  font-weight: 800;
-  color: #333;
-  margin-bottom: 10px;
-}
-
-/* Input fields styling */
-.login-input {
-  width: 100%;
-  padding: 12px 15px;
-  margin-bottom: 18px;
-  font-size: 16px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  transition: border-color 0.3s ease;
-  box-sizing: border-box;
-}
-
-.login-input:focus {
-  outline: none;
-  border-color: #79ac78;
-}
-
-/* Login button styling */
-.login-button {
-  width: 100%;
-  padding: 12px 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: white;
-  background-color: #79ac78;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  box-shadow: 0 3px 10px rgba(121, 172, 120, 0.6);
-  transition: background-color 0.3s ease;
-}
-
-.login-button:hover {
-  background-color: #5b8b5b;
-}
-
-/* Error message */
-.login-error {
-  color: #dc3545;
-  font-weight: 600;
-  margin-bottom: 15px;
-  text-align: center;
-}
-
-/* Responsive for smaller screens */
-@media screen and (max-width: 450px) {
-  .login-container {
-    margin: 60px 15px 30px;
-    padding: 25px 20px;
-  }
-  .login-title {
-    font-size: 24px;
-  }
-  .login-button {
-    font-size: 16px;
-    padding: 10px 0;
   }
 }

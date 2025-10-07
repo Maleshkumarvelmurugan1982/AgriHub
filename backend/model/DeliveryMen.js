@@ -1,23 +1,17 @@
 const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const deliveryMenSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    salary: {
-      type: Number,
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-    collection: "deliverymen", // explicitly tell mongoose which collection to use
-  }
-);
+const deliverymanSchema = new Schema({
+  fname: String,
+  lname: String,
+  email: String,
+  district: String,
+  password: String,
+  primaryKey: { type: String, unique: true },
+  salary: { type: Number, default: 0 }, // ✅ add salary
+});
 
-const DeliveryMen = mongoose.model("DeliveryMen", deliveryMenSchema);
-
-module.exports = DeliveryMen;
+// ✅ Prevent OverwriteModelError
+module.exports =
+  mongoose.models.DeliveryMan ||
+  mongoose.model("DeliveryMan", deliverymanSchema);

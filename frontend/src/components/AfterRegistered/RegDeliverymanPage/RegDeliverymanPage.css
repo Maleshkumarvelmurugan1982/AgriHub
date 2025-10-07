@@ -13,57 +13,33 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* This property sets the alignment to the top */
 }
-/* FarmerPage.css */
+
 .type-writer-container {
   position: absolute;
-  top: 25%; /* Adjust as needed */
-  left: 10%; /* Adjust as needed */
+  top: 25%;
+  left: 10%;
   max-width: 30%;
   display: flex;
 }
 
 .writer {
-  font-size: 25px; /* Adjust font size */
+  font-size: 25px;
   font-weight: 700;
   font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
 }
 
 .categories-container {
-  display: flex; /* Use flexbox for layout */
+  display: flex;
   align-items: center;
-  justify-content: center; /* Center align vertically */
-
-  /* Spreads out the two items in the container */
-
-  /* Optional: Add some space below if needed */
-}
-
-.request-product {
-  padding: 10px 15px; /* Adjust padding to reduce width */
-  border-radius: 10px;
-  background-color: hsl(49, 37%, 62%);
-  border: none;
-  font-size: 20px;
-  font-weight: 600;
-  text-align: center;
-  text-decoration: none;
-  color: black;
-  max-width: 250px; /* Set a maximum width */
-  overflow: hidden; /* Hide any content that exceeds the max-width */
-  white-space: nowrap;
-  /* Prevent wrapping of text */
-}
-
-.request-product:hover {
-  color: black;
+  justify-content: center;
 }
 
 .categories-div {
   width: auto;
   padding-right: 30px;
 }
+
 .first-word {
   font-size: 24px;
   color: black;
@@ -78,12 +54,12 @@
   font-weight: 700;
 }
 
-/* Add this style to your CSS file */
 .product-row {
   display: flex;
   justify-content: space-between;
-  margin: 30px; /* Adjust as needed, or use 'space-around' or 'space-evenly' */
+  margin: 30px;
 }
+
 .go-to-page {
   font-size: 25px;
   font-weight: 500px;
@@ -92,180 +68,287 @@
   height: 50px;
 }
 
-.topic p {
-  font-size: 24px;
-  font-weight: bold;
-  padding: 4px;
-  border: 4px solid #79ac78;
-  width: 300px;
-  padding-left: 30px;
-  border-radius: 0 15px 0 15px;
-  margin-top: 10px;
-  margin-left: 40px;
+/* Topic Section */
+.topic {
+  margin: 20px 0;
+  text-align: center;
 }
 
+.topic p {
+  font-size: 28px;
+  font-weight: bold;
+  padding: 10px 30px;
+  border: 3px solid #79ac78;
+  width: fit-content;
+  margin: 0 auto;
+  border-radius: 8px;
+  background-color: rgba(121, 172, 120, 0.1);
+  color: #2c3e50;
+}
+
+/* Orders Section */
 .orders-wrapper {
   display: flex;
-  justify-content: center; /* centers the content horizontally */
-  align-items: flex-start;
-  padding-top: 30px;
-  padding-bottom: 70px; /* aligns items to the top of the container */
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  max-width: 1200px; /* keeps it centered */
+  margin: 0 auto;
 }
+
 .orders-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
-  padding: 0; /* Adjust the padding as needed */
-}
-
-.view-all-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 200px;
-
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  text-decoration: none; /* removes default underline for links */
-  transition: background-color 0.3s;
-}
-
-.view-all-button1 {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 200px;
-  margin-right: 50px;
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  text-decoration: none; /* removes default underline for links */
-  transition: background-color 0.3s;
-}
-
-.view-all-button1:hover {
-  background-color: #79ac78;
-  color: #fff;
-}
-
-.view-all-button:hover {
-  background-color: #79ac78;
-  color: #fff;
-}
-
-.arrow-icon {
-  margin-left: 10px; /* space between the text and the icon */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); /* wider cards */
+  gap: 30px;
+  width: 100%;
+  padding: 20px 0;
 }
 
 .order-item {
-  width: calc(
-    20% - 20px
-  ); /* 25% to ensure 4 items in a row and -20px to account for the gap */
-  box-sizing: border-box; /* includes padding and border in the element's total width and height */
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* optional: adds a slight shadow for depth */
-  transition: transform 0.3s ease-in-out; /* smooth transition on hover */
-}
-
-.order-item1 {
-  width: calc(
-    23% - 20px
-  ); /* 25% to ensure 4 items in a row and -20px to account for the gap */
-  box-sizing: border-box; /* includes padding and border in the element's total width and height */
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* optional: adds a slight shadow for depth */
-  transition: transform 0.3s ease-in-out; /* smooth transition on hover */
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e0e0e0;
+  min-height: 300px; /* balanced height */
+  overflow: visible; /* no text clipping */
 }
 
 .order-item:hover {
-  transform: scale(
-    1.01
-  ); /* slightly scale up the card on hover for a zoom effect */
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
 .order-image {
   width: 100%;
-  height: 200px; /* you can adjust this as per your preference */
-  object-fit: cover; /* ensures the image covers the entire container without stretching */
-  border-radius: 8px 8px 0 0; /* rounded corners for the top */
+  height: 140px; /* reduced height */
+  object-fit: cover;
+  border-bottom: 2px solid #f0f0f0;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  overflow: hidden;
 }
 
+/* Order Information */
 .order-item p {
-  margin-top: 10px;
-  margin-bottom: 5px;
+  margin: 8px 15px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
 }
 
+.order-item p:first-of-type {
+  font-weight: bold;
+  font-size: 18px;
+  color: #2c3e50;
+  margin-top: 15px;
+  border-bottom: 1px dashed #e0e0e0;
+  padding-bottom: 8px;
+}
+
+.order-item p:nth-of-type(2) {
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.order-item p:nth-of-type(3),
+.order-item p:nth-of-type(4) {
+  color: #34495e;
+  font-weight: 500;
+  padding: 5px 0;
+}
+
+/* Location indicators */
+.order-item p:nth-of-type(3)::before {
+  content: "📍 Pickup: ";
+  font-weight: bold;
+  color: #27ae60;
+}
+
+.order-item p:nth-of-type(4)::before {
+  content: "📍 Deliver: ";
+  font-weight: bold;
+  color: #e74c3c;
+}
+
+/* Buttons */
 .cart-button,
 .supply-button {
-  display: block;
-  margin-top: 10px;
-  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 15px;
+  padding: 12px 15px;
   border: none;
-  border-radius: 5px;
-  background-color: #79ac78; /* blue color for buttons, you can adjust as needed */
-  color: #fff;
+  border-radius: 8px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease-in-out; /* smooth transition on hover */
+  transition: all 0.3s ease;
 }
 
-.cart-button:hover,
+.cart-button {
+  background-color: #79ac78;
+  color: white;
+  font-size: 16px;
+}
+
+.cart-button:hover {
+  background-color: #5a8a59;
+  transform: scale(1.02);
+}
+
+.supply-button {
+  background-color: #f8f9fa;
+  color: #34495e;
+  border: 1px solid #dee2e6;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
 .supply-button:hover {
-  background-color: #0056b3; /* slightly darker shade on hover */
+  background-color: #e9ecef;
+  transform: scale(1.02);
 }
 
-/* FontAwesome Icons */
-.fa-shopping-cart,
-.fa-truck {
-  margin-right: 5px;
+/* View All Button */
+.view-all-button1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px auto;
+  padding: 12px 25px;
+  background-color: #79ac78;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
-/* New styles for the Salary Modal */
+.view-all-button1:hover {
+  background-color: #5a8a59;
+  transform: scale(1.05);
+}
+
+.arrow-icon {
+  margin-left: 8px;
+}
+
+/* Salary Section */
+.salary-section {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.view-salary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 25px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.view-salary-button:hover {
+  background-color: #2980b9;
+  transform: scale(1.03);
+}
+
+/* Salary Modal */
 .salary-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999;
+  z-index: 1000;
 }
 
 .salary-content {
-  background: #fff;
+  background: white;
   padding: 30px;
-  border-radius: 10px;
+  border-radius: 12px;
   width: 80%;
   max-width: 400px;
   text-align: center;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
 
 .close-button {
   margin-top: 20px;
   padding: 10px 20px;
   background-color: #79ac78;
-  color: #fff;
+  color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.3s;
 }
 
 .close-button:hover {
-  background-color: #0056b3;
+  background-color: #5a8a59;
+}
+
+.nothing2 {
+  height: 30px;
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .orders-container {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .type-writer-container {
+    position: relative;
+    top: auto;
+    left: auto;
+    max-width: 100%;
+    margin: 20px;
+    text-align: center;
+  }
+  
+  .writer {
+    font-size: 40px;
+  }
+  
+  .orders-container {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+  
+  .topic p {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .writer {
+    font-size: 30px;
+  }
+  
+  .orders-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .topic p {
+    font-size: 20px;
+    padding: 8px 20px;
+  }
 }

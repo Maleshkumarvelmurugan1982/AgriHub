@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React from "react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import "./RegisterPage.css";
 import Navbar from "../Navbar/Navbar";
@@ -8,23 +8,11 @@ export default function SignUp() {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm();
 
-  const [generatedFarmerId, setGeneratedFarmerId] = useState(""); // store generated ID
-  const userRole = watch("userRole"); // watch role selection
-  const navigate = useNavigate();
-
   const onSubmit = async (data) => {
-    // Generate unique Farmer ID if role is Farmer
-    if (userRole === "Farmer") {
-      const randomNumber = Math.floor(Math.random() * 100); // 0-99
-      const formattedNumber = randomNumber.toString().padStart(2, "0"); // ensures two digits
-      const farmerId = `FR-AH${formattedNumber}`;
-      data.farmerId = farmerId;
-      setGeneratedFarmerId(farmerId); // save for display
-    }
+    console.log(data);
 
     let url = "";
 
@@ -64,24 +52,11 @@ export default function SignUp() {
     }
   };
 
-  const handleBack = () => {
-    navigate("/");
-  };
-
   return (
     <div>
       <Navbar />
       <div className="signup-container">
         <div className="signup-inner-container">
-          <button
-            type="button"
-            className="back-button"
-            onClick={handleBack}
-            style={{ marginBottom: "20px" }}
-          >
-            Back to Home
-          </button>
-
           <form onSubmit={handleSubmit(onSubmit)}>
             <h3>Sign Up</h3>
             <div className="select-role">
@@ -96,14 +71,6 @@ export default function SignUp() {
                 <span className="error">Role is required</span>
               )}
             </div>
-
-            {/* Display generated Farmer ID if role is Farmer */}
-            {userRole === "Farmer" && generatedFarmerId && (
-              <div className="farmer-id-display">
-                <label>Generated Farmer ID:</label>
-                <input type="text" value={generatedFarmerId} readOnly />
-              </div>
-            )}
 
             <div className="first-name">
               <label>First name</label>
@@ -157,10 +124,10 @@ export default function SignUp() {
               <label>District</label>
               <select {...register("district", { required: true })}>
                 <option value="">Select District</option>
-                <option value="galle">Galle</option>
-                <option value="hambantota">Hambantota</option>
-                <option value="matara">Matara</option>
-                <option value="colombo">Colombo</option>
+                <option value="virudhunagar">Virudhunagar</option>
+                <option value="coimbatore">Coimbatore</option>
+                <option value="madurai">Madurai</option>
+                <option value="chennai">Chennai</option>
               </select>
               {errors.district && (
                 <span className="error">District is required</span>
@@ -172,6 +139,16 @@ export default function SignUp() {
                 Sign Up
               </button>
             </div>
+
+            {/* Back to Home button */}
+            <div className="back-home">
+              <Link to="/">
+                <button type="button" className="back-home-button">
+                  Back to Home
+                </button>
+              </Link>
+            </div>
+
             <p className="forgot-password text-right">
               Already registered <Link to="/login">sign in?</Link>
             </p>

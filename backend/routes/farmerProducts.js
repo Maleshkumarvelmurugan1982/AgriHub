@@ -1,3 +1,4 @@
+// ==================== FARMERPRODUCTS.JS ====================
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
@@ -31,6 +32,12 @@ router.post("/add", upload.single("image"), async (req, res) => {
   try {
     const { farmerId, name, category, description, price, quantity } = req.body;
 
+    // ✅ FIX: Build proper path with forward slashes
+    let imagePath = "";
+    if (req.file) {
+      imagePath = `/uploads/${req.file.filename}`;
+    }
+
     const newProduct = new Product({
       farmerId,
       name,
@@ -38,7 +45,7 @@ router.post("/add", upload.single("image"), async (req, res) => {
       description,
       price,
       quantity,
-      image: req.file ? req.file.filename : "",
+      image: imagePath,
     });
 
     await newProduct.save();

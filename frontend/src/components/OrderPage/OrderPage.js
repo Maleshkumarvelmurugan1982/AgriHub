@@ -1,71 +1,178 @@
 import React, { useState, useEffect } from "react";
 import "./OrderPage.css";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-function AddProductPage() {
+function OrderPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const [formData, setFormData] = useState({
     productImage: queryParams.get("image") || "",
-    category: queryParams.get("item") || "",
-    item: queryParams.get("category") || "",
+    productName: queryParams.get("item") || "",
     quantity: "",
     price: "",
     district: "",
     company: "",
     mobile: "",
-    land: "",
     email: "",
     address: "",
     expireDate: "",
   });
 
-  const [items, setItems] = useState([]);
+  const [unitPrice, setUnitPrice] = useState(0);
+  const [availableQuantity, setAvailableQuantity] = useState(0);
+  const [quantityError, setQuantityError] = useState("");
+  const [productId, setProductId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Fetch items based on selected category
-    fetchItems(formData.category);
-  }, [formData.category]);
+    const params = new URLSearchParams(location.search);
+    
+    const priceFromUrl = params.get("price");
+    console.log("Price from URL:", priceFromUrl);
+    
+    if (priceFromUrl) {
+      setUnitPrice(Number(priceFromUrl));
+      console.log("Unit price set from URL:", Number(priceFromUrl));
+      return;
+    }
+    
+    const productNameFromUrl = params.get("item");
+    console.log("Product name from URL:", productNameFromUrl);
+    
+    if (productNameFromUrl) {
+      fetch(`http://localhost:8070/product/name/${productNameFromUrl}`)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Product not found");
+          }
+          return response.json();
+        })
+        .then((product) => {
+          console.log("Fetched product:", product);
+          
+          if (product && product.price) {
+            setUnitPrice(Number(product.price));
+            setAvailableQuantity(Number(product.quantity));
+            setProductId(product._id);
+            console.log("Unit price set from API:", Number(product.price));
+            console.log("Available quantity:", Number(product.quantity));
+          }
+        })
+        .catch((error) => console.error("Error fetching price:", error));
+    }
+  }, [location.search]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    if (name === "quantity") {
+      const quantity = Number(value) || 0;
+      
+      if (quantity > availableQuantity) {
+        setQuantityError(`Only ${availableQuantity} kg available in stock!`);
+      } else {
+        setQuantityError("");
+      }
+      
+      const totalPrice = quantity * unitPrice;
+      
+      console.log("Quantity:", quantity, "Unit Price:", unitPrice, "Total:", totalPrice);
+      
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        quantity: value,
+        price: totalPrice > 0 ? totalPrice.toFixed(2) : "",
+      }));
+      return;
+    }
+
     setFormData((prevFormData) => ({
       ...prevFormData,
       [name]: value,
     }));
-
-    // Find the selected item from items
-    const selectedItem = items.find((item) => item.id === value);
-    if (selectedItem) {
-      // Update form data with selected item details
-      setFormData((prevFormData) => ({
-        ...prevFormData,
-        item: selectedItem.name,
-        category: selectedItem.category,
-        productImage: selectedItem.image, // Assuming you have an image field in your item object
-      }));
-    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    // You can handle form submission logic here, like sending data to the backend
-  };
+    
+    if (quantityError) {
+      alert("Please enter a valid quantity within available stock!");
+      return;
+    }
 
-  const fetchItems = (category) => {
-    // Fetch items based on category and update the items state
-    fetch(`http://localhost:8070/product?category=${category}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return response.json(); // Parse the response body as JSON
-      })
-      .then((data) => {
-        setItems(data); // Update the items state with the parsed data
-      })
-      .catch((error) => console.error("Error fetching items:", error));
+    if (!formData.quantity || !formData.district || !formData.company || !formData.mobile || !formData.email || !formData.address || !formData.expireDate) {
+      alert("Please fill in all required fields!");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Create the order
+      const orderData = {
+        productId: productId,
+        productName: formData.productName,
+        productImage: formData.productImage,
+        quantity: Number(formData.quantity),
+        unitPrice: unitPrice,
+        totalPrice: Number(formData.price),
+        district: formData.district,
+        company: formData.company,
+        mobile: formData.mobile,
+        email: formData.email,
+        address: formData.address,
+        expireDate: formData.expireDate,
+        orderDate: new Date().toISOString(),
+        status: "Pending"
+      };
+
+      console.log("Submitting order:", orderData);
+
+      // Submit order to backend
+      const orderResponse = await fetch("http://localhost:8070/sellerorder/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error("Failed to create order");
+      }
+
+      const orderResult = await orderResponse.json();
+      console.log("Order created:", orderResult);
+
+      // Update product quantity in database
+      const newQuantity = availableQuantity - Number(formData.quantity);
+      const updateResponse = await fetch(`http://localhost:8070/product/${productId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          quantity: newQuantity,
+          price: unitPrice
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error("Failed to update product quantity");
+      }
+
+      alert("Order placed successfully!");
+      
+      // Reset form or navigate to orders page
+      navigate("/orders");
+      
+    } catch (error) {
+      console.error("Error submitting order:", error);
+      alert("Failed to place order. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -74,52 +181,81 @@ function AddProductPage() {
       <form onSubmit={handleSubmit}>
         {formData.productImage && (
           <div className="image-preview">
-            <img src={formData.productImage} alt="Product" />
+            <img 
+              src={`http://localhost:8070${formData.productImage}`} 
+              alt="Product" 
+            />
           </div>
         )}
 
+        {formData.productName && (
+          <>
+            <div className="input-field-container">
+              <p>Product Name</p>
+            </div>
+            <div className="category-display">
+              <h4>{formData.productName}</h4>
+            </div>
+          </>
+        )}
+
+        {unitPrice > 0 && (
+          <>
+            <div className="input-field-container">
+              <p>Unit Price (Rs. per kg)</p>
+            </div>
+            <div className="category-display">
+              <h4>Rs. {unitPrice.toFixed(2)}</h4>
+            </div>
+          </>
+        )}
+
+        {availableQuantity > 0 && (
+          <>
+            <div className="input-field-container">
+              <p>Available Stock</p>
+            </div>
+            <div className="category-display">
+              <h4>{availableQuantity} kg</h4>
+            </div>
+          </>
+        )}
+
         <div className="input-field-container">
-          <p>Product Category</p>
-        </div>
-        <input
-          type="text"
-          name="category"
-          placeholder="Product Category"
-          value={formData.category}
-          onChange={handleChange}
-        />
-        <div className="input-field-container">
-          <p>Product Item</p>
-        </div>
-        <input
-          type="text"
-          name="item"
-          placeholder="Product Item"
-          value={formData.item}
-          onChange={handleChange}
-        />
-        <div className="input-field-container">
-          <p>Quantity (kg)</p>
+          <p>Quantity (kg) <span className="required">*</span></p>
         </div>
         <input
           type="number"
           name="quantity"
-          placeholder="Quantity"
+          placeholder="Enter Quantity"
           value={formData.quantity}
           onChange={handleChange}
+          min="0"
+          step="0.1"
+          max={availableQuantity}
+          className={quantityError ? "input-error" : ""}
+          required
         />
+        {quantityError && (
+          <div className="error-message">
+            <p>{quantityError}</p>
+          </div>
+        )}
+
         <div className="input-field-container">
-          <p>Price (Rs.)</p>
+          <p>Total Price (Rs.)</p>
         </div>
         <input
-          type="number"
+          type="text"
           name="price"
-          placeholder="Price"
+          placeholder="Total Price"
           value={formData.price}
-          onChange={handleChange}
+          readOnly
+          className="readonly-field"
         />
+
         <div className="input-field-container">
-          <p>District</p>
+          <p>District <span className="required">*</span></p>
         </div>
         <input
           type="text"
@@ -127,9 +263,11 @@ function AddProductPage() {
           placeholder="District"
           value={formData.district}
           onChange={handleChange}
+          required
         />
+
         <div className="input-field-container">
-          <p>Company</p>
+          <p>Company <span className="required">*</span></p>
         </div>
         <input
           type="text"
@@ -137,9 +275,11 @@ function AddProductPage() {
           placeholder="Company"
           value={formData.company}
           onChange={handleChange}
+          required
         />
+
         <div className="input-field-container">
-          <p>Contact Number</p>
+          <p>Contact Number <span className="required">*</span></p>
         </div>
         <input
           type="text"
@@ -147,9 +287,13 @@ function AddProductPage() {
           placeholder="Mobile"
           value={formData.mobile}
           onChange={handleChange}
+          pattern="[0-9]{10}"
+          title="Please enter a valid 10-digit mobile number"
+          required
         />
+
         <div className="input-field-container">
-          <p>Email Address</p>
+          <p>Email Address <span className="required">*</span></p>
         </div>
         <input
           type="email"
@@ -157,18 +301,22 @@ function AddProductPage() {
           placeholder="Email"
           value={formData.email}
           onChange={handleChange}
+          required
         />
+
         <div className="input-field-container">
-          <p>Living Address</p>
+          <p>Living Address <span className="required">*</span></p>
         </div>
         <textarea
           name="address"
           placeholder="Address"
           value={formData.address}
           onChange={handleChange}
+          required
         ></textarea>
+
         <div className="input-field-container">
-          <p>Set Order Expire Date</p>
+          <p>Set Order Expire Date <span className="required">*</span></p>
         </div>
         <input
           type="date"
@@ -176,11 +324,16 @@ function AddProductPage() {
           placeholder="Expire Date"
           value={formData.expireDate}
           onChange={handleChange}
+          min={new Date().toISOString().split('T')[0]}
+          required
         />
-        <button type="submit">Submit</button>
+
+        <button type="submit" disabled={isSubmitting || quantityError}>
+          {isSubmitting ? "Placing Order..." : "Place Order"}
+        </button>
       </form>
     </div>
   );
 }
 
-export default AddProductPage;
+export default OrderPage;

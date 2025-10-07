@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import "./RegDeliverymanPage.css";
 import NavbarRegistered from "../../NavbarRegistered/NavbarRegistered";
 import FooterNew from "../../Footer/FooterNew";
@@ -7,56 +8,52 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronRight,
   faTruck,
-  faShoppingCart,
   faInfoCircle,
   faMoneyBillWave,
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
-function RegDeliverymanPage() {
+function RegDeliverymanPage({ deliverymanId }) {
   const [sellerOrders, setSellerOrders] = useState([]);
   const [farmerOrders, setFarmerOrders] = useState([]);
+  const [salary, setSalary] = useState(0);
   const [showSalary, setShowSalary] = useState(false);
-  const [calculatedSalary, setCalculatedSalary] = useState(0);
-
-  // Constraints for salary calculation (example)
-  const SALARY_PER_DELIVERY = 10; // e.g., $10 per delivery
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSellerOrders = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:8070/sellerorder/");
-        const data = await response.json();
-        setSellerOrders(data);
+        setLoading(true);
+
+        // Fetch seller orders
+        const sellerResponse = await axios.get("http://localhost:8070/sellerorder/");
+        setSellerOrders(sellerResponse.data ?? []);
+
+        // Fetch farmer orders
+        const farmerResponse = await axios.get("http://localhost:8070/farmerorder/");
+        setFarmerOrders(farmerResponse.data ?? []);
+
+        // Fetch salary from backend
+        if (deliverymanId) {
+          const salaryResponse = await axios.get(`http://localhost:8070/salary/${deliverymanId}`);
+          setSalary(salaryResponse.data.salary ?? 0);
+        }
       } catch (error) {
-        console.error("Error fetching seller orders:", error);
+        console.error("Error fetching data:", error);
+        setSalary(0);
+        setSellerOrders([]);
+        setFarmerOrders([]);
+      } finally {
+        setLoading(false);
       }
     };
 
-    const fetchFarmerOrders = async () => {
-      try {
-        const response = await fetch("http://localhost:8070/farmerorder/");
-        const data = await response.json();
-        setFarmerOrders(data);
-      } catch (error) {
-        console.error("Error fetching farmer orders:", error);
-      }
-    };
+    fetchData();
+  }, [deliverymanId]);
 
-    fetchSellerOrders();
-    fetchFarmerOrders();
-  }, []);
-
-  const handleViewSalary = () => {
-    // Example constraint: sum of seller and farmer orders
-    const totalDeliveries = sellerOrders.length + farmerOrders.length;
-
-    // Calculate salary based on constraint
-    const salary = totalDeliveries * SALARY_PER_DELIVERY;
-
-    setCalculatedSalary(salary);
-    setShowSalary(true);
-  };
+  if (loading) {
+    return <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>;
+  }
 
   return (
     <div>
@@ -89,19 +86,18 @@ function RegDeliverymanPage() {
         </div>
       </div>
 
-      {/* Button to view salary */}
+      {/* Display current salary */}
       <div className="salary-section" style={{ margin: "20px", textAlign: "center" }}>
-        <button className="view-salary-button" onClick={handleViewSalary}>
-          <FontAwesomeIcon icon={faMoneyBillWave} /> View Salary
+        <button className="view-salary-button" onClick={() => setShowSalary(true)}>
+          <FontAwesomeIcon icon={faMoneyBillWave} /> Your Salary Provided by Government
         </button>
       </div>
 
-      {/* Display salary info in a modal or section */}
       {showSalary && (
         <div className="salary-modal">
           <div className="salary-content">
-            <h2>Your Estimated Salary</h2>
-            <p>Based on your deliveries, your salary is: <strong>${calculatedSalary}</strong></p>
+            <h2>Your Salary Provided by Government</h2>
+            <p>Your salary is: <strong>${salary}</strong></p>
             <button onClick={() => setShowSalary(false)} className="close-button">
               Close
             </button>
@@ -111,21 +107,22 @@ function RegDeliverymanPage() {
 
       <div className="nothing2"></div>
 
+      {/* Seller Orders */}
       <div className="topic">
         <p>Seller Orders to Deliver</p>
       </div>
 
       <div className="orders-wrapper">
         <div className="orders-container">
-          {sellerOrders.slice(0, 4).map((order, index) => (
+          {sellerOrders.slice(0, 4).map((_, index) => (
             <div key={index} className="order-item">
               <img
-                src={order.productImage}
-                alt={order.item}
+                src={`http://localhost:8070${sellerOrders[index].productImage}`}
+                alt={sellerOrders[index].item}
                 className="order-image"
               />
-              <p>{order.item}</p>
-              <p>Quantity: {order.quantity}</p>
+              <p>{sellerOrders[index].item}</p>
+              <p>Quantity: {sellerOrders[index].quantity}</p>
               <p>Pickup: Seller</p>
               <p>Deliver To: Buyer</p>
               <button className="cart-button">
@@ -146,21 +143,22 @@ function RegDeliverymanPage() {
 
       <div className="nothing2"></div>
 
+      {/* Farmer Orders */}
       <div className="topic">
         <p>Farmer Orders to Deliver</p>
       </div>
 
       <div className="orders-wrapper">
         <div className="orders-container">
-          {farmerOrders.slice(0, 4).map((order, index) => (
+          {farmerOrders.slice(0, 4).map((_, index) => (
             <div key={index} className="order-item">
               <img
-                src={order.productImage}
-                alt={order.item}
+                src={`http://localhost:8070${farmerOrders[index].productImage}`}
+                alt={farmerOrders[index].item}
                 className="order-image"
               />
-              <p>{order.item}</p>
-              <p>Quantity: {order.quantity}</p>
+              <p>{farmerOrders[index].item}</p>
+              <p>Quantity: {farmerOrders[index].quantity}</p>
               <p>Pickup: Farmer</p>
               <p>Deliver To: Buyer</p>
               <button className="cart-button">

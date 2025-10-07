@@ -2,27 +2,14 @@ const express = require("express");
 const router = express.Router();
 const DeliveryMen = require("../model/DeliveryMen");
 
-// GET /deliverymen - get all delivery men
+// GET /deliverymen
 router.get("/", async (req, res) => {
   try {
     const deliveryMen = await DeliveryMen.find();
     res.json(deliveryMen);
   } catch (err) {
+    console.error("Failed to fetch delivery men:", err);
     res.status(500).json({ error: "Failed to fetch delivery men" });
-  }
-});
-
-// POST /deliverymen - add new delivery man
-router.post("/", async (req, res) => {
-  const { name, salary } = req.body;
-  if (!name) return res.status(400).json({ error: "Name is required" });
-
-  try {
-    const newDeliveryMan = new DeliveryMen({ name, salary });
-    await newDeliveryMan.save();
-    res.status(201).json(newDeliveryMan);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to add delivery man" });
   }
 });
 
@@ -31,24 +18,34 @@ router.put("/:id/salary", async (req, res) => {
   const { id } = req.params;
   const { salary } = req.body;
 
-  if (salary === undefined || salary === null)
+  // Validate salary presence
+  if (salary === undefined || salary === null) {
     return res.status(400).json({ error: "Salary is required" });
+  }
+
+  // Validate salary type
+  if (typeof salary !== "number" || isNaN(salary) || salary <= 0) {
+    return res.status(400).json({ error: "Salary must be a positive number" });
+  }
 
   try {
     const deliveryMan = await DeliveryMen.findById(id);
-    if (!deliveryMan)
+
+    if (!deliveryMan) {
       return res.status(404).json({ error: "Delivery man not found" });
+    }
 
     deliveryMan.salary = salary;
     await deliveryMan.save();
 
     res.json(deliveryMan);
   } catch (err) {
-    res.status(500).json({ error: "Failed to update salary" });
+    console.error("Error updating salary:", err);
+    res.status(500).json({ error: "Failed to update salary", details: err.message });
   }
 });
 
-// DELETE /deliverymen/:id - delete delivery man
+// DELETE /deliverymen/:id
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
   try {
@@ -58,6 +55,7 @@ router.delete("/:id", async (req, res) => {
 
     res.json({ message: "Delivery man deleted successfully" });
   } catch (err) {
+    console.error("Failed to delete delivery man:", err);
     res.status(500).json({ error: "Failed to delete delivery man" });
   }
 });

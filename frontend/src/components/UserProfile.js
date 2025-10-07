@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function UserProfile() {
   const [user, setUser] = useState(null);
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch("http://localhost:8070/user/userdata", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ token: localStorage.getItem("token") }),
     })
@@ -31,7 +31,6 @@ function UserProfile() {
 
   const fetchOrders = (role, id) => {
     let url = "";
-
     if (role === "Farmer") url = `http://localhost:8070/farmerorder/user/${id}`;
     else if (role === "Seller") url = `http://localhost:8070/sellerorder/user/${id}`;
     else if (role === "Deliveryman") url = `http://localhost:8070/deliverypost/user/${id}`;
@@ -39,12 +38,8 @@ function UserProfile() {
 
     fetch(url)
       .then((res) => res.json())
-      .then((data) => {
-        setOrders(data);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch orders:", err);
-      });
+      .then((data) => setOrders(data))
+      .catch((err) => console.error("Failed to fetch orders:", err));
   };
 
   if (error) return <p>{error}</p>;
@@ -53,240 +48,155 @@ function UserProfile() {
   return (
     <>
       <style>{`
-        .nothing {
-          width: 100%;
-          height: 74px;
-        }
-
-        .crop-container {
-          width: 100%;
-          height: 455px;
-          overflow: hidden;
-        }
-
-        .crop-image {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .type-writer-container {
-          position: absolute;
-          top: 25%;
-          left: 10%;
-          max-width: 30%;
-          display: flex;
-        }
-
-        .writer {
-          font-size: 25px;
-          font-weight: 700;
-          font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
-        }
-
-        .categories-container {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .request-product {
-          padding: 10px 15px;
-          border-radius: 10px;
-          background-color: hsl(49, 37%, 62%);
-          border: none;
-          font-size: 20px;
-          font-weight: 600;
-          text-align: center;
-          text-decoration: none;
-          color: black;
-          max-width: 250px;
-          overflow: hidden;
-          white-space: nowrap;
-        }
-
-        .request-product:hover {
-          color: black;
-        }
-
-        .categories-div {
-          width: auto;
-          padding-right: 30px;
-        }
-
-        .first-word {
-          font-size: 24px;
-          color: black;
-          font-family: "Open Sans", sans-serif;
-          font-weight: 700;
-        }
-
-        .second-word {
-          font-size: 24px;
-          color: #79ac78;
-          font-family: "Open Sans", sans-serif;
-          font-weight: 700;
-        }
-
-        .product-row {
-          display: flex;
-          justify-content: space-between;
-          margin: 30px;
-        }
-
-        .go-to-page {
-          font-size: 25px;
-          font-weight: 500;
-          margin-right: 10px;
-          width: auto;
-          height: 50px;
-        }
-
-        .topic p {
-          font-size: 24px;
-          font-weight: bold;
-          padding: 4px;
-          border: 4px solid #79ac78;
-          width: 300px;
-          padding-left: 30px;
-          border-radius: 0 15px 0 15px;
-          margin-top: 10px;
-          margin-left: 40px;
-        }
-
-        .orders-wrapper {
-          display: flex;
-          justify-content: center;
-          align-items: flex-start;
-          padding-top: 30px;
-          padding-bottom: 70px;
-        }
-
-        .orders-container {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center;
-          gap: 20px;
+        body {
+          font-family: 'Poppins', sans-serif;
+          margin: 0;
           padding: 0;
+          background: linear-gradient(135deg, #c3f0c3 0%, #eaf7ea 70%, #ffffff 100%);
         }
 
-        .view-all-button, .view-all-button1 {
+        .container {
           display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: center;
-          margin-top: 200px;
-          padding: 10px 20px;
-          background-color: #007bff;
-          color: #fff;
-          border: none;
-          border-radius: 5px;
-          cursor: pointer;
-          text-decoration: none;
-          transition: background-color 0.3s;
-        }
-
-        .view-all-button1 {
-          margin-right: 50px;
-        }
-
-        .view-all-button1:hover, .view-all-button:hover {
-          background-color: #79ac78;
-          color: #fff;
-        }
-
-        .arrow-icon {
-          margin-left: 10px;
-        }
-
-        .order-item, .order-item1 {
+          justify-content: flex-start;
+          padding: 80px 20px 40px 20px; /* pushed down from top */
+          min-height: 100vh;
+          color: #2e5230;
           box-sizing: border-box;
-          padding: 10px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-          transition: transform 0.3s ease-in-out;
+        }
+
+        h2 {
+          font-size: 36px;
+          font-weight: 700;
+          margin-bottom: 10px;
+        }
+
+        h3 {
+          font-size: 28px;
+          font-weight: 600;
+          margin: 20px 0;
+          color: #3b6e3b;
+          text-align: center;
+        }
+
+        p {
+          font-size: 18px;
+          margin: 6px 0;
+          text-align: center;
+        }
+
+        hr {
+          border: none;
+          height: 2px;
+          background-color: #79ac78;
+          margin: 30px 0;
+          border-radius: 5px;
+          width: 80%;
+        }
+
+        /* Back Button (bottom-right) */
+        .back-button {
+          position: fixed;
+          bottom: 30px;
+          right: 30px;
+          padding: 15px 25px;
+          background-color: #3b6e3b;
+          color: white;
+          font-weight: 600;
+          border: none;
+          border-radius: 50px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .back-button:hover {
+          background-color: #2e5230;
+          transform: scale(1.1);
+        }
+
+        /* Orders Grid */
+        .orders-wrapper {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          gap: 25px;
+          justify-items: center;
+          width: 100%;
+          max-width: 1200px;
         }
 
         .order-item {
-          width: calc(20% - 20px);
-        }
-
-        .order-item1 {
-          width: calc(23% - 20px);
+          background-color: #e3f4e3;
+          border: 1px solid #79ac78;
+          border-radius: 15px;
+          padding: 20px;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+          transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
         }
 
         .order-item:hover {
-          transform: scale(1.01);
+          transform: translateY(-8px);
+          box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
         }
 
-        .order-image {
+        .order-item pre {
+          font-family: 'Courier New', Courier, monospace;
+          background-color: #d5ead5;
+          padding: 10px;
+          border-radius: 8px;
+          overflow-x: auto;
+        }
+
+        /* Profile Card */
+        .profile-card {
+          background-color: #d9f0d9;
+          border-radius: 15px;
+          padding: 30px;
+          margin-bottom: 40px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          text-align: center;
+          transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
           width: 100%;
-          height: 200px;
-          object-fit: cover;
-          border-radius: 8px 8px 0 0;
+          max-width: 600px;
         }
 
-        .order-item p {
-          margin-top: 10px;
-          margin-bottom: 5px;
+        .profile-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 15px 35px rgba(0,0,0,0.15);
         }
 
-        .cart-button, .supply-button {
-          display: block;
-          margin-top: 10px;
-          padding: 10px 15px;
-          border: none;
-          border-radius: 5px;
-          background-color: #79ac78;
-          color: #fff;
-          cursor: pointer;
-          transition: background-color 0.3s ease-in-out;
-        }
-
-        .cart-button:hover, .supply-button:hover {
-          background-color: #0056b3;
-        }
-
-        .fa-shopping-cart, .fa-truck {
-          margin-right: 5px;
-        }
-
-        .nothing2 {
-          margin-top: 40px;
-        }
-
-        .login-path-set {
-          text-decoration: none;
+        html {
+          scroll-behavior: smooth;
         }
       `}</style>
 
-      <div
-        style={{
-          padding: "2rem",
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #a8d5a3 0%, #e6f0ea 70%, #ffffff 100%)",
-          color: "#333",
-          boxSizing: "border-box",
-        }}
-      >
-        <h2>Welcome, {user.fname}</h2>
-        <p><strong>Email:</strong> {user.email}</p>
-        <p><strong>Role:</strong> {user.userRole}</p>
+      <div className="container">
+        <div className="profile-card">
+          <h2>Welcome, {user.fname}</h2>
+          <p><strong>Email:</strong> {user.email}</p>
+          <p><strong>Role:</strong> {user.userRole}</p>
+        </div>
 
         <hr />
+
         <h3>Your {user.userRole} Orders:</h3>
         {orders.length === 0 ? (
           <p>No orders found.</p>
         ) : (
-          <ul>
+          <div className="orders-wrapper">
             {orders.map((order, index) => (
-              <li key={order._id || index} className="order-item">
-                {JSON.stringify(order)}
-              </li>
+              <div key={order._id || index} className="order-item">
+                <pre>{JSON.stringify(order, null, 2)}</pre>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
+
+      <button className="back-button" onClick={() => navigate("/regseller")}>
+        ← Back
+      </button>
     </>
   );
 }

@@ -30,6 +30,12 @@ const deliverymanSchema = new Schema({
     type: String,
     unique: true,
   },
+
+  // ✅ Add this field for salary
+  salary: {
+    type: Number,
+    default: 0, // optional, starts at 0
+  },
 });
 
 module.exports = mongoose.model("deliveryman", deliverymanSchema);

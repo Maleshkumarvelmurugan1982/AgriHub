@@ -6,6 +6,7 @@ const session = require("express-session");
 const dotenv = require("dotenv");
 const path = require("path");
 const multer = require("multer");
+const deliverymenAuthRouter = require("./routes/deliverymenAuth");
 
 dotenv.config();
 
@@ -30,67 +31,87 @@ app.use(
   })
 );
 
-// Serve uploaded images
+// ✅ Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // -------------------- MONGODB CONNECTION --------------------
 const MONGO_URL = process.env.MONGODB_URL || "mongodb://127.0.0.1:27017/sivajothi";
+
 mongoose
-  .connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(MONGO_URL)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // -------------------- MULTER SETUP --------------------
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
+  destination: (req, file, cb) => cb(null, path.join(__dirname, "uploads")),
+  filename: (req, file, cb) => {
+    // Keep original extension (.jpg, .png, .webp etc)
+    const ext = path.extname(file.originalname);
+    const uniqueName = Date.now() + ext;
+    cb(null, uniqueName);
+  },
 });
 const upload = multer({ storage });
 
-// -------------------- AUTH MIDDLEWARE --------------------
-const authenticate = require("./routes/auth");
-
 // -------------------- ROUTERS --------------------
-const productRouter = require("./routes/products");
 const farmerRouter = require("./routes/farmers");
-const farmerProductRouter = require("./routes/farmerProducts");
 const sellerRouter = require("./routes/sellers");
+const deliverymanRouter = require("./routes/deliveryman");
+const productRouter = require("./routes/products");
+const farmerProductRouter = require("./routes/farmerProducts");
 const sellerOrderRouter = require("./routes/sellerOrders");
 const farmerOrderRouter = require("./routes/farmerOrders");
 const deliveryPostRouter = require("./routes/deliveryposts");
-const deliverymanRouter = require("./routes/deliveryman");
 const schemesRouter = require("./routes/schemes");
 const userRouter = require("./routes/user");
 const deliverymenRouter = require("./routes/DeliveryMen");
 const authRouter = require("./routes/auth");
 
-// Use routers
-app.use("/product", productRouter);
 app.use("/farmer", farmerRouter);
-app.use("/farmerProducts", farmerProductRouter);
 app.use("/seller", sellerRouter);
+app.use("/deliveryman", deliverymanRouter);
+app.use("/product", productRouter);
+app.use("/farmerProducts", farmerProductRouter);
 app.use("/sellerorder", sellerOrderRouter);
 app.use("/farmerorder", farmerOrderRouter);
 app.use("/deliverypost", deliveryPostRouter);
-app.use("/deliveryman", deliverymanRouter);
 app.use("/schemes", schemesRouter);
 app.use("/user", userRouter);
 app.use("/deliverymen", deliverymenRouter);
 app.use("/auth", authRouter);
+app.use("/deliverymenAuth", deliverymenAuthRouter);
 
-// -------------------- CURRENT USER ROLE --------------------
-app.get("/api/current-user-role", authenticate, (req, res) => {
-  res.json({ role: req.user.role });
-});
-
-// -------------------- VEGETABLE PRODUCT ROUTES --------------------
+// -------------------- PRODUCT ROUTES --------------------
 const Product = require("./model/Product");
 
-// Add new vegetable product
+// ✅ NEW: Get product by name
+app.get("/product/name/:productName", async (req, res) => {
+  try {
+    const productName = req.params.productName;
+    const product = await Product.findOne({ productName: productName });
+    
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    
+    res.json(product);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Add new product
 app.post("/product/add", upload.single("productImage"), async (req, res) => {
   try {
     const { productName, category, quantity, price } = req.body;
-    const productImage = req.file ? `/uploads/${req.file.filename}` : "";
+
+    // ✅ Build DB path with forward slashes only
+    let productImage = "";
+    if (req.file && req.file.filename) {
+      productImage = `/uploads/${req.file.filename}`;
+    }
 
     const newProduct = new Product({
       productName,
@@ -108,7 +129,7 @@ app.post("/product/add", upload.single("productImage"), async (req, res) => {
   }
 });
 
-// Get products by category (e.g., Veg)
+// Get products by category
 app.get("/product/category/:category", async (req, res) => {
   try {
     const category = req.params.category;
@@ -135,6 +156,19 @@ app.patch("/product/:id", async (req, res) => {
     if (!updatedProduct) return res.status(404).json({ message: "Product not found" });
 
     res.json(updatedProduct);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete product
+app.delete("/product/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedProduct = await Product.findByIdAndDelete(id);
+    if (!deletedProduct) return res.status(404).json({ message: "Product not found" });
+    res.json({ message: "Product deleted successfully", deletedProduct });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

@@ -30,7 +30,12 @@ router.get("/category/:category", async (req, res) => {
 router.post("/add", upload.single("productImage"), async (req, res) => {
   try {
     const { productName, category, quantity, price } = req.body;
-    const productImage = req.file ? req.file.path : "";
+    
+    // ✅ FIX: Build proper path with forward slashes
+    let productImage = "";
+    if (req.file) {
+      productImage = `/uploads/${req.file.filename}`;
+    }
 
     const newProduct = new Product({
       productName,

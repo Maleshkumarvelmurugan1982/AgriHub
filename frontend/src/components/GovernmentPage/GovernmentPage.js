@@ -120,9 +120,17 @@ function GovernmentPage() {
       alert("Please enter a salary amount");
       return;
     }
+
+    const numericSalary = Number(salaryInputs[id]); // ✅ Convert to number
+
+    if (isNaN(numericSalary)) {
+      alert("Salary must be a valid number");
+      return;
+    }
+
     try {
       await axios.put(`http://localhost:8070/deliverymen/${id}/salary`, {
-        salary: salaryInputs[id],
+        salary: numericSalary, // ✅ send as number
       });
       alert("Salary updated successfully!");
       fetchDeliveryMen();
@@ -148,7 +156,6 @@ function GovernmentPage() {
   // Logout handler
   const handleLogout = () => {
     setLoggedIn(false);
-    // Optional: clear other states if needed
     setSchemes([]);
     setDeliveryMen([]);
     setShowDeliveryMen(false);
@@ -157,7 +164,6 @@ function GovernmentPage() {
 
   return (
     <div className="container">
-      {/* Always visible "Back to Home Page" button */}
       <button
         style={{
           backgroundColor: "black",
@@ -173,7 +179,6 @@ function GovernmentPage() {
         Back to Home Page
       </button>
 
-      {/* Show logout button after login, fixed at bottom */}
       {loggedIn && (
         <button
           onClick={handleLogout}
@@ -194,27 +199,6 @@ function GovernmentPage() {
         </button>
       )}
 
-      {/* Optional: invisible redirect area */}
-      {loggedIn && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            width: "50px",
-            height: "50px",
-            cursor: "pointer",
-            zIndex: 9998,
-            backgroundColor: "transparent",
-            border: "none",
-          }}
-          onClick={() => {
-            navigate('/');
-          }}
-        />
-      )}
-
-      {/* Show login form if not logged in */}
       {!loggedIn ? (
         <div style={{ maxWidth: "400px", margin: "100px auto" }}>
           <h2 style={{ textAlign: "center", marginBottom: "20px" }}>Government Login</h2>
@@ -246,7 +230,6 @@ function GovernmentPage() {
               Login
             </button>
           </form>
-          {/* Add "Back to Home Page" button below the login form */}
           <div style={{ textAlign: "center", marginTop: "20px" }}>
             <button
               style={{
@@ -264,15 +247,12 @@ function GovernmentPage() {
           </div>
         </div>
       ) : (
-        // Main content after login
         <>
           <Navbar />
-
           <div className="government-banner">
             <h1 className="government-title">Government Schemes Management</h1>
           </div>
 
-          {/* Add Scheme Input */}
           <div className="input-section">
             <input
               type="text"
@@ -286,7 +266,6 @@ function GovernmentPage() {
             </button>
           </div>
 
-          {/* Schemes Table */}
           <table className="schemes-table">
             <thead>
               <tr>
@@ -354,7 +333,6 @@ function GovernmentPage() {
             </tbody>
           </table>
 
-          {/* Toggle Delivery Men Section */}
           <div style={{ marginTop: "30px", marginBottom: "20px" }}>
             <button
               className="toggle-deliverymen-btn"
@@ -367,7 +345,6 @@ function GovernmentPage() {
             </button>
           </div>
 
-          {/* Delivery Men Table */}
           {showDeliveryMen && (
             <table className="deliverymen-table">
               <thead>

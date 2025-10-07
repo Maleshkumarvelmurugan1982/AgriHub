@@ -17,10 +17,12 @@ function RegVegetablePage() {
     productImage: null,
   });
 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        // Fetch only vegetable products
         const response = await fetch("http://localhost:8070/product/category/vegetable");
         if (!response.ok) {
           console.error("Error fetching products:", response.status, response.statusText);
@@ -64,7 +66,7 @@ function RegVegetablePage() {
       formData.append("productName", newProduct.productName);
       formData.append("quantity", newProduct.quantity);
       formData.append("price", newProduct.price);
-      formData.append("category", "vegetable"); // ensure category is vegetable
+      formData.append("category", "vegetable");
       if (newProduct.productImage) {
         formData.append("productImage", newProduct.productImage);
       }
@@ -87,6 +89,65 @@ function RegVegetablePage() {
       setNewProduct({ productName: "", quantity: "", price: "", productImage: null });
     } catch (err) {
       console.error("Error adding product:", err);
+    }
+  };
+
+  const handleEditClick = (product) => {
+    setEditProduct(product);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditProduct({ ...editProduct, [name]: value });
+  };
+
+  const handleUpdateProduct = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`http://localhost:8070/product/${editProduct._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quantity: editProduct.quantity,
+          price: editProduct.price,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to update product");
+        return;
+      }
+
+      const updated = await response.json();
+      const updatedProducts = products.map((p) =>
+        p._id === updated._id ? updated : p
+      );
+      setProducts(updatedProducts);
+      setFilteredProducts(updatedProducts);
+      setIsEditModalOpen(false);
+      setEditProduct(null);
+    } catch (err) {
+      console.error("Error updating product:", err);
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
+
+    try {
+      const response = await fetch(`http://localhost:8070/product/${productId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        console.error("Failed to delete product");
+        return;
+      }
+      const updatedProducts = products.filter((p) => p._id !== productId);
+      setProducts(updatedProducts);
+      setFilteredProducts(updatedProducts);
+    } catch (err) {
+      console.error("Error deleting product:", err);
     }
   };
 
@@ -130,21 +191,23 @@ function RegVegetablePage() {
                 className="product-item-veg-link"
               >
                 <img
-                  src={`http://localhost:8070/${product.productImage}`}
+                  src={`http://localhost:8070${product.productImage}`}
                   alt={product.productName}
                   style={{
                     width: "150px",
                     height: "150px",
                     objectFit: "cover",
                     borderRadius: "8px",
-                    outline: "none",   // remove blue shadow
-                    boxShadow: "none", // remove any shadow
+                    outline: "none",
+                    boxShadow: "none",
                   }}
                 />
                 <p>{product.productName}</p>
                 <p>Qty: {product.quantity}</p>
                 <p>Price: ${product.price}</p>
               </a>
+              <button onClick={() => handleEditClick(product)}>Edit</button>
+              <button onClick={() => handleDeleteProduct(product._id)}>Delete</button>
             </div>
           ))
         ) : (
@@ -152,6 +215,7 @@ function RegVegetablePage() {
         )}
       </div>
 
+      {/* Add Product Modal */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -189,6 +253,35 @@ function RegVegetablePage() {
               <input type="file" accept="image/*" onChange={handleFileChange} required />
 
               <button type="submit">Add Product</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {isEditModalOpen && editProduct && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <FontAwesomeIcon icon={faTimes} className="close-icon" onClick={() => setIsEditModalOpen(false)} />
+            <h2>Edit Product</h2>
+            <form onSubmit={handleUpdateProduct}>
+              <label>Quantity:</label>
+              <input
+                type="number"
+                name="quantity"
+                value={editProduct.quantity}
+                onChange={handleEditInputChange}
+                required
+              />
+              <label>Price:</label>
+              <input
+                type="number"
+                name="price"
+                value={editProduct.price}
+                onChange={handleEditInputChange}
+                required
+              />
+              <button type="submit">Update Product</button>
             </form>
           </div>
         </div>
