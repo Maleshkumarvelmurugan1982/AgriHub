@@ -1,6 +1,6 @@
 import "./login.css";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
 
@@ -9,12 +9,11 @@ function Login() {
   const [password, setPassword] = useState("");
   const [userRole, setUserRole] = useState("");
 
-  const navigate = useNavigate(); // Initialize navigate
+  const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
-    // Check if email or userRole is empty
     if (!email || !password || !userRole) {
       alert("Please fill in all fields.");
       return;
@@ -33,43 +32,57 @@ function Login() {
         url = `${process.env.REACT_APP_API_URL}/deliveryman/login`;
         break;
       default:
-        break;
+        alert("Invalid role selected.");
+        return;
     }
 
-    fetch(url, {
-      method: "POST",
-      crossDomain: true,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        userRole,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log(data, "userRegister");
-        if (data.status === "ok") {
-          alert("Login successful");
-          window.localStorage.setItem("token", data.data);
-          window.location.href = "/homepage-registeredusers"; // Redirect to homepage based on user role
-        } else {
-          alert("Login failed. Please check your credentials.");
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        alert("Login failed. Please try again later.");
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        crossDomain: true,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ email, password, userRole }),
       });
+
+      // Read response text first
+      const text = await res.text();
+
+      // Try parsing JSON safely
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (err) {
+          console.error("Failed to parse JSON:", err, text);
+          alert("Unexpected server response. Please try again later.");
+          return;
+        }
+      } else {
+        alert("Empty server response. Please try again later.");
+        return;
+      }
+
+      console.log(data, "userRegister");
+
+      if (data.status === "ok") {
+        alert("Login successful");
+        window.localStorage.setItem("token", data.data);
+        navigate("/homepage-registeredusers"); // Use navigate for SPA routing
+      } else {
+        alert(data.message || "Login failed. Please check your credentials.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Login failed. Please try again later.");
+    }
   }
 
-  // Handle back button click
   const handleBack = () => {
-    navigate("/"); // Redirect to home page
+    navigate("/");
   };
 
   return (
@@ -79,7 +92,7 @@ function Login() {
         <div className="login-image">
           <img
             src="https://assets-global.website-files.com/5d2fb52b76aabef62647ed9a/6195c8e178a99295d45307cb_allgreen1000-550.jpg"
-            alt=""
+            alt="Login"
             className="img-login"
           />
         </div>
@@ -133,7 +146,6 @@ function Login() {
               </button>
             </div>
 
-            {/* Back Button */}
             <div className="back-button-container" style={{ marginTop: "10px" }}>
               <button
                 type="button"
