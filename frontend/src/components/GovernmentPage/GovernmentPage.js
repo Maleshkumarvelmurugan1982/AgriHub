@@ -35,12 +35,11 @@ function GovernmentPage() {
   const fetchSchemes = async () => {
     try {
       const res = await axios.get(`${process.env.REACT_APP_API_URL}/schemes`);
-      console.log("Fetched schemes:", res.data); // Debug log
-      // Ensure we always set an array
+      console.log("Fetched schemes:", res.data);
       const data = Array.isArray(res.data)
-        ? res.data
+        ? res.data.map((s) => ({ _id: s._id || Math.random().toString(36).substr(2, 9), name: s.name || "" }))
         : res.data
-        ? [res.data]
+        ? [{ _id: res.data._id || Math.random().toString(36).substr(2, 9), name: res.data.name || "" }]
         : [];
       setSchemes(data);
     } catch (err) {
@@ -53,12 +52,8 @@ function GovernmentPage() {
   const fetchDeliveryMen = async () => {
     try {
       const res = await axios.get(`${process.env.REACT_APP_API_URL}/deliverymen`);
-      console.log("Fetched deliveryMen:", res.data); // Debug log
-      const data = Array.isArray(res.data)
-        ? res.data
-        : res.data
-        ? [res.data]
-        : [];
+      console.log("Fetched deliveryMen:", res.data);
+      const data = Array.isArray(res.data) ? res.data : res.data ? [res.data] : [];
       setDeliveryMen(data);
     } catch (err) {
       console.error("Failed to fetch delivery men:", err);
@@ -76,7 +71,15 @@ function GovernmentPage() {
       const res = await axios.post(`${process.env.REACT_APP_API_URL}/schemes`, {
         name: newScheme.trim(),
       });
-      setSchemes((prev) => [...prev, res.data]);
+      console.log("Added scheme:", res.data);
+
+      // Ensure object has _id and name
+      const newSchemeObj = {
+        _id: res.data._id || Math.random().toString(36).substr(2, 9),
+        name: res.data.name || newScheme.trim(),
+      };
+
+      setSchemes((prev) => [...prev, newSchemeObj]);
       setNewScheme("");
     } catch (err) {
       console.error("Error adding scheme:", err);
@@ -101,7 +104,7 @@ function GovernmentPage() {
         name: editScheme.trim(),
       });
       const updatedSchemes = [...schemes];
-      updatedSchemes[index] = res.data;
+      updatedSchemes[index] = { _id: res.data._id || scheme._id, name: res.data.name || editScheme.trim() };
       setSchemes(updatedSchemes);
       setEditIndex(null);
     } catch (err) {
