@@ -2,32 +2,26 @@ const router = require("express").Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const Deliveryman = require("../model/Deliveryman");
-const Farmer = require("../model/Farmer");
-const Seller = require("../model/Seller");
+const Farmer = require("../models/Farmer");
+const Seller = require("../models/Seller");
+const Deliveryman = require("../models/Deliveryman");
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET || "supersecretjwtkey";
 
-// Helper to select the model based on role
 const getModelByRole = (role) => {
   switch (role) {
-    case "Farmer":
-      return Farmer;
-    case "Seller":
-      return Seller;
-    case "Deliveryman":
-      return Deliveryman;
-    default:
-      return null;
+    case "Farmer": return Farmer;
+    case "Seller": return Seller;
+    case "Deliveryman": return Deliveryman;
+    default: return null;
   }
 };
 
-// ------------------- REGISTER -------------------
+// ------------------ REGISTER ------------------
 router.post("/register", async (req, res) => {
   try {
     const { email, password, role, fname, lname, district } = req.body;
 
-    // Validate required fields
     if (!email || !password || !role || !fname || !lname || !district) {
       return res.json({ status: "error", message: "All fields are required" });
     }
@@ -35,27 +29,14 @@ router.post("/register", async (req, res) => {
     const Model = getModelByRole(role);
     if (!Model) return res.json({ status: "error", message: "Invalid role" });
 
-    // Check if user already exists
     const existingUser = await Model.findOne({ email });
-    if (existingUser) {
-      return res.json({ status: "error", message: "User already exists" });
-    }
+    if (existingUser) return res.json({ status: "error", message: "User already exists" });
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
-    const newUser = new Model({
-      email,
-      password: hashedPassword,
-      fname,
-      lname,
-      district,
-    });
-
+    const newUser = new Model({ email, password: hashedPassword, fname, lname, district });
     await newUser.save();
 
-    // Always return JSON
     return res.json({ status: "ok", message: "User registered successfully" });
   } catch (err) {
     console.error("Registration error:", err);
@@ -63,7 +44,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// ------------------- LOGIN -------------------
+// ------------------ LOGIN ------------------
 router.post("/login", async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -81,22 +62,11 @@ router.post("/login", async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) return res.json({ status: "error", message: "Invalid credentials" });
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { email: user.email, role, id: user._id },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ email: user.email, role, id: user._id }, JWT_SECRET, { expiresIn: "7d" });
 
     return res.json({
       status: "ok",
-      data: {
-        token,
-        role,
-        email: user.email,
-        fname: user.fname,
-        lname: user.lname,
-      },
+      data: { token, role, email: user.email, fname: user.fname, lname: user.lname }
     });
   } catch (err) {
     console.error("Login error:", err);
