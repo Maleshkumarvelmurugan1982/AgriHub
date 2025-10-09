@@ -8,10 +8,9 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [userRole, setUserRole] = useState("");
-
   const navigate = useNavigate();
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!email || !password || !userRole) {
@@ -19,70 +18,54 @@ function Login() {
       return;
     }
 
-    let url = "";
-
-    switch (userRole) {
-      case "Farmer":
-        url = `${process.env.REACT_APP_API_URL}/farmer/login`;
-        break;
-      case "Seller":
-        url = `${process.env.REACT_APP_API_URL}/seller/login`;
-        break;
-      case "Deliveryman":
-        url = `${process.env.REACT_APP_API_URL}/deliveryman/login`;
-        break;
-      default:
-        alert("Invalid role selected.");
-        return;
-    }
-
     try {
-      const res = await fetch(url, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/auth/login`, {
         method: "POST",
-        crossDomain: true,
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ email, password, userRole }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, role: userRole }),
       });
 
-      // Read response text first
-      const text = await res.text();
-
-      // Try parsing JSON safely
-      let data = {};
-      if (text) {
-        try {
-          data = JSON.parse(text);
-        } catch (err) {
-          console.error("Failed to parse JSON:", err, text);
-          alert("Unexpected server response. Please try again later.");
-          return;
-        }
-      } else {
-        alert("Empty server response. Please try again later.");
+      const data = await res.json();
+      if (data.status !== "ok") {
+        alert(data.message);
         return;
       }
 
-      console.log(data, "userRegister");
+      const token = data.data.token;
+      localStorage.setItem("token", token);
 
-      if (data.status === "ok") {
-        alert("Login successful");
-        window.localStorage.setItem("token", data.data);
-        navigate("/homepage-registeredusers"); // Use navigate for SPA routing
-      } else {
-        alert(data.message || "Login failed. Please check your credentials.");
+      const userRes = await fetch(`${process.env.REACT_APP_API_URL}/user/userdata`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+
+      const userData = await userRes.json();
+      if (userData.status !== "ok") {
+        alert("Failed to fetch user data");
+        return;
       }
-    } catch (error) {
-      console.error("Error:", error);
+
+      localStorage.setItem("user", JSON.stringify(userData.data));
+      alert("Login successful");
+
+      switch (userRole) {
+        case "Farmer":
+          navigate("/farmer-dashboard");
+          break;
+        case "Seller":
+          navigate("/seller-dashboard");
+          break;
+        case "Deliveryman":
+          navigate("/deliveryman-dashboard");
+          break;
+        default:
+          navigate("/homepage-registeredusers");
+      }
+    } catch (err) {
+      console.error(err);
       alert("Login failed. Please try again later.");
     }
-  }
-
-  const handleBack = () => {
-    navigate("/");
   };
 
   return (
@@ -104,7 +87,6 @@ function Login() {
               <label>Email address</label>
               <input
                 type="email"
-                className="form-control"
                 placeholder="Enter email"
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -114,7 +96,6 @@ function Login() {
               <label>Password</label>
               <input
                 type="password"
-                className="form-control"
                 placeholder="Enter password"
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -122,10 +103,7 @@ function Login() {
 
             <div className="role">
               <label>Role</label>
-              <select
-                className="form-control"
-                onChange={(e) => setUserRole(e.target.value)}
-              >
+              <select onChange={(e) => setUserRole(e.target.value)}>
                 <option value="">Select Role</option>
                 <option value="Farmer">Farmer</option>
                 <option value="Seller">Seller</option>
@@ -133,31 +111,11 @@ function Login() {
               </select>
             </div>
 
-            <div className="checkbox-container">
-              <input type="checkbox" className="checkbox" id="customCheck1" />
-              <label className="text" htmlFor="customCheck1">
-                Remember me
-              </label>
-            </div>
-
-            <div className="login-button-container">
-              <button type="submit" className="login-button">
-                Submit
-              </button>
-            </div>
-
-            <div className="back-button-container" style={{ marginTop: "10px" }}>
-              <button
-                type="button"
-                className="back-button"
-                onClick={handleBack}
-              >
-                Back to Home
-              </button>
-            </div>
+            <button type="submit" className="login-button">Submit</button>
+            <button type="button" onClick={() => navigate("/")} className="back-button">Back to Home</button>
 
             <p className="text-register">
-              Don't have an account? <a href="/register">Sign Up</a>
+              Don't have an account? <Link to="/register">Sign Up</Link>
             </p>
           </form>
         </div>
