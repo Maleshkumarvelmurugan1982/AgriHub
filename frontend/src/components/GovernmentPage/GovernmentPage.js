@@ -35,8 +35,14 @@ function GovernmentPage() {
   const fetchSchemes = async () => {
     try {
       const res = await axios.get(`${process.env.REACT_APP_API_URL}/schemes`);
-      // Ensure data is always an array
-      setSchemes(Array.isArray(res.data) ? res.data : []);
+      console.log("Fetched schemes:", res.data); // Debug log
+      // Ensure we always set an array
+      const data = Array.isArray(res.data)
+        ? res.data
+        : res.data
+        ? [res.data]
+        : [];
+      setSchemes(data);
     } catch (err) {
       console.error("Failed to fetch schemes:", err);
       alert("Failed to load schemes. Please try again later.");
@@ -47,7 +53,13 @@ function GovernmentPage() {
   const fetchDeliveryMen = async () => {
     try {
       const res = await axios.get(`${process.env.REACT_APP_API_URL}/deliverymen`);
-      setDeliveryMen(Array.isArray(res.data) ? res.data : []);
+      console.log("Fetched deliveryMen:", res.data); // Debug log
+      const data = Array.isArray(res.data)
+        ? res.data
+        : res.data
+        ? [res.data]
+        : [];
+      setDeliveryMen(data);
     } catch (err) {
       console.error("Failed to fetch delivery men:", err);
       alert("Failed to load delivery men. Please try again later.");
@@ -122,8 +134,7 @@ function GovernmentPage() {
       return;
     }
 
-    const numericSalary = Number(salaryInputs[id]); // ✅ Convert to number
-
+    const numericSalary = Number(salaryInputs[id]);
     if (isNaN(numericSalary)) {
       alert("Salary must be a valid number");
       return;
@@ -131,7 +142,7 @@ function GovernmentPage() {
 
     try {
       await axios.put(`${process.env.REACT_APP_API_URL}/deliverymen/${id}/salary`, {
-        salary: numericSalary, // ✅ send as number
+        salary: numericSalary,
       });
       alert("Salary updated successfully!");
       fetchDeliveryMen();
@@ -362,7 +373,7 @@ function GovernmentPage() {
               <tbody>
                 {Array.isArray(deliveryMen) && deliveryMen.length > 0 ? (
                   deliveryMen.map((dm) => (
-                    <tr key={dm._id}>
+                    <tr key={dm._id || Math.random()}>
                       <td>{dm.fname} {dm.lname}</td>
                       <td>{dm.email}</td>
                       <td>{dm.district}</td>
