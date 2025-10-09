@@ -35,7 +35,8 @@ function GovernmentPage() {
   const fetchSchemes = async () => {
     try {
       const res = await axios.get(`${process.env.REACT_APP_API_URL}/schemes`);
-      setSchemes(res.data);
+      // Ensure data is always an array
+      setSchemes(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Failed to fetch schemes:", err);
       alert("Failed to load schemes. Please try again later.");
@@ -46,7 +47,7 @@ function GovernmentPage() {
   const fetchDeliveryMen = async () => {
     try {
       const res = await axios.get(`${process.env.REACT_APP_API_URL}/deliverymen`);
-      setDeliveryMen(res.data);
+      setDeliveryMen(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Failed to fetch delivery men:", err);
       alert("Failed to load delivery men. Please try again later.");
@@ -274,56 +275,57 @@ function GovernmentPage() {
               </tr>
             </thead>
             <tbody>
-              {schemes.map((scheme, index) => (
-                <tr key={scheme._id}>
-                  <td>
-                    {editIndex === index ? (
-                      <input
-                        type="text"
-                        value={editScheme}
-                        onChange={(e) => setEditScheme(e.target.value)}
-                        className="edit-input"
-                      />
-                    ) : (
-                      scheme.name
-                    )}
-                  </td>
-                  <td>
-                    {editIndex === index ? (
-                      <>
-                        <button
-                          className="save-btn"
-                          onClick={() => handleSaveEdit(index)}
-                        >
-                          Save
-                        </button>
-                        <button
-                          className="cancel-btn"
-                          onClick={() => setEditIndex(null)}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className="edit-btn"
-                          onClick={() => handleEditScheme(index)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleDeleteScheme(index)}
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {schemes.length === 0 && (
+              {Array.isArray(schemes) && schemes.length > 0 ? (
+                schemes.map((scheme, index) => (
+                  <tr key={scheme._id || index}>
+                    <td>
+                      {editIndex === index ? (
+                        <input
+                          type="text"
+                          value={editScheme}
+                          onChange={(e) => setEditScheme(e.target.value)}
+                          className="edit-input"
+                        />
+                      ) : (
+                        scheme.name
+                      )}
+                    </td>
+                    <td>
+                      {editIndex === index ? (
+                        <>
+                          <button
+                            className="save-btn"
+                            onClick={() => handleSaveEdit(index)}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="cancel-btn"
+                            onClick={() => setEditIndex(null)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="edit-btn"
+                            onClick={() => handleEditScheme(index)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={() => handleDeleteScheme(index)}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
                   <td colSpan="2" style={{ textAlign: "center" }}>
                     No schemes available.
@@ -358,27 +360,28 @@ function GovernmentPage() {
                 </tr>
               </thead>
               <tbody>
-                {deliveryMen.map((dm) => (
-                  <tr key={dm._id}>
-                    <td>{dm.fname} {dm.lname}</td>
-                    <td>{dm.email}</td>
-                    <td>{dm.district}</td>
-                    <td>{dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
-                    <td>
-                      <input
-                        type="number"
-                        value={salaryInputs[dm._id] || ""}
-                        onChange={(e) => handleSalaryChange(dm._id, e.target.value)}
-                        placeholder="Enter salary"
-                        className="salary-input"
-                      />
-                    </td>
-                    <td>
-                      <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
-                    </td>
-                  </tr>
-                ))}
-                {deliveryMen.length === 0 && (
+                {Array.isArray(deliveryMen) && deliveryMen.length > 0 ? (
+                  deliveryMen.map((dm) => (
+                    <tr key={dm._id}>
+                      <td>{dm.fname} {dm.lname}</td>
+                      <td>{dm.email}</td>
+                      <td>{dm.district}</td>
+                      <td>{dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
+                      <td>
+                        <input
+                          type="number"
+                          value={salaryInputs[dm._id] || ""}
+                          onChange={(e) => handleSalaryChange(dm._id, e.target.value)}
+                          placeholder="Enter salary"
+                          className="salary-input"
+                        />
+                      </td>
+                      <td>
+                        <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
                     <td colSpan="6" style={{ textAlign: "center" }}>
                       No delivery men found.
