@@ -1,4 +1,3 @@
-// backend/routes/auth.js
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -9,7 +8,7 @@ const Seller = require("../model/Seller");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-key";
 
-// Helper to get model based on role
+// Helper to select the model based on role
 const getModelByRole = (role) => {
   switch (role) {
     case "Farmer":
@@ -28,6 +27,7 @@ router.post("/register", async (req, res) => {
   try {
     const { email, password, role, fname, lname, district } = req.body;
 
+    // Validate required fields
     if (!email || !password || !role || !fname || !lname || !district) {
       return res.json({ status: "error", message: "All fields are required" });
     }
@@ -35,16 +35,27 @@ router.post("/register", async (req, res) => {
     const Model = getModelByRole(role);
     if (!Model) return res.json({ status: "error", message: "Invalid role" });
 
+    // Check if user already exists
     const existingUser = await Model.findOne({ email });
     if (existingUser) {
       return res.json({ status: "error", message: "User already exists" });
     }
 
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new Model({ email, password: hashedPassword, fname, lname, district });
+    // Create new user
+    const newUser = new Model({
+      email,
+      password: hashedPassword,
+      fname,
+      lname,
+      district,
+    });
+
     await newUser.save();
 
+    // Always return JSON
     return res.json({ status: "ok", message: "User registered successfully" });
   } catch (err) {
     console.error("Registration error:", err);
@@ -79,7 +90,13 @@ router.post("/login", async (req, res) => {
 
     return res.json({
       status: "ok",
-      data: { token, role, email: user.email, fname: user.fname, lname: user.lname },
+      data: {
+        token,
+        role,
+        email: user.email,
+        fname: user.fname,
+        lname: user.lname,
+      },
     });
   } catch (err) {
     console.error("Login error:", err);
