@@ -23,7 +23,15 @@ export default function SignUp() {
         }),
       });
 
-      const result = await response.json();
+      // Safely parse JSON
+      let result;
+      try {
+        result = await response.json();
+      } catch (err) {
+        console.error("Failed to parse JSON:", err);
+        alert("Server returned an invalid response. Please try again later.");
+        return;
+      }
 
       if (result.status === "ok") {
         alert("Registration Successful");
@@ -32,7 +40,7 @@ export default function SignUp() {
         alert(result.message || "Registration failed");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Registration error:", error);
       alert("Registration failed. Please try again later.");
     }
   };
@@ -47,7 +55,7 @@ export default function SignUp() {
 
             <div className="select-role">
               <label>Role</label>
-              <select {...register("userRole", { required: true })} required>
+              <select {...register("userRole", { required: true })}>
                 <option value="">Select Role</option>
                 <option value="Farmer">Farmer</option>
                 <option value="Seller">Seller</option>
