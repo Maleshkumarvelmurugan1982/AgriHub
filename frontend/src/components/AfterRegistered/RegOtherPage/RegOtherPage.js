@@ -12,7 +12,7 @@ function OtherPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/product/Other`);
+        const response = await fetch("http://localhost:8070/product/Other");
         const data = await response.json();
         setProducts(data);
       } catch (error) {

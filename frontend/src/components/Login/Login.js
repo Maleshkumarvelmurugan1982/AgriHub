@@ -1,73 +1,75 @@
 import "./login.css";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
-import { Link } from "react-router-dom";
-
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [userRole, setUserRole] = useState("");
-  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const navigate = useNavigate(); // Initialize navigate
+
+  function handleSubmit(e) {
     e.preventDefault();
 
+    // Check if email or userRole is empty
     if (!email || !password || !userRole) {
       alert("Please fill in all fields.");
       return;
     }
 
-    try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role: userRole }),
-      });
+    let url = "";
 
-      const data = await res.json();
-      if (data.status !== "ok") {
-        alert(data.message);
-        return;
-      }
-
-      const token = data.data.token;
-      localStorage.setItem("token", token);
-
-      const userRes = await fetch(`${process.env.REACT_APP_API_URL}/user/userdata`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-
-      const userData = await userRes.json();
-      if (userData.status !== "ok") {
-        alert("Failed to fetch user data");
-        return;
-      }
-
-      localStorage.setItem("user", JSON.stringify(userData.data));
-      alert("Login successful");
-
-      switch (userRole) {
-        case "Farmer":
-          navigate("/farmer-dashboard");
-          break;
-        case "Seller":
-          navigate("/seller-dashboard");
-          break;
-        case "Deliveryman":
-          navigate("/deliveryman-dashboard");
-          break;
-        default:
-          navigate("/homepage-registeredusers");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Login failed. Please try again later.");
+    switch (userRole) {
+      case "Farmer":
+        url = "http://localhost:8070/farmer/login";
+        break;
+      case "Seller":
+        url = "http://localhost:8070/seller/login";
+        break;
+      case "Deliveryman":
+        url = "http://localhost:8070/deliveryman/login";
+        break;
+      default:
+        break;
     }
+
+    fetch(url, {
+      method: "POST",
+      crossDomain: true,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        userRole,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data, "userRegister");
+        if (data.status === "ok") {
+          alert("Login successful");
+          window.localStorage.setItem("token", data.data);
+          window.location.href = "/homepage-registeredusers"; // Redirect to homepage based on user role
+        } else {
+          alert("Login failed. Please check your credentials.");
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("Login failed. Please try again later.");
+      });
+  }
+
+  // Handle back button click
+  const handleBack = () => {
+    navigate("/"); // Redirect to home page
   };
 
   return (
@@ -77,7 +79,7 @@ function Login() {
         <div className="login-image">
           <img
             src="https://assets-global.website-files.com/5d2fb52b76aabef62647ed9a/6195c8e178a99295d45307cb_allgreen1000-550.jpg"
-            alt="Login"
+            alt=""
             className="img-login"
           />
         </div>
@@ -89,6 +91,7 @@ function Login() {
               <label>Email address</label>
               <input
                 type="email"
+                className="form-control"
                 placeholder="Enter email"
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -98,6 +101,7 @@ function Login() {
               <label>Password</label>
               <input
                 type="password"
+                className="form-control"
                 placeholder="Enter password"
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -105,7 +109,10 @@ function Login() {
 
             <div className="role">
               <label>Role</label>
-              <select onChange={(e) => setUserRole(e.target.value)}>
+              <select
+                className="form-control"
+                onChange={(e) => setUserRole(e.target.value)}
+              >
                 <option value="">Select Role</option>
                 <option value="Farmer">Farmer</option>
                 <option value="Seller">Seller</option>
@@ -113,11 +120,32 @@ function Login() {
               </select>
             </div>
 
-            <button type="submit" className="login-button">Submit</button>
-            <button type="button" onClick={() => navigate("/")} className="back-button">Back to Home</button>
+            <div className="checkbox-container">
+              <input type="checkbox" className="checkbox" id="customCheck1" />
+              <label className="text" htmlFor="customCheck1">
+                Remember me
+              </label>
+            </div>
+
+            <div className="login-button-container">
+              <button type="submit" className="login-button">
+                Submit
+              </button>
+            </div>
+
+            {/* Back Button */}
+            <div className="back-button-container" style={{ marginTop: "10px" }}>
+              <button
+                type="button"
+                className="back-button"
+                onClick={handleBack}
+              >
+                Back to Home
+              </button>
+            </div>
 
             <p className="text-register">
-              Don't have an account? <Link to="/register">Sign Up</Link>
+              Don't have an account? <a href="/register">Sign Up</a>
             </p>
           </form>
         </div>

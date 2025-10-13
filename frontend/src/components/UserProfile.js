@@ -8,7 +8,7 @@ function UserProfile() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/user/userdata`, {
+    fetch("http://localhost:8070/user/userdata", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -31,9 +31,9 @@ function UserProfile() {
 
   const fetchOrders = (role, id) => {
     let url = "";
-    if (role === "Farmer") url = `${process.env.REACT_APP_API_URL}/farmerorder/user/${id}`;
-    else if (role === "Seller") url = `${process.env.REACT_APP_API_URL}/sellerorder/user/${id}`;
-    else if (role === "Deliveryman") url = `${process.env.REACT_APP_API_URL}/deliverypost/user/${id}`;
+    if (role === "Farmer") url = `http://localhost:8070/farmerorder/user/${id}`;
+    else if (role === "Seller") url = `http://localhost:8070/sellerorder/user/${id}`;
+    else if (role === "Deliveryman") url = `http://localhost:8070/deliverypost/user/${id}`;
     else return;
 
     fetch(url)

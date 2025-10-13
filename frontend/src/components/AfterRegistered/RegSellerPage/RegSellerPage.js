@@ -19,7 +19,7 @@ function RegSellerPage() {
   useEffect(() => {
     const fetchFarmerOrders = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/farmerorder`);
+        const response = await fetch("http://localhost:8070/farmerorder/");
         const data = await response.json();
         setFarmerOrders(data);
       } catch (error) {
@@ -29,7 +29,7 @@ function RegSellerPage() {
 
     const fetchDeliveryPosts = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/deliverypost`);
+        const response = await fetch("http://localhost:8070/deliverypost/");
         const data = await response.json();
         setDeliveryPosts(data);
       } catch (error) {

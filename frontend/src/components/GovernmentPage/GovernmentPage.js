@@ -34,14 +34,8 @@ function GovernmentPage() {
   // Fetch schemes from backend
   const fetchSchemes = async () => {
     try {
-      const res = await axios.get(`${process.env.REACT_APP_API_URL}/schemes`);
-      console.log("Fetched schemes:", res.data);
-      const data = Array.isArray(res.data)
-        ? res.data.map((s) => ({ _id: s._id || Math.random().toString(36).substr(2, 9), name: s.name || "" }))
-        : res.data
-        ? [{ _id: res.data._id || Math.random().toString(36).substr(2, 9), name: res.data.name || "" }]
-        : [];
-      setSchemes(data);
+      const res = await axios.get("http://localhost:8070/schemes");
+      setSchemes(res.data);
     } catch (err) {
       console.error("Failed to fetch schemes:", err);
       alert("Failed to load schemes. Please try again later.");
@@ -51,10 +45,8 @@ function GovernmentPage() {
   // Fetch delivery men from backend
   const fetchDeliveryMen = async () => {
     try {
-      const res = await axios.get(`${process.env.REACT_APP_API_URL}/deliverymen`);
-      console.log("Fetched deliveryMen:", res.data);
-      const data = Array.isArray(res.data) ? res.data : res.data ? [res.data] : [];
-      setDeliveryMen(data);
+      const res = await axios.get("http://localhost:8070/deliverymen");
+      setDeliveryMen(res.data);
     } catch (err) {
       console.error("Failed to fetch delivery men:", err);
       alert("Failed to load delivery men. Please try again later.");
@@ -68,18 +60,10 @@ function GovernmentPage() {
       return;
     }
     try {
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/schemes`, {
+      const res = await axios.post("http://localhost:8070/schemes", {
         name: newScheme.trim(),
       });
-      console.log("Added scheme:", res.data);
-
-      // Ensure object has _id and name
-      const newSchemeObj = {
-        _id: res.data._id || Math.random().toString(36).substr(2, 9),
-        name: res.data.name || newScheme.trim(),
-      };
-
-      setSchemes((prev) => [...prev, newSchemeObj]);
+      setSchemes((prev) => [...prev, res.data]);
       setNewScheme("");
     } catch (err) {
       console.error("Error adding scheme:", err);
@@ -100,11 +84,11 @@ function GovernmentPage() {
     }
     const scheme = schemes[index];
     try {
-      const res = await axios.put(`${process.env.REACT_APP_API_URL}/schemes/${scheme._id}`, {
+      const res = await axios.put(`http://localhost:8070/schemes/${scheme._id}`, {
         name: editScheme.trim(),
       });
       const updatedSchemes = [...schemes];
-      updatedSchemes[index] = { _id: res.data._id || scheme._id, name: res.data.name || editScheme.trim() };
+      updatedSchemes[index] = res.data;
       setSchemes(updatedSchemes);
       setEditIndex(null);
     } catch (err) {
@@ -117,7 +101,7 @@ function GovernmentPage() {
   const handleDeleteScheme = async (index) => {
     const scheme = schemes[index];
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/schemes/${scheme._id}`);
+      await axios.delete(`http://localhost:8070/schemes/${scheme._id}`);
       setSchemes((prev) => prev.filter((_, i) => i !== index));
     } catch (err) {
       console.error("Error deleting scheme:", err);
@@ -137,15 +121,16 @@ function GovernmentPage() {
       return;
     }
 
-    const numericSalary = Number(salaryInputs[id]);
+    const numericSalary = Number(salaryInputs[id]); // ✅ Convert to number
+
     if (isNaN(numericSalary)) {
       alert("Salary must be a valid number");
       return;
     }
 
     try {
-      await axios.put(`${process.env.REACT_APP_API_URL}/deliverymen/${id}/salary`, {
-        salary: numericSalary,
+      await axios.put(`http://localhost:8070/deliverymen/${id}/salary`, {
+        salary: numericSalary, // ✅ send as number
       });
       alert("Salary updated successfully!");
       fetchDeliveryMen();
@@ -289,57 +274,56 @@ function GovernmentPage() {
               </tr>
             </thead>
             <tbody>
-              {Array.isArray(schemes) && schemes.length > 0 ? (
-                schemes.map((scheme, index) => (
-                  <tr key={scheme._id || index}>
-                    <td>
-                      {editIndex === index ? (
-                        <input
-                          type="text"
-                          value={editScheme}
-                          onChange={(e) => setEditScheme(e.target.value)}
-                          className="edit-input"
-                        />
-                      ) : (
-                        scheme.name
-                      )}
-                    </td>
-                    <td>
-                      {editIndex === index ? (
-                        <>
-                          <button
-                            className="save-btn"
-                            onClick={() => handleSaveEdit(index)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="cancel-btn"
-                            onClick={() => setEditIndex(null)}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="edit-btn"
-                            onClick={() => handleEditScheme(index)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="delete-btn"
-                            onClick={() => handleDeleteScheme(index)}
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
+              {schemes.map((scheme, index) => (
+                <tr key={scheme._id}>
+                  <td>
+                    {editIndex === index ? (
+                      <input
+                        type="text"
+                        value={editScheme}
+                        onChange={(e) => setEditScheme(e.target.value)}
+                        className="edit-input"
+                      />
+                    ) : (
+                      scheme.name
+                    )}
+                  </td>
+                  <td>
+                    {editIndex === index ? (
+                      <>
+                        <button
+                          className="save-btn"
+                          onClick={() => handleSaveEdit(index)}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="cancel-btn"
+                          onClick={() => setEditIndex(null)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="edit-btn"
+                          onClick={() => handleEditScheme(index)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="delete-btn"
+                          onClick={() => handleDeleteScheme(index)}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {schemes.length === 0 && (
                 <tr>
                   <td colSpan="2" style={{ textAlign: "center" }}>
                     No schemes available.
@@ -374,28 +358,27 @@ function GovernmentPage() {
                 </tr>
               </thead>
               <tbody>
-                {Array.isArray(deliveryMen) && deliveryMen.length > 0 ? (
-                  deliveryMen.map((dm) => (
-                    <tr key={dm._id || Math.random()}>
-                      <td>{dm.fname} {dm.lname}</td>
-                      <td>{dm.email}</td>
-                      <td>{dm.district}</td>
-                      <td>{dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
-                      <td>
-                        <input
-                          type="number"
-                          value={salaryInputs[dm._id] || ""}
-                          onChange={(e) => handleSalaryChange(dm._id, e.target.value)}
-                          placeholder="Enter salary"
-                          className="salary-input"
-                        />
-                      </td>
-                      <td>
-                        <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+                {deliveryMen.map((dm) => (
+                  <tr key={dm._id}>
+                    <td>{dm.fname} {dm.lname}</td>
+                    <td>{dm.email}</td>
+                    <td>{dm.district}</td>
+                    <td>{dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
+                    <td>
+                      <input
+                        type="number"
+                        value={salaryInputs[dm._id] || ""}
+                        onChange={(e) => handleSalaryChange(dm._id, e.target.value)}
+                        placeholder="Enter salary"
+                        className="salary-input"
+                      />
+                    </td>
+                    <td>
+                      <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
+                    </td>
+                  </tr>
+                ))}
+                {deliveryMen.length === 0 && (
                   <tr>
                     <td colSpan="6" style={{ textAlign: "center" }}>
                       No delivery men found.

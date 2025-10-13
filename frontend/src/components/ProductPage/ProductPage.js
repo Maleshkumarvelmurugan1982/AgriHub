@@ -10,7 +10,7 @@ function ProductPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/product`);
+      const response = await fetch("http://localhost:8070/product");
       const data = await response.json();
       setProducts(data);
     };
