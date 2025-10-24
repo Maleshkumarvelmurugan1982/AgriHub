@@ -8,7 +8,7 @@ function UserProfile() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:8070/user/userdata", {
+    fetch("https://agrihub-2.onrender.com/user/userdata", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -31,9 +31,9 @@ function UserProfile() {
 
   const fetchOrders = (role, id) => {
     let url = "";
-    if (role === "Farmer") url = `http://localhost:8070/farmerorder/user/${id}`;
-    else if (role === "Seller") url = `http://localhost:8070/sellerorder/user/${id}`;
-    else if (role === "Deliveryman") url = `http://localhost:8070/deliverypost/user/${id}`;
+    if (role === "Farmer") url = `https://agrihub-2.onrender.com/farmerorder/user/${id}`;
+    else if (role === "Seller") url = `https://agrihub-2.onrender.com/sellerorder/user/${id}`;
+    else if (role === "Deliveryman") url = `https://agrihub-2.onrender.com/deliverypost/user/${id}`;
     else return;
 
     fetch(url)
