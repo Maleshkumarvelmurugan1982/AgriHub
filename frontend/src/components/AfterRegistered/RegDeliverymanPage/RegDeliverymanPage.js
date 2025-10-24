@@ -29,8 +29,8 @@ function RegDeliverymanPage({ deliverymanId }) {
         // Fetch seller orders
         const sellerResponse = await axios.get("https://agrihub-2.onrender.com/sellerorder/");
         const approvedSellerOrders = (sellerResponse.data ?? [])
-          .filter((order) => order.farmerApproved === true || order.status === "approved")
-          .map((order) => ({
+          .filter(order => order.farmerApproved === true || order.status === "approved")
+          .map(order => ({
             ...order,
             acceptedByDeliveryman: order.acceptedByDeliveryman || false,
             deliveryStatus: order.deliveryStatus || "pending",
@@ -40,25 +40,18 @@ function RegDeliverymanPage({ deliverymanId }) {
         // Fetch farmer orders
         const farmerResponse = await axios.get("https://agrihub-2.onrender.com/farmerorder/");
         const approvedFarmerOrders = (farmerResponse.data ?? [])
-          .filter((order) => order.farmerApproved === true || order.status === "approved")
-          .map((order) => ({
+          .filter(order => order.farmerApproved === true || order.status === "approved")
+          .map(order => ({
             ...order,
             acceptedByDeliveryman: order.acceptedByDeliveryman || false,
             deliveryStatus: order.deliveryStatus || "pending",
           }));
         setFarmerOrders(approvedFarmerOrders);
 
-        // Fetch salary only if deliverymanId exists
+        // Fetch salary
         if (deliverymanId) {
-          try {
-            const salaryResponse = await axios.get(
-              `https://agrihub-2.onrender.com/salary/${deliverymanId}`
-            );
-            setSalary(salaryResponse.data.salary ?? 0);
-          } catch (salaryErr) {
-            console.warn("Could not fetch salary:", salaryErr);
-            setSalary(0);
-          }
+          const salaryResponse = await axios.get(`https://agrihub-2.onrender.com/salary/${deliverymanId}`);
+          setSalary(salaryResponse.data.salary ?? 0);
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -73,48 +66,42 @@ function RegDeliverymanPage({ deliverymanId }) {
     fetchOrders();
   }, [deliverymanId]);
 
-  // Handle deliveryman accepting order - Sends 0 if deliverymanId not provided
+  // Handle deliveryman accepting order
   const handleAcceptDelivery = async (orderId, type) => {
     try {
       console.log(`Accepting ${type} order ${orderId}`);
-
-      // Send 0 as deliverymanId if not provided
-      const requestBody = { 
-        deliverymanId: deliverymanId || 0
-      };
-
-      console.log('Request body:', requestBody);
-
+      
+      // Persist in backend
       if (type === "seller") {
-        const response = await axios.put(
-          `https://agrihub-2.onrender.com/sellerorder/${orderId}/accept`,
-          requestBody
-        );
+        const response = await axios.put(`https://agrihub-2.onrender.com/sellerorder/${orderId}/accept`, { 
+          deliverymanId 
+        });
         console.log("Accept response:", response.data);
-
-        setSellerOrders((prev) =>
-          prev.map((order) =>
-            order._id === orderId
-              ? { ...order, acceptedByDeliveryman: true, deliveryStatus: "approved" }
+        
+        // Update frontend after successful backend update
+        setSellerOrders(prev =>
+          prev.map(order =>
+            order._id === orderId 
+              ? { ...order, acceptedByDeliveryman: true, deliveryStatus: "approved" } 
               : order
           )
         );
       } else {
-        const response = await axios.put(
-          `https://agrihub-2.onrender.com/farmerorder/${orderId}/accept`,
-          requestBody
-        );
+        const response = await axios.put(`https://agrihub-2.onrender.com/farmerorder/${orderId}/accept`, { 
+          deliverymanId 
+        });
         console.log("Accept response:", response.data);
-
-        setFarmerOrders((prev) =>
-          prev.map((order) =>
-            order._id === orderId
-              ? { ...order, acceptedByDeliveryman: true, deliveryStatus: "approved" }
+        
+        // Update frontend after successful backend update
+        setFarmerOrders(prev =>
+          prev.map(order =>
+            order._id === orderId 
+              ? { ...order, acceptedByDeliveryman: true, deliveryStatus: "approved" } 
               : order
           )
         );
       }
-
+      
       alert("✅ Order accepted successfully!");
     } catch (err) {
       console.error("Error accepting delivery:", err);
@@ -123,32 +110,33 @@ function RegDeliverymanPage({ deliverymanId }) {
     }
   };
 
-  // Handle delivery status update
+  // Handle delivery status update (delivered / not-delivered)
   const handleDeliveryStatus = async (orderId, type, status) => {
     try {
       console.log(`Attempting to update ${type} order ${orderId} to status: ${status}`);
-
-      const url =
-        type === "seller"
-          ? `https://agrihub-2.onrender.com/sellerorder/${orderId}/status`
-          : `https://agrihub-2.onrender.com/farmerorder/${orderId}/status`;
-
+      
+      // Persist in backend FIRST
+      const url = type === "seller" 
+        ? `https://agrihub-2.onrender.com/sellerorder/${orderId}/status`
+        : `https://agrihub-2.onrender.com/farmerorder/${orderId}/status`;
+      
       console.log(`Making PUT request to: ${url}`);
-      console.log("Request body:", { status });
-
+      console.log(`Request body:`, { status });
+      
       const response = await axios.put(url, { status });
+      
+      console.log(`✅ Backend update successful:`, response.data);
 
-      console.log("✅ Backend update successful:", response.data);
-
+      // Update frontend AFTER successful backend update
       if (type === "seller") {
-        setSellerOrders((prev) =>
-          prev.map((order) =>
+        setSellerOrders(prev =>
+          prev.map(order =>
             order._id === orderId ? { ...order, deliveryStatus: status } : order
           )
         );
       } else {
-        setFarmerOrders((prev) =>
-          prev.map((order) =>
+        setFarmerOrders(prev =>
+          prev.map(order =>
             order._id === orderId ? { ...order, deliveryStatus: status } : order
           )
         );
@@ -157,15 +145,18 @@ function RegDeliverymanPage({ deliverymanId }) {
       alert(`✅ Order status updated to ${status} successfully!`);
     } catch (err) {
       console.error("❌ Error updating delivery status:", err);
-
+      
       if (err.response) {
+        // Server responded with error
         console.error("Response data:", err.response.data);
         console.error("Response status:", err.response.status);
-        alert(`Failed to update: ${err.response.data?.message || "Server error"}`);
+        alert(`Failed to update: ${err.response.data?.message || 'Server error'}`);
       } else if (err.request) {
+        // Request made but no response
         console.error("No response received:", err.request);
         alert("Failed to update: No response from server. Check if backend is running.");
       } else {
+        // Something else happened
         console.error("Error message:", err.message);
         alert(`Failed to update: ${err.message}`);
       }
@@ -176,6 +167,7 @@ function RegDeliverymanPage({ deliverymanId }) {
     return <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>;
   }
 
+  // Render delivery status badge
   const renderDeliveryStatusBadge = (status) => {
     if (status === "delivered") {
       return (
@@ -193,23 +185,21 @@ function RegDeliverymanPage({ deliverymanId }) {
     return null;
   };
 
+  // Render orders
   const renderOrders = (orders, type) => {
-    console.log(
-      `Rendering ${type} orders:`,
-      orders.map((o) => ({
-        id: o._id,
-        item: o.item,
-        accepted: o.acceptedByDeliveryman,
-        status: o.deliveryStatus,
-      }))
-    );
+    console.log(`Rendering ${type} orders:`, orders.map(o => ({
+      id: o._id,
+      item: o.item,
+      accepted: o.acceptedByDeliveryman,
+      status: o.deliveryStatus
+    })));
 
     return (
       <div className="orders-container">
         {orders.map((order) => {
           console.log(`Order ${order._id}:`, {
             accepted: order.acceptedByDeliveryman,
-            status: order.deliveryStatus,
+            status: order.deliveryStatus
           });
 
           return (
@@ -224,6 +214,7 @@ function RegDeliverymanPage({ deliverymanId }) {
               <p>Pickup: {type === "seller" ? "Seller" : "Farmer"}</p>
               <p>Deliver To: Buyer</p>
 
+              {/* Show Accept Delivery button if not yet accepted */}
               {!order.acceptedByDeliveryman && (
                 <button
                   className="cart-button"
@@ -233,36 +224,35 @@ function RegDeliverymanPage({ deliverymanId }) {
                 </button>
               )}
 
+              {/* Show status controls once accepted */}
               {order.acceptedByDeliveryman && (
                 <>
                   <button className="cart-button approved-button" disabled>
                     <FontAwesomeIcon icon={faTruck} /> You Approved Delivery
                   </button>
 
+                  {/* Show Delivered/Not Delivered buttons if status is still "approved" */}
                   {order.deliveryStatus === "approved" && (
                     <div className="delivery-status-buttons">
                       <button
                         className="delivered-button"
-                        onClick={() =>
-                          handleDeliveryStatus(order._id, type, "delivered")
-                        }
+                        onClick={() => handleDeliveryStatus(order._id, type, "delivered")}
                       >
                         <FontAwesomeIcon icon={faCheckCircle} /> Delivered
                       </button>
                       <button
                         className="not-delivered-button"
-                        onClick={() =>
-                          handleDeliveryStatus(order._id, type, "not-delivered")
-                        }
+                        onClick={() => handleDeliveryStatus(order._id, type, "not-delivered")}
                       >
                         <FontAwesomeIcon icon={faTimesCircle} /> Not Delivered
                       </button>
                     </div>
                   )}
 
-                  {(order.deliveryStatus === "delivered" ||
-                    order.deliveryStatus === "not-delivered") &&
-                    renderDeliveryStatusBadge(order.deliveryStatus)}
+                  {/* Show final status badge if marked as delivered/not-delivered */}
+                  {(order.deliveryStatus === "delivered" || order.deliveryStatus === "not-delivered") && 
+                    renderDeliveryStatusBadge(order.deliveryStatus)
+                  }
                 </>
               )}
 
@@ -304,22 +294,18 @@ function RegDeliverymanPage({ deliverymanId }) {
         </div>
       </div>
 
-      {/* Salary Section - Only show if deliverymanId exists */}
-      {deliverymanId && (
-        <div className="salary-section" style={{ margin: "20px", textAlign: "center" }}>
-          <button className="view-salary-button" onClick={() => setShowSalary(true)}>
-            <FontAwesomeIcon icon={faMoneyBillWave} /> Your Salary Provided by Government
-          </button>
-        </div>
-      )}
+      {/* Salary Section */}
+      <div className="salary-section" style={{ margin: "20px", textAlign: "center" }}>
+        <button className="view-salary-button" onClick={() => setShowSalary(true)}>
+          <FontAwesomeIcon icon={faMoneyBillWave} /> Your Salary Provided by Government
+        </button>
+      </div>
 
       {showSalary && (
         <div className="salary-modal">
           <div className="salary-content">
             <h2>Your Salary Provided by Government</h2>
-            <p>
-              Your salary is: <strong>${salary}</strong>
-            </p>
+            <p>Your salary is: <strong>${salary}</strong></p>
             <button onClick={() => setShowSalary(false)} className="close-button">
               Close
             </button>
