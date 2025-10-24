@@ -73,15 +73,17 @@ function RegDeliverymanPage({ deliverymanId }) {
     fetchOrders();
   }, [deliverymanId]);
 
-  // Handle deliveryman accepting order - Uses tempDeliverymanId
+  // Handle deliveryman accepting order - Sends 0 if deliverymanId not provided
   const handleAcceptDelivery = async (orderId, type) => {
     try {
       console.log(`Accepting ${type} order ${orderId}`);
 
-      // Use the temporary deliveryman ID
+      // Send 0 as deliverymanId if not provided
       const requestBody = { 
-        deliverymanId: tempDeliverymanId
+        deliverymanId: deliverymanId || 0
       };
+
+      console.log('Request body:', requestBody);
 
       if (type === "seller") {
         const response = await axios.put(
