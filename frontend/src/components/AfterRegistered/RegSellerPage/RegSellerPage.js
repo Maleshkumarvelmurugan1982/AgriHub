@@ -17,7 +17,7 @@ function RegSellerPage() {
   const [showAllDeliveryPosts, setShowAllDeliveryPosts] = useState(false);
   const notifiedOrdersRef = useRef(new Set());
 
-  const BACKEND_URL = "http://localhost:8070";
+  const BACKEND_URL = "https://agrihub-2.onrender.com";
   const fallbackProductImage = "https://via.placeholder.com/300x200?text=Product+Image";
   const fallbackVehicleImage = "https://via.placeholder.com/300x200?text=Vehicle+Image";
 
