@@ -38,7 +38,7 @@ function GovernmentPage() {
   // Fetch schemes from backend
   const fetchSchemes = async () => {
     try {
-      const res = await axios.get("http://localhost:8070/schemes");
+      const res = await axios.get("https://agrihub-2.onrender.com/schemes");
       setSchemes(res.data);
     } catch (err) {
       console.error("Failed to fetch schemes:", err);
@@ -49,7 +49,7 @@ function GovernmentPage() {
   // Fetch delivery men from backend
   const fetchDeliveryMen = async () => {
     try {
-      const res = await axios.get("http://localhost:8070/deliverymen");
+      const res = await axios.get("https://agrihub-2.onrender.com/deliverymen");
       setDeliveryMen(res.data);
     } catch (err) {
       console.error("Failed to fetch delivery men:", err);
@@ -64,7 +64,7 @@ function GovernmentPage() {
       return;
     }
     try {
-      const res = await axios.post("http://localhost:8070/schemes", {
+      const res = await axios.post("https://agrihub-2.onrender.com/schemes", {
         name: newScheme.trim(),
       });
       setSchemes((prev) => [...prev, res.data]);
@@ -88,7 +88,7 @@ function GovernmentPage() {
     }
     const scheme = schemes[index];
     try {
-      const res = await axios.put(`http://localhost:8070/schemes/${scheme._id}`, {
+      const res = await axios.put(`https://agrihub-2.onrender.com/schemes/${scheme._id}`, {
         name: editScheme.trim(),
       });
       const updatedSchemes = [...schemes];
@@ -105,7 +105,7 @@ function GovernmentPage() {
   const handleDeleteScheme = async (index) => {
     const scheme = schemes[index];
     try {
-      await axios.delete(`http://localhost:8070/schemes/${scheme._id}`);
+      await axios.delete(`https://agrihub-2.onrender.com/schemes/${scheme._id}`);
       setSchemes((prev) => prev.filter((_, i) => i !== index));
     } catch (err) {
       console.error("Error deleting scheme:", err);
@@ -133,7 +133,7 @@ function GovernmentPage() {
     }
 
     try {
-      await axios.put(`http://localhost:8070/deliverymen/${id}/salary`, {
+      await axios.put(`https://agrihub-2.onrender.com/deliverymen/${id}/salary`, {
         salary: numericSalary,
       });
       alert("Salary updated successfully!");
@@ -147,7 +147,7 @@ function GovernmentPage() {
   // Fetch applicants for a scheme
   const fetchApplicants = async (schemeId) => {
     try {
-      const res = await axios.get(`http://localhost:8070/schemes/${schemeId}/applicants`);
+      const res = await axios.get(`https://agrihub-2.onrender.com/schemes/${schemeId}/applicants`);
       setApplicants(res.data);
       setShowApplicantsFor(schemeId);
     } catch (err) {
