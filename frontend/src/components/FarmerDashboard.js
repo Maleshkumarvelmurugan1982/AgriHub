@@ -16,7 +16,7 @@ const FarmerDashboard = ({ farmerId }) => {
   // Fetch farmer products
   const fetchProducts = async () => {
     try {
-      const res = await axios.get(`http://localhost:8070/farmerProducts/${farmerId}`);
+      const res = await axios.get(`https://agrihub-2.onrender.com/farmerProducts/${farmerId}`);
       setProducts(res.data);
     } catch (err) {
       console.error(err);
@@ -47,7 +47,7 @@ const FarmerDashboard = ({ farmerId }) => {
     });
 
     try {
-      await axios.post("http://localhost:8070/farmerProducts/add", formData, {
+      await axios.post("https://agrihub-2.onrender.com/farmerProducts/add", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       alert("Product added!");
@@ -72,7 +72,7 @@ const FarmerDashboard = ({ farmerId }) => {
     if (!qty || isNaN(qty)) return;
 
     try {
-      await axios.post(`http://localhost:8070/farmerProducts/order/${productId}`, {
+      await axios.post(`https://agrihub-2.onrender.com/farmerProducts/order/${productId}`, {
         quantity: Number(qty),
       });
       alert("Order placed!");
@@ -146,7 +146,7 @@ const FarmerDashboard = ({ farmerId }) => {
           <div className="product-card" key={product._id}>
             {product.image && (
               <img
-                src={`http://localhost:8070/uploads/${product.image}`}
+                src={`https://agrihub-2.onrender.com/uploads/${product.image}`}
                 alt={product.name}
               />
             )}
