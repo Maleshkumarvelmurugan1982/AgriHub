@@ -11,17 +11,14 @@ function Login() {
 
   const navigate = useNavigate();
 
-  // Handle login submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate input
     if (!email || !password || !userRole) {
       alert("Please fill in all fields.");
       return;
     }
 
-    // Determine backend URL based on role
     let url = "";
     switch (userRole) {
       case "Farmer":
@@ -45,28 +42,20 @@ function Login() {
           "Content-Type": "application/json",
           Accept: "application/json"
         },
-        credentials: "include", // Important for sessions/cookies
-        body: JSON.stringify({ email, password })
+        credentials: "include", // necessary for session cookies
+        body: JSON.stringify({ email, password, userRole })
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Login failed");
-      }
+      if (!res.ok) throw new Error(data.error || "Login failed");
 
       if (data.status === "ok") {
         alert("Login successful!");
-
-        // Store token if backend sends one
-        if (data.data) {
-          localStorage.setItem("token", data.data);
-        }
-
-        // Redirect to homepage
+        localStorage.setItem("token", data.data);
         window.location.href = "/homepage-registeredusers";
       } else {
-        alert(data.error || "Invalid credentials");
+        alert(data.error || "Login failed");
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -74,7 +63,6 @@ function Login() {
     }
   };
 
-  // Back button
   const handleBack = () => {
     navigate("/");
   };
@@ -100,8 +88,8 @@ function Login() {
                 type="email"
                 className="form-control"
                 placeholder="Enter email"
-                onChange={(e) => setEmail(e.target.value)}
                 value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
@@ -111,8 +99,8 @@ function Login() {
                 type="password"
                 className="form-control"
                 placeholder="Enter password"
-                onChange={(e) => setPassword(e.target.value)}
                 value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 
@@ -120,8 +108,8 @@ function Login() {
               <label>Role</label>
               <select
                 className="form-control"
-                onChange={(e) => setUserRole(e.target.value)}
                 value={userRole}
+                onChange={(e) => setUserRole(e.target.value)}
               >
                 <option value="">Select Role</option>
                 <option value="Farmer">Farmer</option>
@@ -132,21 +120,15 @@ function Login() {
 
             <div className="checkbox-container">
               <input type="checkbox" className="checkbox" id="customCheck1" />
-              <label className="text" htmlFor="customCheck1">
-                Remember me
-              </label>
+              <label className="text" htmlFor="customCheck1">Remember me</label>
             </div>
 
             <div className="login-button-container">
-              <button type="submit" className="login-button">
-                Submit
-              </button>
+              <button type="submit" className="login-button">Submit</button>
             </div>
 
             <div className="back-button-container" style={{ marginTop: "10px" }}>
-              <button type="button" className="back-button" onClick={handleBack}>
-                Back to Home
-              </button>
+              <button type="button" className="back-button" onClick={handleBack}>Back to Home</button>
             </div>
 
             <p className="text-register">
