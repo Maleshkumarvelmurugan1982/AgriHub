@@ -25,7 +25,7 @@ function OrderPage() {
   const [productId, setProductId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const BASE_URL = "http://localhost:8070";
+  const BASE_URL = "https://agrihub-2.onrender.com";
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
