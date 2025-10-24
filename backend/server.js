@@ -14,17 +14,18 @@ const app = express();
 const PORT = process.env.PORT || 8070;
 
 // -------------------- CORS --------------------
-const allowedOrigins = ["https://agrihub-3.onrender.com"];
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://agrihub-2.onrender.com",
+  "https://agrihub-3.onrender.com",
+];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // allow Postman or server-to-server
+      if (!origin) return callback(null, true); // allow Postman/server-to-server
       if (allowedOrigins.indexOf(origin) === -1) {
-        return callback(
-          new Error("CORS policy does not allow access from this origin"),
-          false
-        );
+        return callback(new Error("CORS policy does not allow access from this origin"), false);
       }
       return callback(null, true);
     },
@@ -35,7 +36,6 @@ app.use(
 // -------------------- MIDDLEWARE --------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "your-secret-key",
@@ -93,10 +93,9 @@ const userRouter = require("./routes/user");
 const deliverymenRouter = require("./routes/DeliveryMen");
 const authRouter = require("./routes/auth");
 const appliedSchemesRoutes = require("./routes/appliedSchemes");
-const sellerOrderRoutes = require("./routes/sellerOrderRoutes");
-const maleshRoutes = require("./routes/malesh"); // adjust path
+const maleshRoutes = require("./routes/malesh");
 
-// -------------------- MOUNT ROUTES --------------------
+// Mount all routers
 app.use("/farmer", farmerRouter);
 app.use("/seller", sellerRouter);
 app.use("/deliveryman", deliverymanRouter);
@@ -109,12 +108,13 @@ app.use("/user", userRouter);
 app.use("/deliverymen", deliverymenRouter);
 app.use("/auth", authRouter);
 app.use("/appliedschemes", appliedSchemesRoutes);
-app.use("/sellerorder", sellerOrderRoutes);
-app.use("/sellerorder", maleshRoutes);
+app.use("/sellerorder", sellerOrderRouter);
+app.use("/sellerorder", maleshRoutes); // optional
 
 // -------------------- PRODUCT ENDPOINTS --------------------
 const Product = require("./model/Product");
 
+// Add new product
 app.post("/product/add", upload.single("productImage"), async (req, res) => {
   try {
     const { productName, category, quantity, price } = req.body;
@@ -134,6 +134,7 @@ app.post("/product/add", upload.single("productImage"), async (req, res) => {
   }
 });
 
+// Get all products
 app.get("/product", async (req, res) => {
   try {
     const products = await Product.find();
@@ -144,69 +145,12 @@ app.get("/product", async (req, res) => {
   }
 });
 
+// Get product by name
 app.get("/product/name/:productName", async (req, res) => {
   try {
     const product = await Product.findOne({ productName: req.params.productName });
     if (!product) return res.status(404).json({ message: "Product not found" });
     res.json(product);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/product/category/:category", async (req, res) => {
-  try {
-    const products = await Product.find({ category: req.params.category });
-    res.json(products);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.patch("/product/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { quantity, price } = req.body;
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
-      { quantity: Number(quantity), price: Number(price) },
-      { new: true }
-    );
-    if (!updatedProduct) return res.status(404).json({ message: "Product not found" });
-    res.json(updatedProduct);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/product/:id", upload.single("productImage"), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { productName, category, quantity, price } = req.body;
-    const updateData = { productName, category, quantity: Number(quantity), price: Number(price) };
-    if (req.file) updateData.productImage = `/uploads/${req.file.filename}`;
-    const updatedProduct = await Product.findByIdAndUpdate(id, updateData, { new: true });
-    if (!updatedProduct) return res.status(404).json({ message: "Product not found" });
-    res.json(updatedProduct);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/product/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deletedProduct = await Product.findByIdAndDelete(id);
-    if (!deletedProduct) return res.status(404).json({ message: "Product not found" });
-    if (deletedProduct.productImage) {
-      const imagePath = path.join(__dirname, deletedProduct.productImage);
-      if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
-    }
-    res.json({ message: "Product deleted", deletedProduct });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -232,7 +176,7 @@ app.use((err, req, res, next) => {
   next();
 });
 
-// 404
+// 404 handler
 app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 
 // -------------------- START SERVER --------------------
