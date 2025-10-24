@@ -45,7 +45,7 @@ function FarmerPage() {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch(`${BASE_URL}/farmer/userdata`, {
+        const res = await fetch(`${BASE_URL}/user/userdata`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
