@@ -15,7 +15,7 @@ function SchemeApplication() {
   useEffect(() => {
     const fetchScheme = async () => {
       try {
-        const response = await fetch(`http://localhost:8070/schemes/${schemeId}`);
+        const response = await fetch("https://agrihub-2.onrender.com/schemes/${schemeId}");
         const data = await response.json();
         setScheme(data);
       } catch (err) {
@@ -36,7 +36,7 @@ function SchemeApplication() {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:8070/applications", {
+      const response = await fetch("https://agrihub-2.onrender.com/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
