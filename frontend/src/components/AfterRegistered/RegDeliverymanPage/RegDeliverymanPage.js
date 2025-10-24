@@ -48,12 +48,17 @@ function RegDeliverymanPage({ deliverymanId }) {
           }));
         setFarmerOrders(approvedFarmerOrders);
 
-        // Fetch salary
+        // Fetch salary only if deliverymanId exists
         if (deliverymanId) {
-          const salaryResponse = await axios.get(
-            `https://agrihub-2.onrender.com/salary/${deliverymanId}`
-          );
-          setSalary(salaryResponse.data.salary ?? 0);
+          try {
+            const salaryResponse = await axios.get(
+              `https://agrihub-2.onrender.com/salary/${deliverymanId}`
+            );
+            setSalary(salaryResponse.data.salary ?? 0);
+          } catch (salaryErr) {
+            console.warn("Could not fetch salary:", salaryErr);
+            setSalary(0);
+          }
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -68,15 +73,18 @@ function RegDeliverymanPage({ deliverymanId }) {
     fetchOrders();
   }, [deliverymanId]);
 
-  // Handle deliveryman accepting order
+  // Handle deliveryman accepting order - Modified to work without deliverymanId
   const handleAcceptDelivery = async (orderId, type) => {
     try {
       console.log(`Accepting ${type} order ${orderId}`);
 
+      // Prepare request body - only include deliverymanId if it exists
+      const requestBody = deliverymanId ? { deliverymanId } : {};
+
       if (type === "seller") {
         const response = await axios.put(
           `https://agrihub-2.onrender.com/sellerorder/${orderId}/accept`,
-          { deliverymanId }
+          requestBody
         );
         console.log("Accept response:", response.data);
 
@@ -90,7 +98,7 @@ function RegDeliverymanPage({ deliverymanId }) {
       } else {
         const response = await axios.put(
           `https://agrihub-2.onrender.com/farmerorder/${orderId}/accept`,
-          { deliverymanId }
+          requestBody
         );
         console.log("Accept response:", response.data);
 
@@ -292,12 +300,14 @@ function RegDeliverymanPage({ deliverymanId }) {
         </div>
       </div>
 
-      {/* Salary Section */}
-      <div className="salary-section" style={{ margin: "20px", textAlign: "center" }}>
-        <button className="view-salary-button" onClick={() => setShowSalary(true)}>
-          <FontAwesomeIcon icon={faMoneyBillWave} /> Your Salary Provided by Government
-        </button>
-      </div>
+      {/* Salary Section - Only show if deliverymanId exists */}
+      {deliverymanId && (
+        <div className="salary-section" style={{ margin: "20px", textAlign: "center" }}>
+          <button className="view-salary-button" onClick={() => setShowSalary(true)}>
+            <FontAwesomeIcon icon={faMoneyBillWave} /> Your Salary Provided by Government
+          </button>
+        </div>
+      )}
 
       {showSalary && (
         <div className="salary-modal">
@@ -335,4 +345,3 @@ function RegDeliverymanPage({ deliverymanId }) {
 }
 
 export default RegDeliverymanPage;
-
