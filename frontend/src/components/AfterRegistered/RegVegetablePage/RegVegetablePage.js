@@ -23,7 +23,7 @@ function RegVegetablePage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch("http://localhost:8070/product/category/vegetable");
+        const response = await fetch("https://agrihub-2.onrender.com/product/category/vegetable");
         if (!response.ok) {
           console.error("Error fetching products:", response.status, response.statusText);
           setProducts([]);
@@ -71,7 +71,7 @@ function RegVegetablePage() {
         formData.append("productImage", newProduct.productImage);
       }
 
-      const response = await fetch("http://localhost:8070/product/add", {
+      const response = await fetch("https://agrihub-2.onrender.com/product/add", {
         method: "POST",
         body: formData,
       });
@@ -105,7 +105,7 @@ function RegVegetablePage() {
   const handleUpdateProduct = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:8070/product/${editProduct._id}`, {
+      const response = await fetch(`https://agrihub-2.onrender.com/product/${editProduct._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -136,7 +136,7 @@ function RegVegetablePage() {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
 
     try {
-      const response = await fetch(`http://localhost:8070/product/${productId}`, {
+      const response = await fetch(`https://agrihub-2.onrender.com/product/${productId}`, {
         method: "DELETE",
       });
       if (!response.ok) {
@@ -191,7 +191,7 @@ function RegVegetablePage() {
                 className="product-item-veg-link"
               >
                 <img
-                  src={`http://localhost:8070${product.productImage}`}
+                  src={`https://agrihub-2.onrender.com${product.productImage}`}
                   alt={product.productName}
                   style={{
                     width: "150px",
