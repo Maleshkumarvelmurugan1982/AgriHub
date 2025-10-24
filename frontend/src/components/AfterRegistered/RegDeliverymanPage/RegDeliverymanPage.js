@@ -6,7 +6,6 @@ import FooterNew from "../../Footer/FooterNew";
 import RegCategories from "../RegCatoegories/RegCategories";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faChevronRight,
   faTruck,
   faInfoCircle,
   faMoneyBillWave,
@@ -15,15 +14,37 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
-function RegDeliverymanPage({ deliverymanId }) {
+function RegDeliverymanPage() {
   const [sellerOrders, setSellerOrders] = useState([]);
   const [farmerOrders, setFarmerOrders] = useState([]);
   const [salary, setSalary] = useState(0);
   const [showSalary, setShowSalary] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deliverymanId, setDeliverymanId] = useState(null);
 
   const API_BASE = "https://agrihub-2.onrender.com";
 
+  // Fetch deliveryman ID automatically
+  useEffect(() => {
+    const fetchDeliverymanId = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/deliveryman/`);
+        if (response.data && response.data.length > 0) {
+          // Pick the first deliveryman for simplicity (you can change this logic)
+          setDeliverymanId(response.data[0]._id);
+          console.log("✅ Deliveryman ID fetched:", response.data[0]._id);
+        } else {
+          console.warn("⚠️ No deliverymen found in database.");
+        }
+      } catch (err) {
+        console.error("❌ Error fetching deliveryman ID:", err);
+      }
+    };
+
+    fetchDeliverymanId();
+  }, []);
+
+  // Fetch orders and salary
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -51,7 +72,7 @@ function RegDeliverymanPage({ deliverymanId }) {
           }));
         setFarmerOrders(approvedFarmerOrders);
 
-        // Fetch salary
+        // Fetch salary (only if deliverymanId exists)
         if (deliverymanId) {
           const salaryResponse = await axios.get(`${API_BASE}/salary/${deliverymanId}`);
           setSalary(salaryResponse.data.salary ?? 0);
@@ -73,12 +94,16 @@ function RegDeliverymanPage({ deliverymanId }) {
   const handleAcceptDelivery = async (orderId, type) => {
     try {
       console.log(`Accepting ${type} order ${orderId}`);
+
+      // If no deliverymanId, still allow accept but log warning
+      const payload = deliverymanId ? { deliverymanId } : {};
+
       const url =
         type === "seller"
           ? `${API_BASE}/sellerorder/${orderId}/accept`
           : `${API_BASE}/farmerorder/${orderId}/accept`;
 
-      const response = await axios.put(url, { deliverymanId });
+      const response = await axios.put(url, payload);
       console.log("Accept response:", response.data);
 
       if (type === "seller") {
@@ -110,15 +135,12 @@ function RegDeliverymanPage({ deliverymanId }) {
   // Handle delivery status update (delivered / not-delivered)
   const handleDeliveryStatus = async (orderId, type, status) => {
     try {
-      console.log(`Attempting to update ${type} order ${orderId} to status: ${status}`);
+      console.log(`Updating ${type} order ${orderId} to ${status}`);
 
       const url =
         type === "seller"
           ? `${API_BASE}/sellerorder/${orderId}/status`
           : `${API_BASE}/farmerorder/${orderId}/status`;
-
-      console.log(`Making PUT request to: ${url}`);
-      console.log("Request body:", { status });
 
       const response = await axios.put(url, { status });
       console.log("✅ Backend update successful:", response.data);
@@ -133,16 +155,10 @@ function RegDeliverymanPage({ deliverymanId }) {
         );
       }
 
-      alert(`✅ Order status updated to ${status} successfully!`);
+      alert(`✅ Order marked as ${status} successfully!`);
     } catch (err) {
       console.error("❌ Error updating delivery status:", err);
-      if (err.response) {
-        alert(`Failed to update: ${err.response.data?.message || "Server error"}`);
-      } else if (err.request) {
-        alert("Failed to update: No response from server. Check if backend is running.");
-      } else {
-        alert(`Failed to update: ${err.message}`);
-      }
+      alert(`Failed to update: ${err.response?.data?.message || err.message}`);
     }
   };
 
@@ -167,63 +183,61 @@ function RegDeliverymanPage({ deliverymanId }) {
     return null;
   };
 
-  const renderOrders = (orders, type) => {
-    return (
-      <div className="orders-container">
-        {orders.map(order => (
-          <div key={order._id} className="order-item">
-            <img
-              src={`${API_BASE}${order.productImage}`}
-              alt={order.item}
-              className="order-image"
-            />
-            <p>{order.item}</p>
-            <p>Quantity: {order.quantity}</p>
-            <p>Pickup: {type === "seller" ? "Seller" : "Farmer"}</p>
-            <p>Deliver To: Buyer</p>
+  const renderOrders = (orders, type) => (
+    <div className="orders-container">
+      {orders.map(order => (
+        <div key={order._id} className="order-item">
+          <img
+            src={`${API_BASE}${order.productImage}`}
+            alt={order.item}
+            className="order-image"
+          />
+          <p>{order.item}</p>
+          <p>Quantity: {order.quantity}</p>
+          <p>Pickup: {type === "seller" ? "Seller" : "Farmer"}</p>
+          <p>Deliver To: Buyer</p>
 
-            {!order.acceptedByDeliveryman && (
-              <button className="cart-button" onClick={() => handleAcceptDelivery(order._id, type)}>
-                <FontAwesomeIcon icon={faTruck} /> Accept Delivery
-              </button>
-            )}
-
-            {order.acceptedByDeliveryman && (
-              <>
-                <button className="cart-button approved-button" disabled>
-                  <FontAwesomeIcon icon={faTruck} /> You Approved Delivery
-                </button>
-
-                {order.deliveryStatus === "approved" && (
-                  <div className="delivery-status-buttons">
-                    <button
-                      className="delivered-button"
-                      onClick={() => handleDeliveryStatus(order._id, type, "delivered")}
-                    >
-                      <FontAwesomeIcon icon={faCheckCircle} /> Delivered
-                    </button>
-                    <button
-                      className="not-delivered-button"
-                      onClick={() => handleDeliveryStatus(order._id, type, "not-delivered")}
-                    >
-                      <FontAwesomeIcon icon={faTimesCircle} /> Not Delivered
-                    </button>
-                  </div>
-                )}
-
-                {(order.deliveryStatus === "delivered" || order.deliveryStatus === "not-delivered") &&
-                  renderDeliveryStatusBadge(order.deliveryStatus)}
-              </>
-            )}
-
-            <button className="supply-button">
-              <FontAwesomeIcon icon={faInfoCircle} /> More Info
+          {!order.acceptedByDeliveryman && (
+            <button className="cart-button" onClick={() => handleAcceptDelivery(order._id, type)}>
+              <FontAwesomeIcon icon={faTruck} /> Accept Delivery
             </button>
-          </div>
-        ))}
-      </div>
-    );
-  };
+          )}
+
+          {order.acceptedByDeliveryman && (
+            <>
+              <button className="cart-button approved-button" disabled>
+                <FontAwesomeIcon icon={faTruck} /> You Approved Delivery
+              </button>
+
+              {order.deliveryStatus === "approved" && (
+                <div className="delivery-status-buttons">
+                  <button
+                    className="delivered-button"
+                    onClick={() => handleDeliveryStatus(order._id, type, "delivered")}
+                  >
+                    <FontAwesomeIcon icon={faCheckCircle} /> Delivered
+                  </button>
+                  <button
+                    className="not-delivered-button"
+                    onClick={() => handleDeliveryStatus(order._id, type, "not-delivered")}
+                  >
+                    <FontAwesomeIcon icon={faTimesCircle} /> Not Delivered
+                  </button>
+                </div>
+              )}
+
+              {(order.deliveryStatus === "delivered" || order.deliveryStatus === "not-delivered") &&
+                renderDeliveryStatusBadge(order.deliveryStatus)}
+            </>
+          )}
+
+          <button className="supply-button">
+            <FontAwesomeIcon icon={faInfoCircle} /> More Info
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div>
