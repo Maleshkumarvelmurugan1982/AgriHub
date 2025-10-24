@@ -28,7 +28,7 @@ function RegDeliverymanPage({ deliverymanId }) {
         setLoading(true);
 
         // Fetch seller orders
-        const sellerResponse = await axios.get("http://localhost:8070/sellerorder/");
+        const sellerResponse = await axios.get("https://agrihub-2.onrender.com/sellerorder/");
         const approvedSellerOrders = (sellerResponse.data ?? [])
           .filter(order => order.farmerApproved === true || order.status === "approved")
           .map(order => ({
@@ -39,7 +39,7 @@ function RegDeliverymanPage({ deliverymanId }) {
         setSellerOrders(approvedSellerOrders);
 
         // Fetch farmer orders
-        const farmerResponse = await axios.get("http://localhost:8070/farmerorder/");
+        const farmerResponse = await axios.get("https://agrihub-2.onrender.com/farmerorder/");
         const approvedFarmerOrders = (farmerResponse.data ?? [])
           .filter(order => order.farmerApproved === true || order.status === "approved")
           .map(order => ({
@@ -51,7 +51,7 @@ function RegDeliverymanPage({ deliverymanId }) {
 
         // Fetch salary
         if (deliverymanId) {
-          const salaryResponse = await axios.get(`http://localhost:8070/salary/${deliverymanId}`);
+          const salaryResponse = await axios.get(`https://agrihub-2.onrender.com/salary/${deliverymanId}`);
           setSalary(salaryResponse.data.salary ?? 0);
         }
       } catch (err) {
@@ -74,7 +74,7 @@ function RegDeliverymanPage({ deliverymanId }) {
       
       // Persist in backend
       if (type === "seller") {
-        const response = await axios.put(`http://localhost:8070/sellerorder/${orderId}/accept`, { 
+        const response = await axios.put(`https://agrihub-2.onrender.com/sellerorder/${orderId}/accept`, { 
           deliverymanId 
         });
         console.log("Accept response:", response.data);
@@ -88,7 +88,7 @@ function RegDeliverymanPage({ deliverymanId }) {
           )
         );
       } else {
-        const response = await axios.put(`http://localhost:8070/farmerorder/${orderId}/accept`, { 
+        const response = await axios.put(`https://agrihub-2.onrender.com/farmerorder/${orderId}/accept`, { 
           deliverymanId 
         });
         console.log("Accept response:", response.data);
@@ -118,8 +118,8 @@ function RegDeliverymanPage({ deliverymanId }) {
       
       // Persist in backend FIRST
       const url = type === "seller" 
-        ? `http://localhost:8070/sellerorder/${orderId}/status`
-        : `http://localhost:8070/farmerorder/${orderId}/status`;
+        ? `https://agrihub-2.onrender.com/sellerorder/${orderId}/status`
+        : `https://agrihub-2.onrender.com/farmerorder/${orderId}/status`;
       
       console.log(`Making PUT request to: ${url}`);
       console.log(`Request body:`, { status });
@@ -207,7 +207,7 @@ function RegDeliverymanPage({ deliverymanId }) {
             return (
               <div key={order._id} className="order-item">
                 <img
-                  src={`http://localhost:8070${order.productImage}`}
+                  src={`https://agrihub-2.onrender.com${order.productImage}`}
                   alt={order.item}
                   className="order-image"
                 />
