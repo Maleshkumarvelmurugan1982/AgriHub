@@ -1,6 +1,6 @@
 import "./login.css";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
 
@@ -9,19 +9,20 @@ function Login() {
   const [password, setPassword] = useState("");
   const [userRole, setUserRole] = useState("");
 
-  const navigate = useNavigate(); // Initialize navigate
+  const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  // Handle login submission
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Check if email or userRole is empty
+    // Validate input
     if (!email || !password || !userRole) {
       alert("Please fill in all fields.");
       return;
     }
 
+    // Determine backend URL based on role
     let url = "";
-
     switch (userRole) {
       case "Farmer":
         url = "https://agrihub-2.onrender.com/farmer/login";
@@ -33,43 +34,49 @@ function Login() {
         url = "https://agrihub-2.onrender.com/deliveryman/login";
         break;
       default:
-        break;
+        alert("Invalid role selected.");
+        return;
     }
 
-    fetch(url, {
-      method: "POST",
-      crossDomain: true,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        userRole,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log(data, "userRegister");
-        if (data.status === "ok") {
-          alert("Login successful");
-          window.localStorage.setItem("token", data.data);
-          window.location.href = "/homepage-registeredusers"; // Redirect to homepage based on user role
-        } else {
-          alert("Login failed. Please check your credentials.");
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        alert("Login failed. Please try again later.");
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        credentials: "include", // Important for sessions/cookies
+        body: JSON.stringify({ email, password })
       });
-  }
 
-  // Handle back button click
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      if (data.status === "ok") {
+        alert("Login successful!");
+
+        // Store token if backend sends one
+        if (data.data) {
+          localStorage.setItem("token", data.data);
+        }
+
+        // Redirect to homepage
+        window.location.href = "/homepage-registeredusers";
+      } else {
+        alert(data.error || "Invalid credentials");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      alert(err.message || "Login failed. Please try again later.");
+    }
+  };
+
+  // Back button
   const handleBack = () => {
-    navigate("/"); // Redirect to home page
+    navigate("/");
   };
 
   return (
@@ -79,7 +86,7 @@ function Login() {
         <div className="login-image">
           <img
             src="https://assets-global.website-files.com/5d2fb52b76aabef62647ed9a/6195c8e178a99295d45307cb_allgreen1000-550.jpg"
-            alt=""
+            alt="Login"
             className="img-login"
           />
         </div>
@@ -94,6 +101,7 @@ function Login() {
                 className="form-control"
                 placeholder="Enter email"
                 onChange={(e) => setEmail(e.target.value)}
+                value={email}
               />
             </div>
 
@@ -104,6 +112,7 @@ function Login() {
                 className="form-control"
                 placeholder="Enter password"
                 onChange={(e) => setPassword(e.target.value)}
+                value={password}
               />
             </div>
 
@@ -112,6 +121,7 @@ function Login() {
               <select
                 className="form-control"
                 onChange={(e) => setUserRole(e.target.value)}
+                value={userRole}
               >
                 <option value="">Select Role</option>
                 <option value="Farmer">Farmer</option>
@@ -133,13 +143,8 @@ function Login() {
               </button>
             </div>
 
-            {/* Back Button */}
             <div className="back-button-container" style={{ marginTop: "10px" }}>
-              <button
-                type="button"
-                className="back-button"
-                onClick={handleBack}
-              >
+              <button type="button" className="back-button" onClick={handleBack}>
                 Back to Home
               </button>
             </div>
