@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 8070;
 // -------------------- MIDDLEWARE --------------------
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "*",
     credentials: true,
   })
 );
