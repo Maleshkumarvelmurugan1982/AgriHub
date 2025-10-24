@@ -15,15 +15,62 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
-function RegDeliverymanPage({ deliverymanId }) {
+// Production API URL
+const API_URL = "https://agrihub-2.onrender.com";
+
+function RegDeliverymanPage({ deliverymanId: propDeliverymanId }) {
   const [sellerOrders, setSellerOrders] = useState([]);
   const [farmerOrders, setFarmerOrders] = useState([]);
   const [salary, setSalary] = useState(0);
   const [showSalary, setShowSalary] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deliverymanId, setDeliverymanId] = useState(null);
+
+  // Get deliveryman ID from multiple sources
+  useEffect(() => {
+    const getUserId = () => {
+      // Priority 1: From props
+      if (propDeliverymanId) {
+        console.log("✅ Using deliveryman ID from props:", propDeliverymanId);
+        return propDeliverymanId;
+      }
+
+      // Priority 2: From localStorage user object
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          const userId = user._id || user.id || user.userId;
+          if (userId) {
+            console.log("✅ Using deliveryman ID from localStorage user:", userId);
+            return userId;
+          }
+        } catch (err) {
+          console.error("Error parsing user from localStorage:", err);
+        }
+      }
+
+      // Priority 3: From localStorage direct ID
+      const directId = localStorage.getItem('deliverymanId') || 
+                       localStorage.getItem('userId') ||
+                       localStorage.getItem('_id');
+      if (directId) {
+        console.log("✅ Using deliveryman ID from localStorage direct:", directId);
+        return directId;
+      }
+
+      console.error("❌ No deliveryman ID found in props or localStorage");
+      return null;
+    };
+
+    const id = getUserId();
+    setDeliverymanId(id);
+  }, [propDeliverymanId]);
 
   useEffect(() => {
-    fetchOrders();
+    if (deliverymanId) {
+      fetchOrders();
+    }
   }, [deliverymanId]);
 
   const fetchOrders = async () => {
@@ -31,7 +78,7 @@ function RegDeliverymanPage({ deliverymanId }) {
       setLoading(true);
 
       // Fetch seller orders
-      const sellerResponse = await axios.get("https://agrihub-2.onrender.com/sellerorder/");
+      const sellerResponse = await axios.get(`${API_URL}/sellerorder/`);
       const approvedSellerOrders = (sellerResponse.data ?? [])
         .filter(order => order.farmerApproved === true || order.status === "approved")
         .map(order => ({
@@ -42,7 +89,7 @@ function RegDeliverymanPage({ deliverymanId }) {
       setSellerOrders(approvedSellerOrders);
 
       // Fetch farmer orders
-      const farmerResponse = await axios.get("https://agrihub-2.onrender.com/farmerorder/");
+      const farmerResponse = await axios.get(`${API_URL}/farmerorder/`);
       const approvedFarmerOrders = (farmerResponse.data ?? [])
         .filter(order => order.farmerApproved === true || order.status === "approved")
         .map(order => ({
@@ -54,8 +101,13 @@ function RegDeliverymanPage({ deliverymanId }) {
 
       // Fetch salary
       if (deliverymanId) {
-        const salaryResponse = await axios.get(`https://agrihub-2.onrender.com/salary/${deliverymanId}`);
-        setSalary(salaryResponse.data.salary ?? 0);
+        try {
+          const salaryResponse = await axios.get(`${API_URL}/salary/${deliverymanId}`);
+          setSalary(salaryResponse.data.salary ?? 0);
+        } catch (salaryErr) {
+          console.warn("Could not fetch salary:", salaryErr);
+          setSalary(0);
+        }
       }
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -75,41 +127,31 @@ function RegDeliverymanPage({ deliverymanId }) {
       // Validate deliverymanId
       if (!deliverymanId) {
         alert("❌ Deliveryman ID is missing. Please log in again.");
+        console.error("❌ deliverymanId is null or undefined");
         return;
       }
 
       console.log(`Sending deliverymanId: ${deliverymanId}`);
       
       // Persist in backend
-      if (type === "seller") {
-        const response = await axios.put(
-          `https://agrihub-2.onrender.com/sellerorder/${orderId}/accept`, 
-          { deliverymanId },
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            }
+      const url = type === "seller" 
+        ? `${API_URL}/sellerorder/${orderId}/accept`
+        : `${API_URL}/farmerorder/${orderId}/accept`;
+
+      const response = await axios.put(
+        url,
+        { deliverymanId },
+        {
+          headers: {
+            'Content-Type': 'application/json'
           }
-        );
-        console.log("✅ Seller order accept response:", response.data);
-        
-        // Refresh orders from backend to get latest state
-        await fetchOrders();
-      } else {
-        const response = await axios.put(
-          `https://agrihub-2.onrender.com/farmerorder/${orderId}/accept`, 
-          { deliverymanId },
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        console.log("✅ Farmer order accept response:", response.data);
-        
-        // Refresh orders from backend to get latest state
-        await fetchOrders();
-      }
+        }
+      );
+      
+      console.log(`✅ ${type} order accept response:`, response.data);
+      
+      // Refresh orders from backend to get latest state
+      await fetchOrders();
       
       alert("✅ Order accepted successfully!");
     } catch (err) {
@@ -139,14 +181,14 @@ function RegDeliverymanPage({ deliverymanId }) {
       
       // Persist in backend FIRST
       const url = type === "seller" 
-        ? `https://agrihub-2.onrender.com/sellerorder/${orderId}/status`
-        : `https://agrihub-2.onrender.com/farmerorder/${orderId}/status`;
+        ? `${API_URL}/sellerorder/${orderId}/status`
+        : `${API_URL}/farmerorder/${orderId}/status`;
       
       console.log(`Making PUT request to: ${url}`);
       console.log(`Request body:`, { status, deliverymanId });
       
       const response = await axios.put(
-        url, 
+        url,
         { status, deliverymanId },
         {
           headers: {
@@ -182,7 +224,14 @@ function RegDeliverymanPage({ deliverymanId }) {
   };
 
   if (loading) {
-    return <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>;
+    return (
+      <div>
+        <NavbarRegistered />
+        <p style={{ textAlign: "center", marginTop: "50px", fontSize: "18px" }}>
+          Loading orders...
+        </p>
+      </div>
+    );
   }
 
   // Render delivery status badge
@@ -232,7 +281,7 @@ function RegDeliverymanPage({ deliverymanId }) {
             return (
               <div key={order._id} className="order-item">
                 <img
-                  src={`https://agrihub-2.onrender.com${order.productImage}`}
+                  src={`${API_URL}${order.productImage}`}
                   alt={order.item}
                   className="order-image"
                 />
@@ -322,7 +371,7 @@ function RegDeliverymanPage({ deliverymanId }) {
         </div>
       </div>
 
-      {/* Debug Info - Remove in production */}
+      {/* Debug Info - Remove this in production */}
       {!deliverymanId && (
         <div style={{ 
           backgroundColor: '#ffebee', 
@@ -330,9 +379,14 @@ function RegDeliverymanPage({ deliverymanId }) {
           padding: '15px', 
           margin: '20px', 
           borderRadius: '5px',
-          textAlign: 'center'
+          textAlign: 'center',
+          fontWeight: 'bold'
         }}>
           ⚠️ Warning: Deliveryman ID is not set. Please ensure you're logged in properly.
+          <br />
+          <small style={{ fontWeight: 'normal', marginTop: '10px', display: 'block' }}>
+            Check browser console (F12) and type: localStorage.getItem('user')
+          </small>
         </div>
       )}
 
