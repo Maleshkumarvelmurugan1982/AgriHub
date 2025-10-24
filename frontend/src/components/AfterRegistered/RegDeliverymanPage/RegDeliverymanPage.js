@@ -51,7 +51,7 @@ function RegDeliverymanPage({ deliverymanId }) {
 
         // Fetch salary
         if (deliverymanId) {
-          const salaryResponse = await axios.get(https://agrihub-2.onrender.com/salary/${deliverymanId});
+          const salaryResponse = await axios.get(`https://agrihub-2.onrender.com/salary/${deliverymanId}`);
           setSalary(salaryResponse.data.salary ?? 0);
         }
       } catch (err) {
