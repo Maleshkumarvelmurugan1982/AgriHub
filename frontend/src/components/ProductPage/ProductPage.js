@@ -10,7 +10,7 @@ function ProductPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch("http://localhost:8070/product");
+      const response = await fetch("https://agrihub-2.onrender.com/product");
       const data = await response.json();
       setProducts(data);
     };
