@@ -23,91 +23,106 @@ function RegDeliverymanPage({ deliverymanId }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch seller orders
-        const sellerResponse = await axios.get("https://agrihub-2.onrender.com/sellerorder/");
-        const approvedSellerOrders = (sellerResponse.data ?? [])
-          .filter(order => order.farmerApproved === true || order.status === "approved")
-          .map(order => ({
-            ...order,
-            acceptedByDeliveryman: order.acceptedByDeliveryman || false,
-            deliveryStatus: order.deliveryStatus || "pending",
-          }));
-        setSellerOrders(approvedSellerOrders);
-
-        // Fetch farmer orders
-        const farmerResponse = await axios.get("https://agrihub-2.onrender.com/farmerorder/");
-        const approvedFarmerOrders = (farmerResponse.data ?? [])
-          .filter(order => order.farmerApproved === true || order.status === "approved")
-          .map(order => ({
-            ...order,
-            acceptedByDeliveryman: order.acceptedByDeliveryman || false,
-            deliveryStatus: order.deliveryStatus || "pending",
-          }));
-        setFarmerOrders(approvedFarmerOrders);
-
-        // Fetch salary
-        if (deliverymanId) {
-          const salaryResponse = await axios.get(`https://agrihub-2.onrender.com/salary/${deliverymanId}`);
-          setSalary(salaryResponse.data.salary ?? 0);
-        }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setSellerOrders([]);
-        setFarmerOrders([]);
-        setSalary(0);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
   }, [deliverymanId]);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch seller orders
+      const sellerResponse = await axios.get("https://agrihub-2.onrender.com/sellerorder/");
+      const approvedSellerOrders = (sellerResponse.data ?? [])
+        .filter(order => order.farmerApproved === true || order.status === "approved")
+        .map(order => ({
+          ...order,
+          acceptedByDeliveryman: order.acceptedByDeliveryman || false,
+          deliveryStatus: order.deliveryStatus || "pending",
+        }));
+      setSellerOrders(approvedSellerOrders);
+
+      // Fetch farmer orders
+      const farmerResponse = await axios.get("https://agrihub-2.onrender.com/farmerorder/");
+      const approvedFarmerOrders = (farmerResponse.data ?? [])
+        .filter(order => order.farmerApproved === true || order.status === "approved")
+        .map(order => ({
+          ...order,
+          acceptedByDeliveryman: order.acceptedByDeliveryman || false,
+          deliveryStatus: order.deliveryStatus || "pending",
+        }));
+      setFarmerOrders(approvedFarmerOrders);
+
+      // Fetch salary
+      if (deliverymanId) {
+        const salaryResponse = await axios.get(`https://agrihub-2.onrender.com/salary/${deliverymanId}`);
+        setSalary(salaryResponse.data.salary ?? 0);
+      }
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setSellerOrders([]);
+      setFarmerOrders([]);
+      setSalary(0);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Handle deliveryman accepting order
   const handleAcceptDelivery = async (orderId, type) => {
     try {
       console.log(`Accepting ${type} order ${orderId}`);
       
+      // Validate deliverymanId
+      if (!deliverymanId) {
+        alert("❌ Deliveryman ID is missing. Please log in again.");
+        return;
+      }
+
+      console.log(`Sending deliverymanId: ${deliverymanId}`);
+      
       // Persist in backend
       if (type === "seller") {
-        const response = await axios.put(`https://agrihub-2.onrender.com/sellerorder/${orderId}/accept`, { 
-          deliverymanId 
-        });
-        console.log("Accept response:", response.data);
-        
-        // Update frontend after successful backend update
-        setSellerOrders(prev =>
-          prev.map(order =>
-            order._id === orderId 
-              ? { ...order, acceptedByDeliveryman: true, deliveryStatus: "approved" } 
-              : order
-          )
+        const response = await axios.put(
+          `https://agrihub-2.onrender.com/sellerorder/${orderId}/accept`, 
+          { deliverymanId },
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
         );
+        console.log("✅ Seller order accept response:", response.data);
+        
+        // Refresh orders from backend to get latest state
+        await fetchOrders();
       } else {
-        const response = await axios.put(`https://agrihub-2.onrender.com/farmerorder/${orderId}/accept`, { 
-          deliverymanId 
-        });
-        console.log("Accept response:", response.data);
-        
-        // Update frontend after successful backend update
-        setFarmerOrders(prev =>
-          prev.map(order =>
-            order._id === orderId 
-              ? { ...order, acceptedByDeliveryman: true, deliveryStatus: "approved" } 
-              : order
-          )
+        const response = await axios.put(
+          `https://agrihub-2.onrender.com/farmerorder/${orderId}/accept`, 
+          { deliverymanId },
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
         );
+        console.log("✅ Farmer order accept response:", response.data);
+        
+        // Refresh orders from backend to get latest state
+        await fetchOrders();
       }
       
       alert("✅ Order accepted successfully!");
     } catch (err) {
-      console.error("Error accepting delivery:", err);
+      console.error("❌ Error accepting delivery:", err);
       console.error("Error response:", err.response?.data);
-      alert(`Failed to accept order: ${err.response?.data?.message || err.message}`);
+      
+      if (err.response) {
+        alert(`❌ Failed to accept order: ${err.response.data?.message || 'Server error'}`);
+      } else if (err.request) {
+        alert("❌ Failed to accept order: No response from server. Check if backend is running.");
+      } else {
+        alert(`❌ Failed to accept order: ${err.message}`);
+      }
     }
   };
 
@@ -116,32 +131,34 @@ function RegDeliverymanPage({ deliverymanId }) {
     try {
       console.log(`Attempting to update ${type} order ${orderId} to status: ${status}`);
       
+      // Validate deliverymanId
+      if (!deliverymanId) {
+        alert("❌ Deliveryman ID is missing. Please log in again.");
+        return;
+      }
+      
       // Persist in backend FIRST
       const url = type === "seller" 
         ? `https://agrihub-2.onrender.com/sellerorder/${orderId}/status`
         : `https://agrihub-2.onrender.com/farmerorder/${orderId}/status`;
       
       console.log(`Making PUT request to: ${url}`);
-      console.log(`Request body:`, { status });
+      console.log(`Request body:`, { status, deliverymanId });
       
-      const response = await axios.put(url, { status });
+      const response = await axios.put(
+        url, 
+        { status, deliverymanId },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       
       console.log(`✅ Backend update successful:`, response.data);
 
-      // Update frontend AFTER successful backend update
-      if (type === "seller") {
-        setSellerOrders(prev =>
-          prev.map(order =>
-            order._id === orderId ? { ...order, deliveryStatus: status } : order
-          )
-        );
-      } else {
-        setFarmerOrders(prev =>
-          prev.map(order =>
-            order._id === orderId ? { ...order, deliveryStatus: status } : order
-          )
-        );
-      }
+      // Refresh orders from backend to get latest state
+      await fetchOrders();
 
       alert(`✅ Order status updated to ${status} successfully!`);
     } catch (err) {
@@ -151,15 +168,15 @@ function RegDeliverymanPage({ deliverymanId }) {
         // Server responded with error
         console.error("Response data:", err.response.data);
         console.error("Response status:", err.response.status);
-        alert(`Failed to update: ${err.response.data?.message || 'Server error'}`);
+        alert(`❌ Failed to update: ${err.response.data?.message || 'Server error'}`);
       } else if (err.request) {
         // Request made but no response
         console.error("No response received:", err.request);
-        alert("Failed to update: No response from server. Check if backend is running.");
+        alert("❌ Failed to update: No response from server. Check if backend is running.");
       } else {
         // Something else happened
         console.error("Error message:", err.message);
-        alert(`Failed to update: ${err.message}`);
+        alert(`❌ Failed to update: ${err.message}`);
       }
     }
   };
@@ -195,6 +212,14 @@ function RegDeliverymanPage({ deliverymanId }) {
       status: o.deliveryStatus
     })));
 
+    if (orders.length === 0) {
+      return (
+        <div style={{ textAlign: "center", padding: "40px", color: "#666" }}>
+          <p>No orders available at the moment.</p>
+        </div>
+      );
+    }
+
     return (
       <>
         <div className="orders-container">
@@ -211,7 +236,7 @@ function RegDeliverymanPage({ deliverymanId }) {
                   alt={order.item}
                   className="order-image"
                 />
-                <p>{order.item}</p>
+                <p><strong>{order.item}</strong></p>
                 <p>Quantity: {order.quantity}</p>
                 <p>Pickup: {type === "seller" ? "Seller" : "Farmer"}</p>
                 <p>Deliver To: Buyer</p>
@@ -296,6 +321,20 @@ function RegDeliverymanPage({ deliverymanId }) {
           <RegCategories />
         </div>
       </div>
+
+      {/* Debug Info - Remove in production */}
+      {!deliverymanId && (
+        <div style={{ 
+          backgroundColor: '#ffebee', 
+          color: '#c62828', 
+          padding: '15px', 
+          margin: '20px', 
+          borderRadius: '5px',
+          textAlign: 'center'
+        }}>
+          ⚠️ Warning: Deliveryman ID is not set. Please ensure you're logged in properly.
+        </div>
+      )}
 
       {/* Salary Section */}
       <div className="salary-section" style={{ margin: "20px", textAlign: "center" }}>
