@@ -15,7 +15,7 @@ function VegetablePage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch("http://localhost:8070/product/Veg");
+        const response = await fetch("https://agrihub-2.onrender.com/product/Veg");
         const data = await response.json();
         setProducts(data);
       } catch (error) {
