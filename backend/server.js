@@ -94,6 +94,9 @@ const deliverymenRouter = require("./routes/DeliveryMen");
 const authRouter = require("./routes/auth");
 const appliedSchemesRoutes = require("./routes/appliedSchemes");
 const maleshRoutes = require("./routes/malesh");
+const prakashRouter = require("./routes/prakash");
+app.use("/prakash", prakashRouter);
+
 
 // Mount all routers
 app.use("/farmer", farmerRouter);
