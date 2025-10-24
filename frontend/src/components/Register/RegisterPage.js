@@ -18,13 +18,13 @@ export default function SignUp() {
 
     switch (data.userRole) {
       case "Farmer":
-        url = "http://localhost:8070/farmer/register";
+        url = "https://agrihub-2.onrender.com/farmer/register";
         break;
       case "Seller":
-        url = "http://localhost:8070/seller/register";
+        url = "https://agrihub-2.onrender.com/seller/register";
         break;
       case "Deliveryman":
-        url = "http://localhost:8070/deliveryman/register";
+        url = "https://agrihub-2.onrender.com/deliveryman/register";
         break;
       default:
         break;
