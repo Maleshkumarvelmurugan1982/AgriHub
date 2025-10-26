@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -102,7 +101,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const walletRouter = require("./routes/wallet");
 const uploadRoute = require("./routes/uploadRoute");
 const maleshRoutes = require("./routes/malesh");
-const prakashRouter = require("./routes/prakash");
+//const prakashRouter = require("./routes/prakash");
 
 // -------------------- REGISTER ROUTES --------------------
 app.use('/salary', salaryRoutes);
@@ -126,7 +125,7 @@ app.use("/schemes", schemesRouter);
 app.use("/appliedschemes", appliedSchemesRoutes);
 app.use("/api", uploadRoute); // Cloudinary upload route
 app.use("/sellerorder", maleshRoutes);
-app.use("/prakash", prakashRouter);
+//app.use("/prakash", prakashRouter);
 
 // -------------------- PRODUCT ENDPOINTS --------------------
 const Product = require("./model/Product");
