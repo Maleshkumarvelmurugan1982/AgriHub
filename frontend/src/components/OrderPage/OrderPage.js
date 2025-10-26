@@ -37,7 +37,7 @@ function OrderPage() {
     cvv: "",
   });
 
-  const BASE_URL = "http://localhost:8070";
+  const BASE_URL = "https://agrihub-2.onrender.com";
 
   // Fetch logged-in seller data
   useEffect(() => {
