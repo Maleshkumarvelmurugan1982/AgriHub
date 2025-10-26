@@ -30,7 +30,7 @@ function RegDeliverymanPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const BASE_URL = "http://localhost:8070";
+  const BASE_URL = "https://agrihub-2.onrender.com";
 
   // Helper function to get the correct image URL
   const getImageUrl = (imagePath) => {
