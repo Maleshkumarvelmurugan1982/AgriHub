@@ -37,7 +37,7 @@ function FarmerPage() {
   const [showAllFarmerOrders, setShowAllFarmerOrders] = useState(false);
   const [showAllDeliveryPosts, setShowAllDeliveryPosts] = useState(false);
 
-  const BASE_URL = "http://localhost:8070";
+  const BASE_URL = "https://agrihub-2.onrender.com";
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return 'https://via.placeholder.com/150?text=No+Image';
