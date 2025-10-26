@@ -1,6 +1,6 @@
 import "./login.css";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // For navigation
+import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
 
@@ -11,6 +11,25 @@ function Login() {
 
   const navigate = useNavigate();
 
+  // Determine backend URL based on environment
+  const getBackendUrl = (role) => {
+    const isLocal = window.location.hostname === "localhost";
+    let baseUrl = isLocal
+      ? "http://localhost:8070" // Local backend
+      : "https://agrihub-2.onrender.com"; // Deployed backend
+
+    switch (role) {
+      case "Farmer":
+        return `${baseUrl}/farmer/login`;
+      case "Seller":
+        return `${baseUrl}/seller/login`;
+      case "Deliveryman":
+        return `${baseUrl}/deliveryman/login`;
+      default:
+        return "";
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -19,27 +38,17 @@ function Login() {
       return;
     }
 
-    let url = "";
+    const url = getBackendUrl(userRole);
 
-    switch (userRole) {
-      case "Farmer":
-        url = "https://agrihub-2.onrender.com/farmer/login";
-        break;
-      case "Seller":
-        url = "https://agrihub-2.onrender.com/seller/login";
-        break;
-      case "Deliveryman":
-        url = "https://agrihub-2.onrender.com/deliveryman/login";
-        break;
-      default:
-        alert("Invalid user role selected.");
-        return;
+    if (!url) {
+      alert("Invalid role selected.");
+      return;
     }
 
     try {
       const response = await fetch(url, {
         method: "POST",
-        credentials: "include", // Include cookies if backend uses sessions
+        credentials: "include", // Send cookies if backend uses sessions
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -53,22 +62,21 @@ function Login() {
       }
 
       const data = await response.json();
-      console.log(data, "userLogin");
 
       if (data.status === "ok") {
-        alert("Login successful");
-        localStorage.setItem("token", data.data); // Store token
-        navigate("/homepage-registeredusers"); // Navigate programmatically
+        alert("Login successful!");
+        localStorage.setItem("token", data.data); // Store JWT token
+        navigate("/homepage-registeredusers");
       } else {
-        alert(data.message || "Login failed. Check credentials.");
+        alert(data.message || "Invalid credentials.");
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("Login failed. Please try again later.");
+    } catch (err) {
+      console.error("Login error:", err);
+      alert("Login failed. Please check the backend URL or network connection.");
     }
   };
 
-  const handleBack = () => navigate("/"); // Go back to home
+  const handleBack = () => navigate("/");
 
   return (
     <div>
