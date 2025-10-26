@@ -1,0 +1,354 @@
+.nothing {
+  width: 100%;
+  height: 74px;
+}
+
+.crop-container {
+  width: 100%;
+  height: 455px;
+  overflow: hidden;
+}
+
+.crop-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.type-writer-container {
+  position: absolute;
+  top: 25%;
+  left: 10%;
+  max-width: 30%;
+  display: flex;
+}
+
+.writer {
+  font-size: 25px;
+  font-weight: 700;
+  font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
+}
+
+.categories-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.categories-div {
+  width: auto;
+  padding-right: 30px;
+}
+
+.first-word {
+  font-size: 24px;
+  color: black;
+  font-family: "Open Sans", sans-serif;
+  font-weight: 700;
+}
+
+.second-word {
+  font-size: 24px;
+  color: #79ac78;
+  font-family: "Open Sans", sans-serif;
+  font-weight: 700;
+}
+
+.product-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 30px;
+}
+
+.go-to-page {
+  font-size: 25px;
+  font-weight: 500px;
+  margin-right: 10px;
+  width: auto;
+  height: 50px;
+}
+
+/* Topic Section */
+.topic {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.topic p {
+  font-size: 28px;
+  font-weight: bold;
+  padding: 10px 30px;
+  border: 3px solid #79ac78;
+  width: fit-content;
+  margin: 0 auto;
+  border-radius: 8px;
+  background-color: rgba(121, 172, 120, 0.1);
+  color: #2c3e50;
+}
+
+/* Orders Section */
+.orders-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  max-width: 1200px; /* keeps it centered */
+  margin: 0 auto;
+}
+
+.orders-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); /* wider cards */
+  gap: 30px;
+  width: 100%;
+  padding: 20px 0;
+}
+
+.order-item {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e0e0e0;
+  min-height: 300px; /* balanced height */
+  overflow: visible; /* no text clipping */
+}
+
+.order-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.order-image {
+  width: 100%;
+  height: 140px; /* reduced height */
+  object-fit: cover;
+  border-bottom: 2px solid #f0f0f0;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  overflow: hidden;
+}
+
+/* Order Information */
+.order-item p {
+  margin: 8px 15px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.order-item p:first-of-type {
+  font-weight: bold;
+  font-size: 18px;
+  color: #2c3e50;
+  margin-top: 15px;
+  border-bottom: 1px dashed #e0e0e0;
+  padding-bottom: 8px;
+}
+
+.order-item p:nth-of-type(2) {
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.order-item p:nth-of-type(3),
+.order-item p:nth-of-type(4) {
+  color: #34495e;
+  font-weight: 500;
+  padding: 5px 0;
+}
+
+/* Location indicators */
+.order-item p:nth-of-type(3)::before {
+  content: "📍 Pickup: ";
+  font-weight: bold;
+  color: #27ae60;
+}
+
+.order-item p:nth-of-type(4)::before {
+  content: "📍 Deliver: ";
+  font-weight: bold;
+  color: #e74c3c;
+}
+
+/* Buttons */
+.cart-button,
+.supply-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 15px;
+  padding: 12px 15px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cart-button {
+  background-color: #79ac78;
+  color: white;
+  font-size: 16px;
+}
+
+.cart-button:hover {
+  background-color: #5a8a59;
+  transform: scale(1.02);
+}
+
+.supply-button {
+  background-color: #f8f9fa;
+  color: #34495e;
+  border: 1px solid #dee2e6;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.supply-button:hover {
+  background-color: #e9ecef;
+  transform: scale(1.02);
+}
+
+/* View All Button */
+.view-all-button1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px auto;
+  padding: 12px 25px;
+  background-color: #79ac78;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.view-all-button1:hover {
+  background-color: #5a8a59;
+  transform: scale(1.05);
+}
+
+.arrow-icon {
+  margin-left: 8px;
+}
+
+/* Salary Section */
+.salary-section {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.view-salary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 25px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.view-salary-button:hover {
+  background-color: #2980b9;
+  transform: scale(1.03);
+}
+
+/* Salary Modal */
+.salary-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.salary-content {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 80%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.close-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #79ac78;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.close-button:hover {
+  background-color: #5a8a59;
+}
+
+.nothing2 {
+  height: 30px;
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .orders-container {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .type-writer-container {
+    position: relative;
+    top: auto;
+    left: auto;
+    max-width: 100%;
+    margin: 20px;
+    text-align: center;
+  }
+  
+  .writer {
+    font-size: 40px;
+  }
+  
+  .orders-container {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+  
+  .topic p {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .writer {
+    font-size: 30px;
+  }
+  
+  .orders-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .topic p {
+    font-size: 20px;
+    padding: 8px 20px;
+  }
+}
