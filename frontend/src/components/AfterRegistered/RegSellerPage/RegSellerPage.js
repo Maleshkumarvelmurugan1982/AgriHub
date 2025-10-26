@@ -14,7 +14,8 @@ import {
   faHistory,
   faTimes,
   faUser,
-  faWallet
+  faWallet,
+  faBoxOpen
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
@@ -214,6 +215,7 @@ function RegSellerPage() {
           orders = [];
         }
 
+        // Notify about order status changes
         orders.forEach(order => {
           if (order.status && !notifiedOrdersRef.current.has(order._id) && 
               (order.status === "approved" || order.status === "disapproved")) {
@@ -225,6 +227,7 @@ function RegSellerPage() {
           }
         });
 
+        // Notify about deliveryman acceptance
         for (const order of orders) {
           if (order.acceptedByDeliveryman && order.deliverymanId && 
               !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
@@ -238,6 +241,13 @@ function RegSellerPage() {
               showToast(`Your order for ${order.item} has been accepted by a deliveryman!`, "success");
             }
             notifiedOrdersRef.current.add(`delivery-${order._id}`);
+          }
+
+          // Notify about delivery completion
+          if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
+              !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
+            showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
+            notifiedOrdersRef.current.add(`delivered-${order._id}`);
           }
         }
 
@@ -548,6 +558,10 @@ function RegSellerPage() {
                 ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
                 : 'Assigned';
 
+              // Determine delivery status
+              const isDelivered = order.deliveryStatus === "delivered" || order.deliveryStatus === "approved";
+              const isAcceptedByDeliveryman = order.acceptedByDeliveryman;
+
               return (
                 <div key={order._id || index} className="order-item">
                   <img 
@@ -571,38 +585,106 @@ function RegSellerPage() {
                     </b>
                   </p>
                   
-                  {order.acceptedByDeliveryman && order.status === "approved" && (
-                    <div className="delivery-info">
-                      <p className="deliveryman-info">
-                        <FontAwesomeIcon icon={faTruck} /> 
-                        Deliveryman: <strong>{deliverymanName}</strong>
-                      </p>
-                      
-                      <p className="deliveryman-detail">
-                        ID: <strong>{hasDeliverymanInfo ? order.deliverymanId._id : order.deliverymanId}</strong>
-                      </p>
-                      
-                      {hasDeliverymanInfo && (
-                        <>
-                          {order.deliverymanId.email && (
-                            <p className="deliveryman-detail">Email: {order.deliverymanId.email}</p>
+                  {/* Show delivery information if order is approved */}
+                  {order.status === "approved" && (
+                    <>
+                      {/* Case 1: Delivered */}
+                      {isDelivered && (
+                        <div className="delivery-info" style={{
+                          backgroundColor: '#d4edda',
+                          padding: '15px',
+                          borderRadius: '8px',
+                          marginTop: '10px',
+                          border: '2px solid #28a745'
+                        }}>
+                          <p className="deliveryman-info" style={{ color: '#155724', fontWeight: 'bold', marginBottom: '10px' }}>
+                            <FontAwesomeIcon icon={faCheckCircle} style={{ marginRight: '8px' }} />
+                            ORDER DELIVERED
+                          </p>
+                          
+                          {hasDeliverymanInfo && (
+                            <>
+                              <p className="deliveryman-detail" style={{ marginBottom: '5px' }}>
+                                <FontAwesomeIcon icon={faTruck} /> Delivered by: <strong>{deliverymanName}</strong>
+                              </p>
+                              
+                              {order.deliverymanId.mobile && (
+                                <p className="deliveryman-detail" style={{ marginBottom: '5px' }}>
+                                  Contact: {order.deliverymanId.mobile}
+                                </p>
+                              )}
+                            </>
                           )}
-                          {order.deliverymanId.mobile && (
-                            <p className="deliveryman-detail">Mobile: {order.deliverymanId.mobile}</p>
-                          )}
-                        </>
+                          
+                          {getDeliveryStatusBadge(order.deliveryStatus)}
+                        </div>
                       )}
                       
-                      {getDeliveryStatusBadge(order.deliveryStatus)}
-                    </div>
+                      {/* Case 2: Accepted but not delivered yet */}
+                      {!isDelivered && isAcceptedByDeliveryman && (
+                        <div className="delivery-info" style={{
+                          backgroundColor: '#fff3cd',
+                          padding: '15px',
+                          borderRadius: '8px',
+                          marginTop: '10px',
+                          border: '2px solid #ffc107'
+                        }}>
+                          <p className="deliveryman-info" style={{ color: '#856404', fontWeight: 'bold', marginBottom: '10px' }}>
+                            <FontAwesomeIcon icon={faBoxOpen} style={{ marginRight: '8px' }} />
+                            OUT FOR DELIVERY
+                          </p>
+                          
+                          <p className="deliveryman-info">
+                            <FontAwesomeIcon icon={faTruck} /> 
+                            Deliveryman: <strong>{deliverymanName}</strong>
+                          </p>
+                          
+                          <p className="deliveryman-detail">
+                            ID: <strong>{hasDeliverymanInfo ? order.deliverymanId._id : order.deliverymanId}</strong>
+                          </p>
+                          
+                          {hasDeliverymanInfo && (
+                            <>
+                              {order.deliverymanId.email && (
+                                <p className="deliveryman-detail">Email: {order.deliverymanId.email}</p>
+                              )}
+                              {order.deliverymanId.mobile && (
+                                <p className="deliveryman-detail">Mobile: {order.deliverymanId.mobile}</p>
+                              )}
+                            </>
+                          )}
+                          
+                          <p style={{ color: "#856404", fontSize: "14px", marginTop: "10px", fontStyle: 'italic' }}>
+                            ✓ Accepted by Deliveryman - Delivery in progress
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Case 3: Approved but not accepted yet */}
+                      {!isDelivered && !isAcceptedByDeliveryman && (
+                        <div style={{
+                          backgroundColor: '#e7f3ff',
+                          padding: '10px',
+                          borderRadius: '5px',
+                          marginTop: '10px',
+                          border: '1px solid #007bff'
+                        }}>
+                          <p style={{ color: '#004085', fontSize: '14px', margin: 0 }}>
+                            <FontAwesomeIcon icon={faInfoCircle} /> Waiting for deliveryman to accept...
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                   
-                  {order.acceptedByDeliveryman && order.status !== "approved" && (
+                  {/* Show acceptance message for non-approved orders if deliveryman accepted */}
+                  {isAcceptedByDeliveryman && order.status !== "approved" && (
                     <p style={{ color: "green", fontSize: "14px", marginTop: "10px" }}>
                       ✓ Accepted by Deliveryman
                     </p>
                   )}
                   
+                  {/* Disapproved message */}
                   {order.status === "disapproved" && (
                     <div className="order-status-message-disapproved">
                       <p>✗ Order Disapproved by Farmer</p>
