@@ -23,7 +23,7 @@ const AddMoney = () => {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:8070/wallet/add-money', {
+      const response = await axios.post('https://agrihub-2.onrender.com/wallet/add-money', {
         userId: userId,
         amount: parseFloat(amount),
         transactionType: 'credit',
