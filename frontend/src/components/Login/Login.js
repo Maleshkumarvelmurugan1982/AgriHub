@@ -24,13 +24,13 @@ function Login() {
 
     switch (userRole) {
       case "Farmer":
-        url = "http://localhost:8070/farmer/login";
+        url = "https://agrihub-2.onrender.com/farmer/login";
         break;
       case "Seller":
-        url = "http://localhost:8070/seller/login";
+        url = "https://agrihub-2.onrender.com/seller/login";
         break;
       case "Deliveryman":
-        url = "http://localhost:8070/deliveryman/login";
+        url = "https://agrihub-2.onrender.com/deliveryman/login";
         break;
       default:
         break;
