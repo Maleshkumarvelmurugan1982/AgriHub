@@ -25,7 +25,7 @@ function RegVegetablePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
 
-  const BASE_URL = "http://localhost:8070";
+  const BASE_URL = "https://agrihub-2.onrender.com";
 
   const handleBackClick = () => {
     if (userType === "farmer") {
