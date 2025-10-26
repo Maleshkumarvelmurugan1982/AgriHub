@@ -27,7 +27,7 @@ function RegSellerPage() {
   const [showHistory, setShowHistory] = useState(false);
   const notifiedOrdersRef = useRef(new Set());
 
-  const BACKEND_URL = "http://localhost:8070";
+  const BACKEND_URL = "https://agrihub-2.onrender.com";
   const fallbackProductImage = "https://via.placeholder.com/300x200?text=Product+Image";
 
   const styles = {
@@ -138,7 +138,6 @@ function RegSellerPage() {
     });
   };
 
-  // Get purchased items (approved and delivered orders)
   const getPurchasedItems = () => {
     return sellerOrders
       .filter(order => 
