@@ -99,11 +99,10 @@ function OrderPage() {
 
         if (farmerIdValue) setFarmerId(farmerIdValue);
 
-        // ✅ Use Cloudinary URL directly
         if (product.productImage) {
           setFormData((prev) => ({
             ...prev,
-            productImage: product.productImage, // full Cloudinary URL
+            productImage: product.productImage,
           }));
         }
       })
@@ -189,7 +188,7 @@ function OrderPage() {
       const orderData = {
         name: formData.company,
         item: formData.productName,
-        productImage: formData.productImage, // ✅ Cloudinary URL
+        productImage: formData.productImage,
         category: "vegetable",
         quantity: Number(formData.quantity),
         price: totalPrice,
@@ -269,6 +268,10 @@ function OrderPage() {
     }
   };
 
+  const handleBack = () => {
+    navigate("/regseller");
+  };
+
   return (
     <div className="form-container">
       <h3>Place New Order</h3>
@@ -276,7 +279,7 @@ function OrderPage() {
         {formData.productImage && (
           <div className="image-preview">
             <img
-              src={formData.productImage} // ✅ Cloudinary URL
+              src={formData.productImage}
               alt="Product"
               onError={(e) =>
                 (e.target.src = "https://via.placeholder.com/200?text=No+Image")
@@ -452,18 +455,56 @@ function OrderPage() {
           required
         />
 
-        <button
-          type="submit"
-          disabled={
-            isSubmitting ||
-            quantityError ||
-            (paymentMethod === "wallet" && !checkSufficientBalance())
-          }
-        >
-          {isSubmitting
-            ? "Processing Payment..."
-            : `Place Order & Pay Rs. ${formData.price || "0"}`}
-        </button>
+        {/* Buttons Container */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          gap: '15px',
+          marginTop: '20px'
+        }}>
+          {/* Back Button - Left */}
+          <button
+            type="button"
+            onClick={handleBack}
+            style={{
+              padding: '12px 30px',
+              fontSize: '16px',
+              fontWeight: '600',
+              backgroundColor: '#6c757d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              flex: '0 0 auto'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#5a6268'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#6c757d'}
+          >
+            ← Back
+          </button>
+
+          {/* Place Order Button - Right */}
+          <button
+            type="submit"
+            disabled={
+              isSubmitting ||
+              quantityError ||
+              (paymentMethod === "wallet" && !checkSufficientBalance())
+            }
+            style={{
+              flex: '1',
+              padding: '12px 30px',
+              fontSize: '16px',
+              fontWeight: '600'
+            }}
+          >
+            {isSubmitting
+              ? "Processing Payment..."
+              : `Place Order & Pay Rs. ${formData.price || "0"}`}
+          </button>
+        </div>
       </form>
     </div>
   );
