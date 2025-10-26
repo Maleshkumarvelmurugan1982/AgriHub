@@ -15,7 +15,7 @@ function SchemeApplicationForm() {
   useEffect(() => {
     const fetchScheme = async () => {
       try {
-        const res = await fetch(`http://localhost:8070/schemes/${schemeId}`);
+        const res = await fetch(`https://agrihub-2.onrender.com/schemes/${schemeId}`);
         if (!res.ok) throw new Error(`Scheme not found (status: ${res.status})`);
         const data = await res.json();
         setScheme(data);
@@ -32,7 +32,7 @@ function SchemeApplicationForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:8070/scheme/apply", {
+      const res = await fetch("https://agrihub-2.onrender.com/scheme/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ schemeId, farmerName, farmerContact, farmerDetails }),
