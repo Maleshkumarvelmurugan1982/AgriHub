@@ -34,7 +34,7 @@ function GovernmentPage() {
   const [monthlyStats, setMonthlyStats] = useState({});
   const [showHistory, setShowHistory] = useState(false);
 
-  const BASE_URL = "http://localhost:8070";
+  const BASE_URL = "https://agrihub-2.onrender.com";
 
   // Helper function to get the correct image URL
   const getImageUrl = (imagePath) => {
