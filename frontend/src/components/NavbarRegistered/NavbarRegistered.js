@@ -11,7 +11,7 @@ function Navbar() {
       try {
         const token = localStorage.getItem('token');
         if (token) {
-          const response = await fetch('http://localhost:8070/seller/userdata', {
+          const response = await fetch('https://agrihub-2.onrender.com/seller/userdata', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token })
