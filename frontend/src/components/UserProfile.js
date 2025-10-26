@@ -8,7 +8,7 @@ function UserProfile() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:8070/user/userdata", {
+    fetch("https://agrihub-2.onrender.com/user/userdata", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -21,7 +21,7 @@ function UserProfile() {
 
           // Fetch deliveryman details if role is Deliveryman
           if (userRole === "Deliveryman") {
-            fetch("http://localhost:8070/deliveryman/userdata", {
+            fetch("https://agrihub-2.onrender.com/deliveryman/userdata", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ token: localStorage.getItem("token") }),
