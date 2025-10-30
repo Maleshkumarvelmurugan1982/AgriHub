@@ -36,39 +36,45 @@ function HomePage() {
 
       <div className="overlay-content">
         <p className="overlay-paragraph">Who Are You?</p>
-        <a className="profile" href="/farmer">
+        
+        {/* Farmer - Image only, no redirection */}
+        <div className="profile">
           <img
             src={process.env.PUBLIC_URL + "/Profile/farmer.png"}
             alt="Farmer profile"
             className="img-user"
           />
-        </a>
+        </div>
         <p className="profile-name">Farmer</p>
 
-        <a className="profile" href="/seller">
+        {/* Seller - Image only, no redirection */}
+        <div className="profile">
           <img
             src={process.env.PUBLIC_URL + "/Profile/seller.png"}
             alt="Seller profile"
             className="img-user"
           />
-        </a>
+        </div>
         <p className="profile-name">Seller</p>
 
-        <a className="profile" href="/deliveryman">
+        {/* Deliveryman - Image only, no redirection */}
+        <div className="profile">
           <img
             src={process.env.PUBLIC_URL + "/Profile/delivery.png"}
             alt="Deliveryman profile"
             className="img-user"
           />
-        </a>
+        </div>
         <p className="profile-name">DeliveryMan</p>
-        <a className="profile" href="/GovernmentPage">
+        
+        {/* Government - Image only, no redirection */}
+        <div className="profile">
           <img
             src={process.env.PUBLIC_URL + "/Profile/both.png"}
-            alt="Deliveryman profile"
+            alt="Government profile"
             className="img-user"
           />
-        </a>
+        </div>
         <p className="profile-name">Government</p>
 
       </div>
@@ -103,7 +109,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Categories Section */}
+      {/* Categories Section - Images only, no redirection */}
       <Categories />
 
       {/* How It Works Section */}
