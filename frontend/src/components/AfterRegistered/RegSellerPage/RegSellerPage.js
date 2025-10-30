@@ -123,6 +123,12 @@ function RegSellerPage() {
           <FontAwesomeIcon icon={faTimesCircle} /> Not Delivered
         </div>
       );
+    } else if (deliveryStatus === "in-transit") {
+      return (
+        <div className="delivery-status-badge in-transit">
+          <FontAwesomeIcon icon={faTruck} /> In Transit
+        </div>
+      );
     }
     return null;
   };
@@ -191,7 +197,24 @@ function RegSellerPage() {
     if (!sellerId) return;
 
     const styleSheet = document.createElement("style");
-    styleSheet.textContent = `@keyframes slideIn { from { transform: translateX(400px); opacity:0; } to { transform: translateX(0); opacity:1; } }`;
+    styleSheet.textContent = `
+      @keyframes slideIn { 
+        from { transform: translateX(400px); opacity:0; } 
+        to { transform: translateX(0); opacity:1; } 
+      }
+      .delivery-status-badge.in-transit {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 8px 12px;
+        border-radius: 5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: bold;
+        margin-top: 10px;
+        border: 2px solid #ffc107;
+      }
+    `;
     document.head.appendChild(styleSheet);
 
     const fetchData = async () => {
@@ -227,6 +250,22 @@ function RegSellerPage() {
         });
 
         for (const order of orders) {
+          // NEW: Notification for "in-transit" status (when deliveryman accepts)
+          if (order.acceptedByDeliveryman && order.deliveryStatus === "in-transit" && 
+              !notifiedOrdersRef.current.has(`in-transit-${order._id}`)) {
+            try {
+              const name = typeof order.deliverymanId === 'object' 
+                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
+                : "Deliveryman";
+              
+              showToast(`Your order for ${order.item} is now in transit! Accepted by ${name}`, "success");
+            } catch (err) {
+              showToast(`Your order for ${order.item} is now in transit!`, "success");
+            }
+            notifiedOrdersRef.current.add(`in-transit-${order._id}`);
+          }
+
+          // Existing notification for delivery acceptance (keeping for backward compatibility)
           if (order.acceptedByDeliveryman && order.deliverymanId && 
               !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
             try {
@@ -241,6 +280,7 @@ function RegSellerPage() {
             notifiedOrdersRef.current.add(`delivery-${order._id}`);
           }
 
+          // NEW: Modified notification for delivered status
           if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
               !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
             showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
@@ -548,6 +588,7 @@ function RegSellerPage() {
                 : 'Assigned';
 
               const isDelivered = order.deliveryStatus === "delivered" || order.deliveryStatus === "approved";
+              const isInTransit = order.deliveryStatus === "in-transit";
               const isAcceptedByDeliveryman = order.acceptedByDeliveryman;
 
               return (
@@ -575,6 +616,7 @@ function RegSellerPage() {
                   
                   {order.status === "approved" && (
                     <>
+                      {/* NEW: Delivered State */}
                       {isDelivered && (
                         <div className="delivery-info" style={{
                           backgroundColor: '#d4edda',
@@ -606,7 +648,8 @@ function RegSellerPage() {
                         </div>
                       )}
                       
-                      {!isDelivered && isAcceptedByDeliveryman && (
+                      {/* NEW: In-Transit State (when deliveryman accepts) */}
+                      {!isDelivered && isInTransit && isAcceptedByDeliveryman && (
                         <div className="delivery-info" style={{
                           backgroundColor: '#fff3cd',
                           padding: '15px',
@@ -615,8 +658,8 @@ function RegSellerPage() {
                           border: '2px solid #ffc107'
                         }}>
                           <p className="deliveryman-info" style={{ color: '#856404', fontWeight: 'bold', marginBottom: '10px' }}>
-                            <FontAwesomeIcon icon={faBoxOpen} style={{ marginRight: '8px' }} />
-                            OUT FOR DELIVERY
+                            <FontAwesomeIcon icon={faTruck} style={{ marginRight: '8px' }} />
+                            IN TRANSIT - ACCEPTED BY DELIVERYMAN
                           </p>
                           
                           <p className="deliveryman-info">
@@ -624,28 +667,27 @@ function RegSellerPage() {
                             Deliveryman: <strong>{deliverymanName}</strong>
                           </p>
                           
-                          <p className="deliveryman-detail">
-                            ID: <strong>{hasDeliverymanInfo ? order.deliverymanId._id : order.deliverymanId}</strong>
-                          </p>
-                          
                           {hasDeliverymanInfo && (
                             <>
-                              {order.deliverymanId.email && (
-                                <p className="deliveryman-detail">Email: {order.deliverymanId.email}</p>
-                              )}
                               {order.deliverymanId.mobile && (
                                 <p className="deliveryman-detail">Mobile: {order.deliverymanId.mobile}</p>
+                              )}
+                              {order.deliverymanId.email && (
+                                <p className="deliveryman-detail">Email: {order.deliverymanId.email}</p>
                               )}
                             </>
                           )}
                           
+                          {getDeliveryStatusBadge(order.deliveryStatus)}
+                          
                           <p style={{ color: "#856404", fontSize: "14px", marginTop: "10px", fontStyle: 'italic' }}>
-                            ✓ Accepted by Deliveryman - Delivery in progress
+                            ✓ Your order is on the way!
                           </p>
                         </div>
                       )}
                       
-                      {!isDelivered && !isAcceptedByDeliveryman && (
+                      {/* Waiting for deliveryman acceptance */}
+                      {!isDelivered && !isInTransit && !isAcceptedByDeliveryman && (
                         <div style={{
                           backgroundColor: '#e7f3ff',
                           padding: '10px',
@@ -659,12 +701,6 @@ function RegSellerPage() {
                         </div>
                       )}
                     </>
-                  )}
-                  
-                  {isAcceptedByDeliveryman && order.status !== "approved" && (
-                    <p style={{ color: "green", fontSize: "14px", marginTop: "10px" }}>
-                      ✓ Accepted by Deliveryman
-                    </p>
                   )}
                   
                   {order.status === "disapproved" && (
