@@ -28,14 +28,11 @@ function OrderPage() {
   const [sellerId, setSellerId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [walletBalance, setWalletBalance] = useState(0);
-  const [cardDetails, setCardDetails] = useState({
-    cardNumber: "",
-    cardHolder: "",
-    expiryDate: "",
-    cvv: "",
-  });
+
+  // NEW: State for balance alert modal
+  const [showBalanceAlert, setShowBalanceAlert] = useState(false);
+  const [balanceAlertMessage, setBalanceAlertMessage] = useState("");
 
   const BASE_URL = "https://agrihub-2.onrender.com";
 
@@ -123,14 +120,17 @@ function OrderPage() {
         quantity: value,
         price: totalPrice > 0 ? totalPrice.toFixed(2) : "",
       }));
+
+      // NEW: Check balance when quantity changes
+      if (totalPrice > walletBalance && totalPrice > 0) {
+        setBalanceAlertMessage(
+          `Insufficient Wallet Balance!\n\nOrder Total: Rs. ${totalPrice.toFixed(2)}\nWallet Balance: Rs. ${walletBalance.toFixed(2)}\nShortfall: Rs. ${(totalPrice - walletBalance).toFixed(2)}\n\nPlease reduce quantity or top up your wallet.`
+        );
+        setShowBalanceAlert(true);
+      }
       return;
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleCardChange = (e) => {
-    const { name, value } = e.target;
-    setCardDetails((prev) => ({ ...prev, [name]: value }));
   };
 
   const checkSufficientBalance = () => {
@@ -138,10 +138,11 @@ function OrderPage() {
     return walletBalance >= totalPrice;
   };
 
-  const formatCardNumber = (value) => {
-    const cleaned = value.replace(/\s/g, "");
-    const chunks = cleaned.match(/.{1,4}/g);
-    return chunks ? chunks.join(" ") : cleaned;
+  // NEW: Handle cancel order
+  const handleCancelOrder = () => {
+    if (window.confirm("Are you sure you want to cancel this order? All entered information will be lost.")) {
+      navigate("/regseller");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -163,23 +164,12 @@ function OrderPage() {
 
     const totalPrice = Number(formData.price);
 
-    if (paymentMethod === "wallet" && !checkSufficientBalance()) {
-      return alert(
-        `Insufficient wallet balance!\nOrder Total: Rs.${totalPrice}\nWallet: Rs.${walletBalance}`
+    if (!checkSufficientBalance()) {
+      setBalanceAlertMessage(
+        `Insufficient Wallet Balance!\n\nOrder Total: Rs. ${totalPrice.toFixed(2)}\nWallet Balance: Rs. ${walletBalance.toFixed(2)}\nShortfall: Rs. ${(totalPrice - walletBalance).toFixed(2)}\n\nPlease top up your wallet before placing order.`
       );
-    }
-
-    if (paymentMethod === "card") {
-      if (
-        !cardDetails.cardNumber ||
-        !cardDetails.cardHolder ||
-        !cardDetails.expiryDate ||
-        !cardDetails.cvv
-      ) {
-        return alert("Please fill in all card details!");
-      }
-      if (cardDetails.cardNumber.length < 16) return alert("Card number must be 16 digits");
-      if (cardDetails.cvv.length < 3) return alert("CVV must be 3 digits");
+      setShowBalanceAlert(true);
+      return;
     }
 
     setIsSubmitting(true);
@@ -201,9 +191,9 @@ function OrderPage() {
         expireDate: formData.expireDate,
         sellerId,
         farmerId,
-        paymentMethod,
-        paymentStatus: paymentMethod === "wallet" ? "completed" : "pending",
-        isPaid: paymentMethod === "wallet" ? true : false,
+        paymentMethod: "wallet",
+        paymentStatus: "completed",
+        isPaid: true,
       };
 
       console.log("🚀 Sending order data:", orderData);
@@ -230,33 +220,28 @@ function OrderPage() {
         console.error("Error updating product quantity:", err);
       }
 
-      // Update wallet if paid
-      let newBalance = walletBalance;
-      if (paymentMethod === "wallet") {
-        newBalance = walletBalance - totalPrice;
-        setWalletBalance(newBalance);
+      // Update wallet balance
+      let newBalance = walletBalance - totalPrice;
+      setWalletBalance(newBalance);
 
-        try {
-          await fetch(`${BASE_URL}/wallet/deduct`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sellerId,
-              amount: totalPrice,
-              description: `Order payment for ${formData.productName} (${formData.quantity} kg)`,
-              paymentMethod: "wallet",
-              relatedOrder: result.order?._id || null,
-            }),
-          });
-        } catch (err) {
-          console.error("Error creating wallet transaction:", err);
-        }
+      try {
+        await fetch(`${BASE_URL}/wallet/deduct`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sellerId,
+            amount: totalPrice,
+            description: `Order payment for ${formData.productName} (${formData.quantity} kg)`,
+            paymentMethod: "wallet",
+            relatedOrder: result.order?._id || null,
+          }),
+        });
+      } catch (err) {
+        console.error("Error creating wallet transaction:", err);
       }
 
       alert(
-        `Order placed successfully!\nAmount Paid: Rs.${totalPrice.toFixed(
-          2
-        )}\nPayment Method: ${paymentMethod === "wallet" ? "Wallet" : "Card"}`
+        `Order placed successfully!\nAmount Paid: Rs.${totalPrice.toFixed(2)}\nPayment Method: Wallet`
       );
 
       navigate("/regseller");
@@ -274,6 +259,60 @@ function OrderPage() {
 
   return (
     <div className="form-container">
+      {/* NEW: Balance Alert Modal */}
+      {showBalanceAlert && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '10px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{ color: '#dc3545', marginBottom: '15px' }}>⚠️ Insufficient Balance</h3>
+            <p style={{ 
+              whiteSpace: 'pre-line', 
+              lineHeight: '1.6',
+              color: '#333',
+              marginBottom: '20px'
+            }}>
+              {balanceAlertMessage}
+            </p>
+            <button
+              onClick={() => setShowBalanceAlert(false)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.3s'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       <h3>Place New Order</h3>
       <form onSubmit={handleSubmit}>
         {formData.productImage && (
@@ -337,73 +376,13 @@ function OrderPage() {
           className="readonly-field"
         />
 
-        {/* Payment Method */}
+        {/* Wallet Balance Display */}
         <div className="input-field-container">
-          <p>Payment Method *</p>
+          <p>Wallet Balance</p>
         </div>
-        <div className="payment-method-container">
-          <label>
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="wallet"
-              checked={paymentMethod === "wallet"}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            />
-            Wallet (Balance: Rs. {walletBalance.toFixed(2)})
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="card"
-              checked={paymentMethod === "card"}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            />
-            Debit/Credit Card
-          </label>
+        <div className="category-display" style={{ backgroundColor: '#e8f5e9' }}>
+          <h4 style={{ color: '#2e7d32' }}>Rs. {walletBalance.toFixed(2)}</h4>
         </div>
-
-        {/* Card details */}
-        {paymentMethod === "card" && (
-          <div className="card-details-container">
-            <input
-              type="text"
-              name="cardNumber"
-              placeholder="Card Number"
-              value={formatCardNumber(cardDetails.cardNumber)}
-              onChange={handleCardChange}
-              maxLength="19"
-              required
-            />
-            <input
-              type="text"
-              name="cardHolder"
-              placeholder="Card Holder"
-              value={cardDetails.cardHolder}
-              onChange={handleCardChange}
-              required
-            />
-            <input
-              type="text"
-              name="expiryDate"
-              placeholder="MM/YY"
-              value={cardDetails.expiryDate}
-              onChange={handleCardChange}
-              maxLength="5"
-              required
-            />
-            <input
-              type="password"
-              name="cvv"
-              placeholder="CVV"
-              value={cardDetails.cvv}
-              onChange={handleCardChange}
-              maxLength="3"
-              required
-            />
-          </div>
-        )}
 
         {/* Other fields */}
         <input
@@ -455,20 +434,20 @@ function OrderPage() {
           required
         />
 
-        {/* Buttons Container */}
+        {/* NEW: Updated Buttons Container with 3 buttons */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          gap: '15px',
+          gap: '10px',
           marginTop: '20px'
         }}>
-          {/* Back Button - Left */}
+          {/* Back Button */}
           <button
             type="button"
             onClick={handleBack}
             style={{
-              padding: '12px 30px',
+              padding: '12px 25px',
               fontSize: '16px',
               fontWeight: '600',
               backgroundColor: '#6c757d',
@@ -485,19 +464,42 @@ function OrderPage() {
             ← Back
           </button>
 
-          {/* Place Order Button - Right */}
+          {/* Cancel Button */}
+          <button
+            type="button"
+            onClick={handleCancelOrder}
+            style={{
+              padding: '12px 25px',
+              fontSize: '16px',
+              fontWeight: '600',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              flex: '0 0 auto'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#c82333'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#dc3545'}
+          >
+            ✕ Cancel Order
+          </button>
+
+          {/* Place Order Button */}
           <button
             type="submit"
             disabled={
               isSubmitting ||
               quantityError ||
-              (paymentMethod === "wallet" && !checkSufficientBalance())
+              !checkSufficientBalance()
             }
             style={{
               flex: '1',
               padding: '12px 30px',
               fontSize: '16px',
-              fontWeight: '600'
+              fontWeight: '600',
+              opacity: (isSubmitting || quantityError || !checkSufficientBalance()) ? 0.6 : 1
             }}
           >
             {isSubmitting
