@@ -37,7 +37,7 @@ function OrderPage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [allAvailableProducts, setAllAvailableProducts] = useState([]);
 
-  // ✅ CHANGED: Use production backend URL
+  // Backend API URL
   const BASE_URL = "https://agrihub-2.onrender.com";
 
   const handleBackClick = () => {
@@ -83,6 +83,7 @@ function OrderPage() {
     navigate("/regseller");
   };
 
+  // Only fetch seller info, redirect to login if not found
   useEffect(() => {
     const fetchSellerData = async () => {
       try {
@@ -272,6 +273,7 @@ function OrderPage() {
     return walletBalance >= totalPrice;
   };
 
+  // Only handles login redirection on protected route, not in form/UI
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -393,6 +395,7 @@ function OrderPage() {
     }
   };
 
+  // NO extra buttons for government, registration or login!
   return (
     <div className="form-container">
       <h3>Place New Order</h3>
