@@ -207,6 +207,32 @@ function FarmerPage() {
           prev.map(o => o._id === orderId ? result.order : o)
         );
         
+        // Dispatch an event when an order is disapproved so other pages can restore product quantity
+        if (newStatus === 'disapproved') {
+          try {
+            // Try to extract product id from the returned order or from the original order
+            const restoredProductId =
+              result.order?.productId ||
+              result.order?.product?._id ||
+              order.productId ||
+              (order.product && order.product._id) ||
+              null;
+
+            // Quantity to restore (number)
+            const restoredQty = Number(order.quantity ?? result.order?.quantity ?? result.order?.qty ?? 0);
+
+            // Fire the event. RegVegetablePage listens for this and will update product qty locally or refresh.
+            window.dispatchEvent(new CustomEvent('orderDisapproved', {
+              detail: { productId: restoredProductId, quantity: restoredQty }
+            }));
+
+            console.log("Disapproval event dispatched:", { productId: restoredProductId, quantity: restoredQty });
+          } catch (evtErr) {
+            console.error("Failed to dispatch orderDisapproved event:", evtErr);
+            // no-op, UI will still refresh below
+          }
+        }
+        
         // Show success message
         if (newStatus === 'disapproved' && result.refunded) {
           alert(`Order disapproved successfully!\n\nRefund Details:\nAmount: Rs. ${result.refundAmount}\nStatus: Refunded to seller's ${order.paymentMethod || 'wallet'}`);
