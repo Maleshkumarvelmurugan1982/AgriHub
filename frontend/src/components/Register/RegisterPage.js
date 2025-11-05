@@ -37,13 +37,13 @@ export default function SignUp() {
 
     switch (data.userRole) {
       case "Farmer":
-        url = ${BASE_URL}/farmer/register;
+        url = `${BASE_URL}/farmer/register`;
         break;
       case "Seller":
-        url = ${BASE_URL}/seller/register;
+        url = `${BASE_URL}/seller/register`;
         break;
       case "Deliveryman":
-        url = ${BASE_URL}/deliveryman/register;
+        url = `${BASE_URL}/deliveryman/register`;
         break;
       default:
         break;
@@ -61,7 +61,7 @@ export default function SignUp() {
 
       if (response.ok) {
         alert("Registration Successful! Redirecting to login page...");
-        
+
         setTimeout(() => {
           navigate("/login", { replace: true });
         }, 1500);
