@@ -2,16 +2,18 @@ import React, { useState, useEffect } from "react";
 import "./NavbarRegistered.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser } from "@fortawesome/free-solid-svg-icons";
+import { Link, useNavigate } from "react-router-dom";
 
 function NavbarRegistered() {
   const [userRole, setUserRole] = useState("");
   const [userName, setUserName] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) return; // No token, maybe redirect to login
+        if (!token) return; // No token, maybe redirect to login or show limited nav
 
         // Detect environment: local vs deployed
         const backendBaseUrl =
@@ -24,16 +26,27 @@ function NavbarRegistered() {
         let userData = null;
 
         for (const route of routes) {
-          const res = await fetch(`${backendBaseUrl}/${route}/userdata`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
-          });
+          try {
+            const res = await fetch(`${backendBaseUrl}/${route}/userdata`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token }),
+            });
 
-          const data = await res.json();
-          if (data.status === "ok" && data.data) {
-            userData = { role: route, ...data.data };
-            break;
+            if (!res.ok) {
+              // continue to next route
+              continue;
+            }
+
+            const data = await res.json();
+            if (data.status === "ok" && data.data) {
+              userData = { role: route, ...data.data };
+              break;
+            }
+          } catch (err) {
+            // ignore and try next route
+            console.warn(`Error fetching ${route} userdata:`, err);
+            continue;
           }
         }
 
@@ -52,20 +65,28 @@ function NavbarRegistered() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    window.location.href = "/";
+    try {
+      localStorage.removeItem("token");
+      // remove gov flag if present; harmless if not used
+      localStorage.removeItem("govLoggedIn");
+    } catch (e) {
+      // ignore storage errors
+      console.warn("Error clearing storage on logout:", e);
+    }
+    // navigate to home (SPA navigation)
+    navigate("/", { replace: true });
   };
 
   return (
     <nav className="navbar navbar-expand-lg navbar-light fixed-top">
       <div className="container-fluid">
-        <a className="navbar-brand" href="/homepage-registeredusers">
+        <Link className="navbar-brand" to="/homepage-registeredusers">
           <img
             src={process.env.PUBLIC_URL + "/Navbar/icon.png"}
             alt="CropXchange Logo"
             className="navbar-icon"
           />
-        </a>
+        </Link>
         <button
           className="navbar-toggler"
           type="button"
@@ -98,34 +119,34 @@ function NavbarRegistered() {
               </a>
               <ul className="dropdown-menu" aria-labelledby="navbarDropdown">
                 <li>
-                  <a className="dropdown-item" href="/regfarmer">
+                  <Link className="dropdown-item" to="/regfarmer">
                     Farmer
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a className="dropdown-item" href="/regseller">
+                  <Link className="dropdown-item" to="/regseller">
                     Seller
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a className="dropdown-item" href="/deliveryman">
+                  <Link className="dropdown-item" to="/deliveryman">
                     Deliveryman
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </li>
             <li className="about">
-              <a className="nav-link" href="/about">
+              <Link className="nav-link" to="/about">
                 About
-              </a>
+              </Link>
             </li>
           </ul>
 
           <ul className="navbar-nav">
             <li className="nav-item">
-              <a className="profile-btn" href="/profile">
+              <Link className="profile-btn" to="/profile">
                 <FontAwesomeIcon icon={faUser} /> {userName && ` (${userName})`}
-              </a>
+              </Link>
             </li>
             <li className="nav-item">
               <button className="login" onClick={handleLogout}>
