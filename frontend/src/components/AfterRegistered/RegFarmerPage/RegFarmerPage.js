@@ -207,66 +207,62 @@ function FarmerPage() {
           prev.map(o => o._id === orderId ? result.order : o)
         );
         
-        // Dispatch an event when an order is disapproved so other pages can restore product quantity
+        // When disapproved, restore the product quantity on the server using the same product id
         if (newStatus === 'disapproved') {
           try {
-            // Try to extract product id from the returned order or from the original order
-            const restoredProductId =
+            // Determine product id defensively from returned payload or original order
+            const productId =
               result.order?.productId ||
               result.order?.product?._id ||
               order.productId ||
               (order.product && order.product._id) ||
               null;
 
-            // Quantity to restore (number)
-            const restoredQty = Number(order.quantity ?? result.order?.quantity ?? result.order?.qty ?? 0);
+            // Determine quantity to restore (ordered quantity)
+            const restoreQty = Number(order.quantity ?? result.order?.quantity ?? result.order?.qty ?? 0);
 
-            // --- New: attempt to update product quantity on the backend so the source of truth is updated ---
-            if (restoredProductId) {
+            if (productId) {
+              // Fetch current product to read its quantity
               try {
-                // Try to GET the product to read current quantity (endpoint assumed: GET /product/:id)
-                const prodResp = await fetch(`${BASE_URL}/product/${restoredProductId}`);
-                if (prodResp.ok) {
-                  const prodData = await prodResp.json();
-                  // Support responses where product object may be at root or in data
-                  const productObj = prodData?.product || prodData?.data || prodData;
+                const getProd = await fetch(`${BASE_URL}/product/${productId}`);
+                if (getProd.ok) {
+                  const prodJson = await getProd.json();
+                  // product may be root or inside data/product fields
+                  const productObj = prodJson?.product || prodJson?.data || prodJson;
                   const currentQty = Number(productObj?.quantity ?? 0) || 0;
-                  const newQty = currentQty + restoredQty;
+                  const newQty = currentQty + restoreQty;
 
-                  // PATCH the product with the updated quantity (endpoint pattern matches existing PATCH usage)
-                  const patchResp = await fetch(`${BASE_URL}/product/${restoredProductId}`, {
+                  // PATCH product to set quantity back to newQty (initial + restored)
+                  const patchResp = await fetch(`${BASE_URL}/product/${productId}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ quantity: newQty }),
                   });
 
                   if (!patchResp.ok) {
-                    console.warn("Failed to restore product quantity on server", await patchResp.text());
+                    console.warn("Failed to update product quantity on server", await patchResp.text());
                   } else {
-                    console.log(`Restored product ${restoredProductId} quantity from ${currentQty} to ${newQty}`);
+                    console.log(`Product ${productId} quantity restored: ${currentQty} -> ${newQty}`);
                   }
                 } else {
-                  console.warn("Could not fetch product to restore quantity", prodResp.status);
+                  console.warn("Failed to GET product for restore, status:", getProd.status);
                 }
               } catch (restoreErr) {
-                console.error("Error while restoring product quantity:", restoreErr);
+                console.error("Error restoring product quantity:", restoreErr);
               }
             } else {
-              console.warn("No productId found for order; skipping backend restore.");
+              console.warn("No productId available to restore quantity for order:", orderId);
             }
 
-            // Fire the event. RegVegetablePage listens for this and will update product qty locally or refresh.
-            window.dispatchEvent(new CustomEvent('orderDisapproved', {
-              detail: { productId: restoredProductId, quantity: restoredQty }
+            // Dispatch event so other pages update UI immediately
+            window.dispatchEvent(new CustomEvent("orderDisapproved", {
+              detail: { productId: productId, quantity: restoreQty }
             }));
-
-            console.log("Disapproval event dispatched:", { productId: restoredProductId, quantity: restoredQty });
           } catch (evtErr) {
-            console.error("Failed to dispatch orderDisapproved event:", evtErr);
-            // no-op, UI will still refresh below
+            console.error("Error during restore flow:", evtErr);
           }
         }
-        
+
         // Show success message
         if (newStatus === 'disapproved' && result.refunded) {
           alert(`Order disapproved successfully!\n\nRefund Details:\nAmount: Rs. ${result.refundAmount}\nStatus: Refunded to seller's ${order.paymentMethod || 'wallet'}`);
@@ -787,7 +783,7 @@ function FarmerPage() {
               onMouseOver={(e) => {
                 e.currentTarget.style.transform = 'translateY(-8px)';
                 e.currentTarget.style.boxShadow = '0 12px 30px rgba(40,167,69,0.2)';
-              }}
+              })}
               onMouseOut={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.1)';
