@@ -64,7 +64,6 @@ function RegVegetablePage() {
         setFilteredProducts(data);
       }
     } catch (error) {
-      console.error("Failed to load products:", error);
       setProducts([]);
       setFilteredProducts([]);
     }
@@ -123,6 +122,7 @@ function RegVegetablePage() {
   useEffect(() => {
     if (!userType) return;
     refreshProducts();
+    // eslint-disable-next-line
   }, [userType, farmerId]);
 
   // search filter
@@ -133,62 +133,15 @@ function RegVegetablePage() {
     setFilteredProducts(filtered);
   }, [searchQuery, products]);
 
-  // Listen for order disapproval events (dispatched by FarmerPage or other code)
-  // When an order is disapproved we expect detail: { productId, quantity }
+  // Listen for order disapproval events. Will refresh product DB data live if another page (like Farmer) reverts a product's quantity.
   useEffect(() => {
     const handler = (e) => {
-      try {
-        const { productId, quantity } = e.detail || {};
-        if (!productId || typeof quantity === "undefined") {
-          // If event is malformed, refresh whole product list to be safe
-          refreshProducts();
-          return;
-        }
-
-        // Try to update the product locally if present
-        setProducts((prev) => {
-          const found = prev.some(p => p._id === productId);
-          if (found) {
-            return prev.map(p => {
-              if (p._id === productId) {
-                // ensure numeric arithmetic
-                const oldQty = Number(p.quantity) || 0;
-                const addQty = Number(quantity) || 0;
-                return { ...p, quantity: oldQty + addQty };
-              }
-              return p;
-            });
-          }
-          // product not in list: trigger a refresh to get latest data
-          refreshProducts();
-          return prev;
-        });
-
-        // Also update filteredProducts to keep UI consistent
-        setFilteredProducts((prev) => {
-          const found = prev.some(p => p._id === productId);
-          if (found) {
-            return prev.map(p => {
-              if (p._id === productId) {
-                const oldQty = Number(p.quantity) || 0;
-                const addQty = Number(quantity) || 0;
-                return { ...p, quantity: oldQty + addQty };
-              }
-              return p;
-            });
-          }
-          return prev;
-        });
-      } catch (err) {
-        console.error("Error handling orderDisapproved event:", err);
-        // fallback: refresh list
-        refreshProducts();
-      }
+      // If specific product can be detected, you could optimize, but safest is to always refresh all.
+      refreshProducts();
     };
-
     window.addEventListener("orderDisapproved", handler);
     return () => window.removeEventListener("orderDisapproved", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, [userType, farmerId]);
 
   const handleInputChange = (e) => {
