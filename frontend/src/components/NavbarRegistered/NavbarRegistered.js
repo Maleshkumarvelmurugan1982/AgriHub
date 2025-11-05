@@ -78,8 +78,8 @@ function NavbarRegistered() {
   return (
     <nav className="navbar navbar-expand-lg navbar-light fixed-top">
       <div className="container-fluid">
-        {/* Keep brand/logo but do not expose Home/Menu/About links */}
-        <Link className="navbar-brand" to="/homepage-registeredusers">
+        {/* keep brand/logo */}
+        <Link className="navbar-brand" to="/homepage-registeredusers" aria-label="Homepage">
           <img
             src={process.env.PUBLIC_URL + "/Navbar/icon.png"}
             alt="CropXchange Logo"
@@ -104,15 +104,16 @@ function NavbarRegistered() {
           <ul className="navbar-nav me-auto mb-2 mb-lg-0"></ul>
 
           {/* Right side: Profile and Logout */}
-          <ul className="navbar-nav">
+          <ul className="navbar-nav align-items-center">
             <li className="nav-item">
-              <Link className="profile-btn" to="/profile">
+              <Link className="profile-btn" to="/profile" title="Profile">
                 <FontAwesomeIcon icon={faUser} /> {userName && ` (${userName})`}
               </Link>
             </li>
             <li className="nav-item">
-              <button className="logout-btn" onClick={handleLogout}>
-                Logout
+              <button className="logout-btn" onClick={handleLogout} title="Logout">
+                <span className="logout-icon" aria-hidden="true">⎋</span>
+                <span className="logout-text">Logout</span>
               </button>
             </li>
           </ul>
