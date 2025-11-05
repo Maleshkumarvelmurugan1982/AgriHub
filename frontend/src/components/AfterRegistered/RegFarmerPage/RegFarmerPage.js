@@ -4,12 +4,12 @@ import NavbarRegistered from "../../NavbarRegistered/NavbarRegistered";
 import FooterNew from "../../Footer/FooterNew";
 import RegCategories from "../../AfterRegistered/RegCatoegories/RegCategories";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { 
-  faChevronRight, 
-  faThumbsUp, 
-  faThumbsDown, 
-  faTruck, 
-  faCheckCircle, 
+import {
+  faChevronRight,
+  faThumbsUp,
+  faThumbsDown,
+  faTruck,
+  faCheckCircle,
   faTimesCircle,
   faHistory,
   faTimes,
@@ -32,8 +32,6 @@ function FarmerPage() {
   const [showHistory, setShowHistory] = useState(false);
 
   const [showAllSellerOrders, setShowAllSellerOrders] = useState(true);
-  const [showAllFarmerOrders, setShowAllFarmerOrders] = useState(false);
-  const [showAllDeliveryPosts, setShowAllDeliveryPosts] = useState(false);
 
   const BASE_URL = "https://agrihub-2.onrender.com";
 
@@ -148,7 +146,7 @@ function FarmerPage() {
     }
   };
 
-  // FIXED: When disapproved, restore quantity to product in DB and fire "orderDisapproved" event!
+  // FULLY UPDATED: PATCH /product/:productId to restore quantity if disapproved!
   const handleOrderStatus = async (orderId, newStatus) => {
     try {
       const order = sellerOrders.find(o => o._id === orderId);
@@ -177,7 +175,6 @@ function FarmerPage() {
           prev.map(o => o._id === orderId ? result.order : o)
         );
 
-        // Restore quantity on disapprove
         if (newStatus === 'disapproved') {
           try {
             const productId =
@@ -189,16 +186,17 @@ function FarmerPage() {
             const restoreQty = Number(order.quantity ?? result.order?.quantity ?? result.order?.qty ?? 0);
 
             if (productId && restoreQty > 0) {
+              // -- Get latest quantity (could be changed by other orders simultaneously)
               const getProd = await fetch(`${BASE_URL}/product/${productId}`);
               if (getProd.ok) {
                 const prodJson = await getProd.json();
                 const productObj = prodJson?.product || prodJson?.data || prodJson;
-                const currentQty = Number(productObj?.quantity ?? 0) || 0;
-                const newQty = currentQty + restoreQty;
+                const prevQty = Number(productObj?.quantity ?? 0) || 0;
+                const newQty = prevQty + restoreQty;
                 await fetch(`${BASE_URL}/product/${productId}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ quantity: newQty }),
+                  body: JSON.stringify({ quantity: newQty })
                 });
                 window.dispatchEvent(new CustomEvent("orderDisapproved", {
                   detail: { productId: productId, quantity: restoreQty }
@@ -352,15 +350,11 @@ function FarmerPage() {
           />
         </div>
       </div>
-
-      {/* Categories */}
       <div className="categories-container">
         <div className="categories-div">
           <RegCategories />
         </div>
       </div>
-
-      {/* History Button */}
       <div className="history-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
         <button 
           className="history-button"
@@ -386,7 +380,6 @@ function FarmerPage() {
         </button>
       </div>
 
-      {/* History Section */}
       {showHistory && (
         <div className="history-section" style={{
           margin: '20px auto',
@@ -572,7 +565,6 @@ function FarmerPage() {
           </button>
         </div>
       </div>
-      
       {showSchemes && (
         <div style={{
           display: 'grid',
@@ -669,7 +661,6 @@ function FarmerPage() {
           )}
         </div>
       )}
-      
       {showAppliedSchemes && (
         <div style={{
           display: 'grid',
@@ -759,8 +750,6 @@ function FarmerPage() {
           )}
         </div>
       )}
-
-      {/* Seller Orders */}
       <div className="topic">
         <p>Seller Orders (Orders to Me)</p>
       </div>
@@ -895,7 +884,6 @@ function FarmerPage() {
           </button>
         )}
       </div>
-
       <FooterNew />
     </div>
   );
