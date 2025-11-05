@@ -86,6 +86,36 @@ function RegSellerPage() {
     },
   };
 
+  // Inject CSS to hide Government / Login / Register links while this page is mounted.
+  useEffect(() => {
+    const styleId = 'hide-auth-links-regseller';
+    if (document.getElementById(styleId)) return;
+    const css = `
+      /* target common navbar link patterns: specific hrefs and common classes */
+      .navbar a[href="/GovernmentPage"],
+      .navbar a[href="/login"],
+      .navbar a[href="/register"],
+      .navbar .login,
+      .navbar .register,
+      .navbar .gov-link,
+      a.gov-link,
+      a.nav-gov,
+      a[href="/GovernmentPage"] .badge,
+      .navbar .badge.gov {
+        display: none !important;
+      }
+    `;
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = css;
+    document.head.appendChild(styleEl);
+
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) el.parentNode.removeChild(el);
+    };
+  }, []);
+
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
@@ -95,7 +125,7 @@ function RegSellerPage() {
   };
 
   const showToast = (message, type = 'success') => {
-    const id = Date.now();
+    const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
   };
@@ -250,7 +280,7 @@ function RegSellerPage() {
         });
 
         for (const order of orders) {
-          // NEW: Notification for "in-transit" status (when deliveryman accepts)
+          // Notification for "in-transit" status (when deliveryman accepts)
           if (order.acceptedByDeliveryman && order.deliveryStatus === "in-transit" && 
               !notifiedOrdersRef.current.has(`in-transit-${order._id}`)) {
             try {
@@ -265,7 +295,7 @@ function RegSellerPage() {
             notifiedOrdersRef.current.add(`in-transit-${order._id}`);
           }
 
-          // Existing notification for delivery acceptance (keeping for backward compatibility)
+          // Existing notification for delivery acceptance (backward compatibility)
           if (order.acceptedByDeliveryman && order.deliverymanId && 
               !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
             try {
@@ -280,7 +310,7 @@ function RegSellerPage() {
             notifiedOrdersRef.current.add(`delivery-${order._id}`);
           }
 
-          // NEW: Modified notification for delivered status
+          // Delivered notification
           if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
               !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
             showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
@@ -616,7 +646,6 @@ function RegSellerPage() {
                   
                   {order.status === "approved" && (
                     <>
-                      {/* NEW: Delivered State */}
                       {isDelivered && (
                         <div className="delivery-info" style={{
                           backgroundColor: '#d4edda',
@@ -648,7 +677,6 @@ function RegSellerPage() {
                         </div>
                       )}
                       
-                      {/* NEW: In-Transit State (when deliveryman accepts) */}
                       {!isDelivered && isInTransit && isAcceptedByDeliveryman && (
                         <div className="delivery-info" style={{
                           backgroundColor: '#fff3cd',
@@ -686,7 +714,6 @@ function RegSellerPage() {
                         </div>
                       )}
                       
-                      {/* Waiting for deliveryman acceptance */}
                       {!isDelivered && !isInTransit && !isAcceptedByDeliveryman && (
                         <div style={{
                           backgroundColor: '#e7f3ff',
