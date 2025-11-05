@@ -30,7 +30,6 @@ function FarmerPage() {
   const [showSchemes, setShowSchemes] = useState(false);
   const [showAppliedSchemes, setShowAppliedSchemes] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-
   const [showAllSellerOrders, setShowAllSellerOrders] = useState(true);
 
   const BASE_URL = "https://agrihub-2.onrender.com";
@@ -146,7 +145,6 @@ function FarmerPage() {
     }
   };
 
-  // FULLY UPDATED: PATCH /product/:productId to restore quantity if disapproved!
   const handleOrderStatus = async (orderId, newStatus) => {
     try {
       const order = sellerOrders.find(o => o._id === orderId);
@@ -154,19 +152,23 @@ function FarmerPage() {
         alert("Order not found");
         return;
       }
+
       if (newStatus === 'disapproved') {
         const confirmMessage = order.paymentStatus === 'paid' 
           ? `Are you sure you want to disapprove this order?\n\nThe seller will be refunded Rs. ${order.price}\nPayment Method: ${order.paymentMethod || 'wallet'}`
           : `Are you sure you want to disapprove this order?`;
+        
         if (!window.confirm(confirmMessage)) {
           return;
         }
       }
+
       const res = await fetch(`${BASE_URL}/sellerorder/update-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: orderId, status: newStatus, farmerId: farmerId }),
       });
+
       if (!res.ok) throw new Error("Failed to update order");
       const result = await res.json();
 
@@ -175,6 +177,7 @@ function FarmerPage() {
           prev.map(o => o._id === orderId ? result.order : o)
         );
 
+        // RESTORE QUANTITY IF DISAPPROVED
         if (newStatus === 'disapproved') {
           try {
             const productId =
@@ -183,24 +186,31 @@ function FarmerPage() {
               order.productId ||
               (order.product && order.product._id) ||
               null;
+            
             const restoreQty = Number(order.quantity ?? result.order?.quantity ?? result.order?.qty ?? 0);
 
             if (productId && restoreQty > 0) {
-              // -- Get latest quantity (could be changed by other orders simultaneously)
+              // Get current product quantity
               const getProd = await fetch(`${BASE_URL}/product/${productId}`);
               if (getProd.ok) {
                 const prodJson = await getProd.json();
                 const productObj = prodJson?.product || prodJson?.data || prodJson;
-                const prevQty = Number(productObj?.quantity ?? 0) || 0;
-                const newQty = prevQty + restoreQty;
+                const currentQty = Number(productObj?.quantity ?? 0) || 0;
+                const restoredQty = currentQty + restoreQty;
+
+                // Update product with restored quantity
                 await fetch(`${BASE_URL}/product/${productId}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ quantity: newQty })
+                  body: JSON.stringify({ quantity: restoredQty })
                 });
+
+                // Dispatch event to refresh product lists
                 window.dispatchEvent(new CustomEvent("orderDisapproved", {
                   detail: { productId: productId, quantity: restoreQty }
                 }));
+
+                console.log(`✓ Quantity restored: ${currentQty} + ${restoreQty} = ${restoredQty}`);
               }
             }
           } catch (restoreErr) {
@@ -208,9 +218,9 @@ function FarmerPage() {
           }
         }
 
-        // Show feedback to user
+        // Show user feedback
         if (newStatus === 'disapproved' && result.refunded) {
-          alert(`Order disapproved successfully!\n\nRefund Details:\nAmount: Rs. ${result.refundAmount}\nStatus: Refunded to seller's ${order.paymentMethod || 'wallet'}`);
+          alert(`Order disapproved successfully!\n\nRefund Details:\nAmount: Rs. ${result.refundAmount}\nStatus: Refunded to seller's ${order.paymentMethod || 'wallet'}\n\n✓ Product quantity has been restored to inventory`);
         } else {
           alert(`Order ${newStatus} successfully!`);
         }
@@ -238,8 +248,20 @@ function FarmerPage() {
     };
     const config = statusConfig[paymentStatus] || statusConfig.pending;
     const methodIcon = paymentMethod === 'wallet' ? faWallet : faCreditCard;
+    
     return (
-      <div style={{display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 12px', backgroundColor: `${config.color}20`, borderRadius: '20px', border: `2px solid ${config.color}`, fontSize: '12px', fontWeight: '600', marginTop: '8px'}}>
+      <div style={{
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        gap: '5px', 
+        padding: '5px 12px', 
+        backgroundColor: `${config.color}20`, 
+        borderRadius: '20px', 
+        border: `2px solid ${config.color}`, 
+        fontSize: '12px', 
+        fontWeight: '600', 
+        marginTop: '8px'
+      }}>
         <FontAwesomeIcon icon={config.icon} style={{ color: config.color }} />
         <span style={{ color: config.color }}>{config.text}</span>
         {paymentMethod && (
@@ -313,14 +335,17 @@ function FarmerPage() {
     const sellerSource = order.sellerId && typeof order.sellerId === "object"
       ? order.sellerId
       : (order.seller && typeof order.seller === "object" ? order.seller : null);
+    
     if (sellerSource) {
       const name = `${sellerSource.fname || sellerSource.firstName || ""} ${sellerSource.lname || sellerSource.lastName || ""}`.trim() || "Unknown Seller";
       const place = getPlaceFromSeller(sellerSource);
       return { name, place };
     }
+    
     if (order.sellerId && typeof order.sellerId === "string") {
       return { name: `Seller ID: ${order.sellerId}`, place: "" };
     }
+    
     return { name: "Unknown Seller", place: "" };
   };
 
@@ -330,7 +355,6 @@ function FarmerPage() {
     <div>
       <NavbarRegistered />
 
-      {/* Hero Section */}
       <div className="crop-container">
         <img
           src="https://www.abers-tourisme.com/assets/uploads/sites/8/2022/12/vente-legumes.jpg"
@@ -350,11 +374,13 @@ function FarmerPage() {
           />
         </div>
       </div>
+
       <div className="categories-container">
         <div className="categories-div">
           <RegCategories />
         </div>
       </div>
+
       <div className="history-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
         <button 
           className="history-button"
@@ -496,7 +522,6 @@ function FarmerPage() {
         </div>
       )}
 
-      {/* Schemes */}
       <div className="topic">
         <p>Government Schemes</p>
         <div style={{ 
@@ -565,6 +590,7 @@ function FarmerPage() {
           </button>
         </div>
       </div>
+
       {showSchemes && (
         <div style={{
           display: 'grid',
@@ -661,6 +687,7 @@ function FarmerPage() {
           )}
         </div>
       )}
+
       {showAppliedSchemes && (
         <div style={{
           display: 'grid',
@@ -750,9 +777,11 @@ function FarmerPage() {
           )}
         </div>
       )}
+
       <div className="topic">
         <p>Seller Orders (Orders to Me)</p>
       </div>
+
       <div className="orders-wrapper">
         <div className="orders-container">
           {sellerOrdersToDisplay.length === 0 ? (
@@ -884,6 +913,7 @@ function FarmerPage() {
           </button>
         )}
       </div>
+
       <FooterNew />
     </div>
   );
