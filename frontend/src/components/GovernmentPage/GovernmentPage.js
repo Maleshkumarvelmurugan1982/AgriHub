@@ -48,27 +48,37 @@ function GovernmentPage() {
     return `${BASE_URL}${imagePath}`;
   };
 
-  // Disable browser back button while on the Government page's login screen
-  // We push a history state and listen for popstate; if the user tries to go back
-  // we immediately push the same state again, effectively preventing going back.
+  // BLOCK browser back/forward navigation while this component is mounted.
+  // We push a history state and re-push when popstate occurs. This effectively
+  // prevents the user from leaving the page with the browser Back/Forward
+  // buttons while GovernmentPage is mounted.
   useEffect(() => {
-    const onPopState = (e) => {
-      // Only block back navigation while NOT logged in (i.e., on the login screen)
-      if (!loggedIn) {
-        // push the current URL back onto the history stack to stay on this page
+    const preventNavigation = () => {
+      // Re-push same URL, preventing navigation
+      try {
         window.history.pushState(null, "", window.location.href);
+      } catch (err) {
+        // ignore
       }
     };
 
-    // Push initial state so there's something to re-push when Back is pressed
-    window.history.pushState(null, "", window.location.href);
+    // Push initial state
+    try {
+      window.history.pushState(null, "", window.location.href);
+    } catch (err) {
+      // ignore
+    }
+
+    const onPopState = (e) => {
+      preventNavigation();
+    };
+
     window.addEventListener("popstate", onPopState);
 
-    // Cleanup listener on unmount or when loggedIn changes
     return () => {
       window.removeEventListener("popstate", onPopState);
     };
-  }, [loggedIn]);
+  }, []); // run once for the component lifecycle
 
   // Fetch schemes on mount but only if logged in
   useEffect(() => {
@@ -264,7 +274,7 @@ function GovernmentPage() {
     }
   };
 
-  // Logout handler (keeps floating logout inside this page)
+  // Logout handler (floating logout inside this page)
   const handleLogout = () => {
     setLoggedIn(false);
     localStorage.removeItem("govLoggedIn");
@@ -277,7 +287,6 @@ function GovernmentPage() {
     setShowHistory(false);
     setDeliveryHistory([]);
     setSelectedDeliverymanId(null);
-    // navigate to home optionally
     navigate("/");
   };
 
@@ -301,7 +310,7 @@ function GovernmentPage() {
       {/* Navbar: it will hide Government / Login / Register while on this page */}
       <Navbar />
 
-      {/* Floating logout inside this page (removed from Navbar per request) */}
+      {/* Floating logout inside this page (removed from Navbar as requested) */}
       {loggedIn && (
         <button
           onClick={handleLogout}
