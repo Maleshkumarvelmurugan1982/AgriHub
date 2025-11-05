@@ -23,7 +23,6 @@ function HomePage() {
     };
   }, []);
 
-  // NEW: GovernmentPage redirection handler
   const handleGovernmentRedirect = () => {
     window.location.href = "/GovernmentPage";
   };
@@ -53,44 +52,79 @@ function HomePage() {
       <div className="overlay-content">
         <p className="overlay-paragraph">Who Are You?</p>
         
-        <div className="profile">
-          <img
-            src={process.env.PUBLIC_URL + "/Profile/farmer.png"}
-            alt="Farmer profile"
-            className="img-user"
-          />
+        {/* Flex row for roles */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "28px",
+            justifyContent: "center",
+            alignItems: "flex-end",
+          }}
+        >
+          <div>
+            <div className="profile">
+              <img
+                src={process.env.PUBLIC_URL + "/Profile/farmer.png"}
+                alt="Farmer profile"
+                className="img-user"
+                style={{ marginBottom: "8px" }}
+              />
+            </div>
+            <p className="profile-name" style={{ textAlign: "center" }}>
+              Farmer
+            </p>
+          </div>
+          <div>
+            <div className="profile">
+              <img
+                src={process.env.PUBLIC_URL + "/Profile/seller.png"}
+                alt="Seller profile"
+                className="img-user"
+                style={{ marginBottom: "8px" }}
+              />
+            </div>
+            <p className="profile-name" style={{ textAlign: "center" }}>
+              Seller
+            </p>
+          </div>
+          <div>
+            <div className="profile">
+              <img
+                src={process.env.PUBLIC_URL + "/Profile/delivery.png"}
+                alt="Deliveryman profile"
+                className="img-user"
+                style={{ marginBottom: "8px" }}
+              />
+            </div>
+            <p className="profile-name" style={{ textAlign: "center" }}>
+              DeliveryMan
+            </p>
+          </div>
+          <div>
+            <div className="profile">
+              <img
+                src={process.env.PUBLIC_URL + "/Profile/both.png"}
+                alt="Government profile"
+                className="img-user"
+                style={{ marginBottom: "8px" }}
+              />
+            </div>
+            <p className="profile-name" style={{ textAlign: "center" }}>
+              Government
+            </p>
+          </div>
         </div>
-        <p className="profile-name">Farmer</p>
 
-        <div className="profile">
-          <img
-            src={process.env.PUBLIC_URL + "/Profile/seller.png"}
-            alt="Seller profile"
-            className="img-user"
-          />
-        </div>
-        <p className="profile-name">Seller</p>
-
-        <div className="profile">
-          <img
-            src={process.env.PUBLIC_URL + "/Profile/delivery.png"}
-            alt="Deliveryman profile"
-            className="img-user"
-          />
-        </div>
-        <p className="profile-name">DeliveryMan</p>
-        
-        <div className="profile">
-          <img
-            src={process.env.PUBLIC_URL + "/Profile/both.png"}
-            alt="Government profile"
-            className="img-user"
-          />
-        </div>
-        <p className="profile-name">Government</p>
-
-        {/* --- BEGIN: Modern Government Card/Button --- */}
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "25px 0" }}>
+        {/* Government Button, after role images */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            marginTop: "32px",
+          }}
+        >
           <button
             onClick={handleGovernmentRedirect}
             style={{
@@ -103,21 +137,29 @@ function HomePage() {
               background: "linear-gradient(94deg,#22b455 60%,#007bff 100%)",
               border: "none",
               borderRadius: "16px",
-              boxShadow: "0 8px 24px rgba(34,180,85,.24), 0 0 0 2px #007bff30",
+              boxShadow:
+                "0 8px 24px rgba(34,180,85,.24), 0 0 0 2px #007bff30",
               fontWeight: "700",
               cursor: "pointer",
               transition: "transform 0.13s",
-              marginBottom: "10px"
+              marginBottom: "10px",
             }}
-            onMouseOver={e => { e.currentTarget.style.transform = "scale(1.045)"; }}
-            onMouseOut={e => { e.currentTarget.style.transform = "scale(1)"; }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = "scale(1.045)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+            }}
             aria-label="Government Portal"
           >
-            <FontAwesomeIcon icon={faLandmark} size="2x" style={{ color: "#f3f513" }} />
+            <FontAwesomeIcon
+              icon={faLandmark}
+              size="2x"
+              style={{ color: "#f3f513" }}
+            />
             <span>Government / Admin Portal</span>
           </button>
         </div>
-        {/* --- END: Modern Government Card/Button --- */}
       </div>
 
       <div className="button-container">
@@ -131,7 +173,7 @@ function HomePage() {
         </button>
       </div>
 
-      {/* About Section */}
+      {/* About Section with id for anchor */}
       <section id="about-section">
         <div className="welcome-text">
           <span className="welcome">Welcome to</span>{" "}
@@ -149,8 +191,10 @@ function HomePage() {
         </div>
       </section>
 
+      {/* Categories Section - Images only, no redirection */}
       <Categories />
 
+      {/* How It Works Section */}
       <div className="how-it-works">
         <span className="welcome">How It</span>{" "}
         <span className="AgriHub">Works</span>
