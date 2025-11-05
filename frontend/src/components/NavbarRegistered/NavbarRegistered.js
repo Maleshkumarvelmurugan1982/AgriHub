@@ -13,7 +13,7 @@ function NavbarRegistered() {
     const fetchUserData = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) return; // No token, maybe redirect to login or show limited nav
+        if (!token) return; // No token, maybe show minimal nav
 
         // Detect environment: local vs deployed
         const backendBaseUrl =
@@ -67,19 +67,18 @@ function NavbarRegistered() {
   const handleLogout = () => {
     try {
       localStorage.removeItem("token");
-      // remove gov flag if present; harmless if not used
-      localStorage.removeItem("govLoggedIn");
+      localStorage.removeItem("govLoggedIn"); // safe to remove if present
     } catch (e) {
-      // ignore storage errors
       console.warn("Error clearing storage on logout:", e);
     }
-    // navigate to home (SPA navigation)
+    // SPA navigation back to home
     navigate("/", { replace: true });
   };
 
   return (
     <nav className="navbar navbar-expand-lg navbar-light fixed-top">
       <div className="container-fluid">
+        {/* Keep brand/logo but do not expose Home/Menu/About links */}
         <Link className="navbar-brand" to="/homepage-registeredusers">
           <img
             src={process.env.PUBLIC_URL + "/Navbar/icon.png"}
@@ -87,6 +86,7 @@ function NavbarRegistered() {
             className="navbar-icon"
           />
         </Link>
+
         <button
           className="navbar-toggler"
           type="button"
@@ -100,48 +100,10 @@ function NavbarRegistered() {
         </button>
 
         <div className="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-            <li className="home">
-              <a className="nav-link active" aria-current="page" href="/">
-                Home
-              </a>
-            </li>
-            <li className="menu dropdown">
-              <a
-                className="nav-link dropdown-toggle"
-                href="/homepage-registeredusers"
-                id="navbarDropdown"
-                role="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                Menu
-              </a>
-              <ul className="dropdown-menu" aria-labelledby="navbarDropdown">
-                <li>
-                  <Link className="dropdown-item" to="/regfarmer">
-                    Farmer
-                  </Link>
-                </li>
-                <li>
-                  <Link className="dropdown-item" to="/regseller">
-                    Seller
-                  </Link>
-                </li>
-                <li>
-                  <Link className="dropdown-item" to="/deliveryman">
-                    Deliveryman
-                  </Link>
-                </li>
-              </ul>
-            </li>
-            <li className="about">
-              <Link className="nav-link" to="/about">
-                About
-              </Link>
-            </li>
-          </ul>
+          {/* Left side intentionally empty (Home / Menu / About removed) */}
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0"></ul>
 
+          {/* Right side: Profile and Logout */}
           <ul className="navbar-nav">
             <li className="nav-item">
               <Link className="profile-btn" to="/profile">
@@ -149,7 +111,7 @@ function NavbarRegistered() {
               </Link>
             </li>
             <li className="nav-item">
-              <button className="login" onClick={handleLogout}>
+              <button className="logout-btn" onClick={handleLogout}>
                 Logout
               </button>
             </li>
