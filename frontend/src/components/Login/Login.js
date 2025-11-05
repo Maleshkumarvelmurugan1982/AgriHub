@@ -35,13 +35,13 @@ function Login() {
     let url = "";
     switch (userRole) {
       case "Farmer":
-        url = ${BASE_URL}/farmer/login;
+        url = `${BASE_URL}/farmer/login`;
         break;
       case "Seller":
-        url = ${BASE_URL}/seller/login;
+        url = `${BASE_URL}/seller/login`;
         break;
       case "Deliveryman":
-        url = ${BASE_URL}/deliveryman/login;
+        url = `${BASE_URL}/deliveryman/login`;
         break;
       default:
         break;
@@ -99,6 +99,7 @@ function Login() {
                 type="email"
                 className="form-control"
                 placeholder="Enter email"
+                value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
@@ -109,6 +110,7 @@ function Login() {
                 type="password"
                 className="form-control"
                 placeholder="Enter password"
+                value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
@@ -117,6 +119,7 @@ function Login() {
               <label>Role</label>
               <select
                 className="form-control"
+                value={userRole}
                 onChange={(e) => setUserRole(e.target.value)}
               >
                 <option value="">Select Role</option>
