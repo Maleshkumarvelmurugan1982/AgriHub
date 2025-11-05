@@ -252,6 +252,8 @@ function GovernmentPage() {
     e.preventDefault();
     if (username === "admin" && password === "admin123") {
       setLoggedIn(true);
+      // persist flag for Navbar to pick up if you want (optional)
+      localStorage.setItem("govLoggedIn", "true");
       setLoginError("");
       setUsername("");
       setPassword("");
@@ -263,6 +265,7 @@ function GovernmentPage() {
   // Logout handler
   const handleLogout = () => {
     setLoggedIn(false);
+    localStorage.removeItem("govLoggedIn");
     setSchemes([]);
     setDeliveryMen([]);
     setShowDeliveryMen(false);
@@ -290,6 +293,9 @@ function GovernmentPage() {
       >
         Back to Home Page
       </button>
+
+      {/* Navbar will hide Government / Login / Register while on this page */}
+      <Navbar />
 
       {loggedIn && (
         <button
@@ -360,7 +366,6 @@ function GovernmentPage() {
         </div>
       ) : (
         <>
-          <Navbar />
           <div className="government-banner">
             <h1 className="government-title">Government Schemes Management</h1>
           </div>
