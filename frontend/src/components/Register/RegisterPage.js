@@ -12,6 +12,24 @@ export default function SignUp() {
     formState: { errors },
   } = useForm();
 
+  // ✅ CHANGED: Use production backend URL
+  const BASE_URL = "https://agrihub-2.onrender.com";
+
+  // Disable browser back button
+  React.useEffect(() => {
+    window.history.pushState(null, "", window.location.href);
+
+    const handleBack = () => {
+      window.history.go(1);
+    };
+
+    window.addEventListener("popstate", handleBack);
+
+    return () => {
+      window.removeEventListener("popstate", handleBack);
+    };
+  }, []);
+
   const onSubmit = async (data) => {
     console.log(data);
 
@@ -19,13 +37,13 @@ export default function SignUp() {
 
     switch (data.userRole) {
       case "Farmer":
-        url = "https://agrihub-2.onrender.com/farmer/register";
+        url = `${BASE_URL}/farmer/register`;
         break;
       case "Seller":
-        url = "https://agrihub-2.onrender.com/seller/register";
+        url = `${BASE_URL}/seller/register`;
         break;
       case "Deliveryman":
-        url = "https://agrihub-2.onrender.com/deliveryman/register";
+        url = `${BASE_URL}/deliveryman/register`;
         break;
       default:
         break;
@@ -43,10 +61,10 @@ export default function SignUp() {
 
       if (response.ok) {
         alert("Registration Successful! Redirecting to login page...");
-        // Redirect to login page after successful registration
+        
         setTimeout(() => {
-          navigate("/login");
-        }, 1500); // 1.5 second delay to allow user to see success message
+          navigate("/login", { replace: true });
+        }, 1500);
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Registration failed");
@@ -64,6 +82,7 @@ export default function SignUp() {
         <div className="signup-inner-container">
           <form onSubmit={handleSubmit(onSubmit)}>
             <h3>Sign Up</h3>
+
             <div className="select-role">
               <label>Role</label>
               <select {...register("userRole", { required: true })} required>
@@ -145,13 +164,14 @@ export default function SignUp() {
               </button>
             </div>
 
-            {/* Back to Home button */}
             <div className="back-home">
-              <Link to="/">
-                <button type="button" className="back-home-button">
-                  Back to Home
-                </button>
-              </Link>
+              <button
+                type="button"
+                className="back-home-button"
+                onClick={() => navigate("/", { replace: true })}
+              >
+                Back to Home
+              </button>
             </div>
 
             <p className="forgot-password text-right">
@@ -159,6 +179,7 @@ export default function SignUp() {
             </p>
           </form>
         </div>
+
         <div className="signup-image">
           <img
             src="https://assets-global.website-files.com/5d2fb52b76aabef62647ed9a/6195c8e178a99295d45307cb_allgreen1000-550.jpg"
