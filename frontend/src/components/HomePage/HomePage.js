@@ -12,15 +12,20 @@ import FooterNew from "../Footer/FooterNew";
 function HomePage() {
   const [buttonPopup, setButtonPopup] = useState(false);
 
-  // Block default browser back button
+  // Block browser back and forward navigation while on home page
   useEffect(() => {
+    // This always keeps you on this page, also after refresh/reload
     window.history.pushState(null, "", window.location.href);
-    const handleBack = () => {
+
+    const handlePopState = () => {
+      // Re-push state to block navigation away
       window.history.pushState(null, "", window.location.href);
     };
-    window.addEventListener("popstate", handleBack);
+
+    window.addEventListener("popstate", handlePopState);
+
     return () => {
-      window.removeEventListener("popstate", handleBack);
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
