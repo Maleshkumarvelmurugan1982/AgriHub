@@ -7,10 +7,8 @@ import { useNavigate } from "react-router-dom";
 
 function GovernmentPage() {
   const navigate = useNavigate();
-  // Initialize loggedIn from localStorage so Navbar and page are in sync on refresh
-  const [loggedIn, setLoggedIn] = useState(localStorage.getItem("govLoggedIn") === "true");
-
   // Login states
+  const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -43,18 +41,20 @@ function GovernmentPage() {
     if (!imagePath) {
       return 'https://via.placeholder.com/150?text=No+Image';
     }
+    
+    // If it's already a full URL (starts with http:// or https://), return as is
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
+    
+    // If it's a relative path, prepend BASE_URL
     return `${BASE_URL}${imagePath}`;
   };
 
-  // Fetch schemes on mount or when loggedIn changes
+  // Fetch schemes on mount but only if logged in
   useEffect(() => {
     if (loggedIn) {
       fetchSchemes();
-    } else {
-      setSchemes([]);
     }
   }, [loggedIn]);
 
@@ -83,9 +83,11 @@ function GovernmentPage() {
   // Fetch delivery history for a specific deliveryman
   const fetchDeliveryHistory = async (deliverymanId) => {
     try {
+      // Fetch seller orders
       const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
       const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
+      // Fetch farmer orders
       let farmerOrders = [];
       try {
         const farmerOrdersRes = await axios.get(`${BASE_URL}/farmerorder/deliveryman/${deliverymanId}`);
@@ -94,10 +96,12 @@ function GovernmentPage() {
         console.log("No farmer orders found");
       }
 
+      // Combine and filter delivered orders only
       const allOrders = [...sellerOrders, ...farmerOrders].filter(
         order => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
       );
 
+      // Sort by date (newest first)
       allOrders.sort((a, b) => {
         const dateA = new Date(a.updatedAt || a.createdAt || 0);
         const dateB = new Date(b.updatedAt || b.createdAt || 0);
@@ -117,14 +121,17 @@ function GovernmentPage() {
   // Calculate monthly statistics
   const calculateMonthlyStats = (orders) => {
     const stats = {};
+    
     orders.forEach(order => {
       const date = new Date(order.updatedAt || order.createdAt);
       const monthYear = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+      
       if (!stats[monthYear]) {
         stats[monthYear] = 0;
       }
       stats[monthYear]++;
     });
+
     setMonthlyStats(stats);
   };
 
@@ -245,7 +252,6 @@ function GovernmentPage() {
     e.preventDefault();
     if (username === "admin" && password === "admin123") {
       setLoggedIn(true);
-      localStorage.setItem("govLoggedIn", "true"); // persist login for Navbar
       setLoginError("");
       setUsername("");
       setPassword("");
@@ -257,7 +263,6 @@ function GovernmentPage() {
   // Logout handler
   const handleLogout = () => {
     setLoggedIn(false);
-    localStorage.removeItem("govLoggedIn"); // ensure Navbar hides gov links
     setSchemes([]);
     setDeliveryMen([]);
     setShowDeliveryMen(false);
@@ -267,8 +272,6 @@ function GovernmentPage() {
     setShowHistory(false);
     setDeliveryHistory([]);
     setSelectedDeliverymanId(null);
-    // navigate to home so Navbar also reflects the change (optional)
-    navigate("/");
   };
 
   return (
@@ -287,6 +290,26 @@ function GovernmentPage() {
       >
         Back to Home Page
       </button>
+
+      {loggedIn && (
+        <button
+          onClick={handleLogout}
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            right: "20px",
+            padding: "10px 20px",
+            backgroundColor: "#c00",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            zIndex: 9999,
+          }}
+        >
+          Logout
+        </button>
+      )}
 
       {!loggedIn ? (
         <div style={{ maxWidth: "400px", margin: "100px auto" }}>
@@ -337,7 +360,6 @@ function GovernmentPage() {
         </div>
       ) : (
         <>
-          {/* Navbar reads localStorage to show/hide Government/Login/Register or Logout */}
           <Navbar />
           <div className="government-banner">
             <h1 className="government-title">Government Schemes Management</h1>
