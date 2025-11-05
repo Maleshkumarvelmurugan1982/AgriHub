@@ -9,6 +9,16 @@ function Navbar() {
   // to detect current page route
   const location = useLocation();
 
+  // New helper: show Government badge only when NOT logged in AND not currently on the GovernmentPage route
+  const shouldShowGovernmentBadge = () => {
+    // hide when already logged in
+    if (isGovLoggedIn) return false;
+    // hide when currently on the government login page (so it disappears as soon as you click/go there)
+    // use startsWith to handle potential trailing slashes or nested routes
+    if (location.pathname && location.pathname.startsWith("/GovernmentPage")) return false;
+    return true;
+  };
+
   return (
     <nav className="navbar navbar-expand-lg navbar-light fixed-top">
       <div className="container-fluid">
@@ -39,8 +49,8 @@ function Navbar() {
 
           <ul className="navbar-nav align-items-center">
             
-            {/* Show Government Badge only if NOT logged in */}
-            {!isGovLoggedIn && (
+            {/* Show Government Badge only if NOT logged in and NOT currently on GovernmentPage */}
+            {shouldShowGovernmentBadge() && (
               <li className="nav-item me-3">
                 <Link
                   to="/GovernmentPage"
