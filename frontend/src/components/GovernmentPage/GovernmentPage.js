@@ -7,8 +7,9 @@ import { useNavigate } from "react-router-dom";
 
 function GovernmentPage() {
   const navigate = useNavigate();
+  // Initialize loggedIn from localStorage in case the admin is already logged in
+  const [loggedIn, setLoggedIn] = useState(localStorage.getItem("govLoggedIn") === "true");
   // Login states
-  const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -41,20 +42,40 @@ function GovernmentPage() {
     if (!imagePath) {
       return 'https://via.placeholder.com/150?text=No+Image';
     }
-    
-    // If it's already a full URL (starts with http:// or https://), return as is
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    
-    // If it's a relative path, prepend BASE_URL
     return `${BASE_URL}${imagePath}`;
   };
+
+  // Disable browser back button while on the Government page's login screen
+  // We push a history state and listen for popstate; if the user tries to go back
+  // we immediately push the same state again, effectively preventing going back.
+  useEffect(() => {
+    const onPopState = (e) => {
+      // Only block back navigation while NOT logged in (i.e., on the login screen)
+      if (!loggedIn) {
+        // push the current URL back onto the history stack to stay on this page
+        window.history.pushState(null, "", window.location.href);
+      }
+    };
+
+    // Push initial state so there's something to re-push when Back is pressed
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", onPopState);
+
+    // Cleanup listener on unmount or when loggedIn changes
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [loggedIn]);
 
   // Fetch schemes on mount but only if logged in
   useEffect(() => {
     if (loggedIn) {
       fetchSchemes();
+    } else {
+      setSchemes([]);
     }
   }, [loggedIn]);
 
@@ -83,11 +104,9 @@ function GovernmentPage() {
   // Fetch delivery history for a specific deliveryman
   const fetchDeliveryHistory = async (deliverymanId) => {
     try {
-      // Fetch seller orders
       const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
       const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
-      // Fetch farmer orders
       let farmerOrders = [];
       try {
         const farmerOrdersRes = await axios.get(`${BASE_URL}/farmerorder/deliveryman/${deliverymanId}`);
@@ -96,12 +115,10 @@ function GovernmentPage() {
         console.log("No farmer orders found");
       }
 
-      // Combine and filter delivered orders only
       const allOrders = [...sellerOrders, ...farmerOrders].filter(
         order => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
       );
 
-      // Sort by date (newest first)
       allOrders.sort((a, b) => {
         const dateA = new Date(a.updatedAt || a.createdAt || 0);
         const dateB = new Date(b.updatedAt || b.createdAt || 0);
@@ -121,17 +138,12 @@ function GovernmentPage() {
   // Calculate monthly statistics
   const calculateMonthlyStats = (orders) => {
     const stats = {};
-    
     orders.forEach(order => {
       const date = new Date(order.updatedAt || order.createdAt);
       const monthYear = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
-      
-      if (!stats[monthYear]) {
-        stats[monthYear] = 0;
-      }
+      if (!stats[monthYear]) stats[monthYear] = 0;
       stats[monthYear]++;
     });
-
     setMonthlyStats(stats);
   };
 
@@ -155,9 +167,7 @@ function GovernmentPage() {
       return;
     }
     try {
-      const res = await axios.post(`${BASE_URL}/schemes`, {
-        name: newScheme.trim(),
-      });
+      const res = await axios.post(`${BASE_URL}/schemes`, { name: newScheme.trim() });
       setSchemes((prev) => [...prev, res.data]);
       setNewScheme("");
     } catch (err) {
@@ -179,9 +189,7 @@ function GovernmentPage() {
     }
     const scheme = schemes[index];
     try {
-      const res = await axios.put(`${BASE_URL}/schemes/${scheme._id}`, {
-        name: editScheme.trim(),
-      });
+      const res = await axios.put(`${BASE_URL}/schemes/${scheme._id}`, { name: editScheme.trim() });
       const updatedSchemes = [...schemes];
       updatedSchemes[index] = res.data;
       setSchemes(updatedSchemes);
@@ -215,18 +223,13 @@ function GovernmentPage() {
       alert("Please enter a salary amount");
       return;
     }
-
     const numericSalary = Number(salaryInputs[id]);
-
     if (isNaN(numericSalary)) {
       alert("Salary must be a valid number");
       return;
     }
-
     try {
-      await axios.put(`${BASE_URL}/deliverymen/${id}/salary`, {
-        salary: numericSalary,
-      });
+      await axios.put(`${BASE_URL}/deliverymen/${id}/salary`, { salary: numericSalary });
       alert("Salary updated successfully!");
       fetchDeliveryMen();
     } catch (err) {
@@ -252,8 +255,7 @@ function GovernmentPage() {
     e.preventDefault();
     if (username === "admin" && password === "admin123") {
       setLoggedIn(true);
-      // persist flag for Navbar to pick up if you want
-      localStorage.setItem("govLoggedIn", "true");
+      localStorage.setItem("govLoggedIn", "true"); // persist for Navbar logic
       setLoginError("");
       setUsername("");
       setPassword("");
@@ -262,7 +264,7 @@ function GovernmentPage() {
     }
   };
 
-  // Logout handler
+  // Logout handler (keeps floating logout inside this page)
   const handleLogout = () => {
     setLoggedIn(false);
     localStorage.removeItem("govLoggedIn");
@@ -275,6 +277,8 @@ function GovernmentPage() {
     setShowHistory(false);
     setDeliveryHistory([]);
     setSelectedDeliverymanId(null);
+    // navigate to home optionally
+    navigate("/");
   };
 
   return (
@@ -294,9 +298,10 @@ function GovernmentPage() {
         Back to Home Page
       </button>
 
-      {/* Navbar will hide Government / Login / Register while on this page */}
+      {/* Navbar: it will hide Government / Login / Register while on this page */}
       <Navbar />
 
+      {/* Floating logout inside this page (removed from Navbar per request) */}
       {loggedIn && (
         <button
           onClick={handleLogout}
