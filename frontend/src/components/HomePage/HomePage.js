@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../Navbar/Navbar";
 import "./HomePage.css";
 import Categories from "../Catoegories/Categories"; // fixed folder name typo
@@ -11,6 +11,18 @@ import FooterNew from "../Footer/FooterNew";
 
 function HomePage() {
   const [buttonPopup, setButtonPopup] = useState(false);
+
+  // Block default browser back button
+  useEffect(() => {
+    window.history.pushState(null, "", window.location.href);
+    const handleBack = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", handleBack);
+    return () => {
+      window.removeEventListener("popstate", handleBack);
+    };
+  }, []);
 
   return (
     <div>
