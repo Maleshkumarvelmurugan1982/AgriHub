@@ -252,7 +252,7 @@ function GovernmentPage() {
     e.preventDefault();
     if (username === "admin" && password === "admin123") {
       setLoggedIn(true);
-      // persist flag for Navbar to pick up if you want (optional)
+      // persist flag for Navbar to pick up if you want
       localStorage.setItem("govLoggedIn", "true");
       setLoginError("");
       setUsername("");
