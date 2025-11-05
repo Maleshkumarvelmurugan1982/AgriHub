@@ -33,7 +33,8 @@ function FarmerPage() {
   const [showAppliedSchemes, setShowAppliedSchemes] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const [showAllSellerOrders, setShowAllSellerOrders] = useState(false);
+  // Show all seller orders by default (per your request to display all)
+  const [showAllSellerOrders, setShowAllSellerOrders] = useState(true);
   const [showAllFarmerOrders, setShowAllFarmerOrders] = useState(false);
   const [showAllDeliveryPosts, setShowAllDeliveryPosts] = useState(false);
 
@@ -313,6 +314,48 @@ function FarmerPage() {
   };
 
   const soldProducts = getSoldProducts();
+
+  // Helper to extract seller's name and place from order (robust against populated or non-populated sellerId)
+  const getPlaceFromSeller = (sellerObj = {}) => {
+    // Try a number of typical location fields, join the ones that exist
+    const placeParts = [];
+    const maybe = (field) => {
+      const v = sellerObj[field];
+      if (v && typeof v === "string" && v.trim()) placeParts.push(v.trim());
+    };
+
+    maybe("village");
+    maybe("place");
+    maybe("city");
+    maybe("address");
+    maybe("taluk");
+    maybe("district");
+    maybe("state");
+
+    return placeParts.join(", ");
+  };
+
+  const getSellerInfo = (order) => {
+    // seller may be in order.sellerId, order.seller or embedded elsewhere
+    const sellerSource = order.sellerId && typeof order.sellerId === "object"
+      ? order.sellerId
+      : (order.seller && typeof order.seller === "object" ? order.seller : null);
+
+    if (sellerSource) {
+      const name = `${sellerSource.fname || sellerSource.firstName || ""} ${sellerSource.lname || sellerSource.lastName || ""}`.trim() || "Unknown Seller";
+      const place = getPlaceFromSeller(sellerSource);
+      return { name, place };
+    }
+
+    // If seller is only an id (string), we don't have extra data client-side; show id as fallback
+    if (order.sellerId && typeof order.sellerId === "string") {
+      return { name: `Seller ID: ${order.sellerId}`, place: "" };
+    }
+
+    return { name: "Unknown Seller", place: "" };
+  };
+
+  // Determine slice for display (if collapsed show first 4)
   const sellerOrdersToDisplay = showAllSellerOrders ? sellerOrders : sellerOrders.slice(0, 4);
 
   return (
@@ -418,10 +461,7 @@ function FarmerPage() {
                   ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
                   : 'Assigned';
 
-                const hasSellerInfo = order.sellerId && typeof order.sellerId === 'object';
-                const sellerName = hasSellerInfo 
-                  ? `${order.sellerId.fname || ''} ${order.sellerId.lname || ''}`.trim() || 'Unknown Seller'
-                  : 'Unknown Seller';
+                const { name: sellerName } = getSellerInfo(order);
 
                 return (
                   <div 
@@ -766,6 +806,8 @@ function FarmerPage() {
               const deliverymanName = hasDeliverymanInfo 
                 ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
                 : 'Assigned';
+
+              const { name: sellerName, place: sellerPlace } = getSellerInfo(order);
               
               return (
                 <div key={order._id} className="order-item1">
@@ -786,6 +828,13 @@ function FarmerPage() {
                   )}
                   <p>Quantity: {order.quantity}</p>
                   <p>Price: Rs.{order.price}</p>
+
+                  {/* Seller info displayed for every order */}
+                  <p style={{ marginTop: '6px', fontSize: '14px', color: '#333' }}>
+                    <strong>Seller:</strong> {sellerName}
+                    {sellerPlace ? <span style={{ color: '#666', marginLeft: '8px' }}> - {sellerPlace}</span> : null}
+                  </p>
+
                   <p>
                     Status: <b style={{color: getStatusColor(order.status)}}>
                       {order.status?.toUpperCase() || "PENDING"}
@@ -874,6 +923,8 @@ function FarmerPage() {
             })
           )}
         </div>
+
+        {/* Toggle button: now toggles between full list and condensed list */}
         {sellerOrders.length > 4 && (
           <button 
             className="view-all-button1" 
