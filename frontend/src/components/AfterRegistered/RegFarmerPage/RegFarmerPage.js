@@ -783,7 +783,7 @@ function FarmerPage() {
               onMouseOver={(e) => {
                 e.currentTarget.style.transform = 'translateY(-8px)';
                 e.currentTarget.style.boxShadow = '0 12px 30px rgba(40,167,69,0.2)';
-              })}
+              }}
               onMouseOut={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.1)';
