@@ -1,33 +1,32 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../Navbar/Navbar";
 import "./HomePage.css";
-import Categories from "../Catoegories/Categories"; // fixed folder name typo
+import Categories from "../Catoegories/Categories";
 import TypeWriter from "../AutoWritingText/TypeWriter";
 import Video from "../ProcessLine/Video";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faLandmark } from "@fortawesome/free-solid-svg-icons";
 import KeyFeatures from "../KeyFeatures/KeyFeatures";
 import FooterNew from "../Footer/FooterNew";
 
 function HomePage() {
   const [buttonPopup, setButtonPopup] = useState(false);
 
-  // Block browser back and forward navigation while on home page
   useEffect(() => {
-    // This always keeps you on this page, also after refresh/reload
     window.history.pushState(null, "", window.location.href);
-
     const handlePopState = () => {
-      // Re-push state to block navigation away
       window.history.pushState(null, "", window.location.href);
     };
-
     window.addEventListener("popstate", handlePopState);
-
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
   }, []);
+
+  // NEW: GovernmentPage redirection handler
+  const handleGovernmentRedirect = () => {
+    window.location.href = "/GovernmentPage";
+  };
 
   return (
     <div>
@@ -54,7 +53,6 @@ function HomePage() {
       <div className="overlay-content">
         <p className="overlay-paragraph">Who Are You?</p>
         
-        {/* Farmer - Image only, no redirection */}
         <div className="profile">
           <img
             src={process.env.PUBLIC_URL + "/Profile/farmer.png"}
@@ -64,7 +62,6 @@ function HomePage() {
         </div>
         <p className="profile-name">Farmer</p>
 
-        {/* Seller - Image only, no redirection */}
         <div className="profile">
           <img
             src={process.env.PUBLIC_URL + "/Profile/seller.png"}
@@ -74,7 +71,6 @@ function HomePage() {
         </div>
         <p className="profile-name">Seller</p>
 
-        {/* Deliveryman - Image only, no redirection */}
         <div className="profile">
           <img
             src={process.env.PUBLIC_URL + "/Profile/delivery.png"}
@@ -84,7 +80,6 @@ function HomePage() {
         </div>
         <p className="profile-name">DeliveryMan</p>
         
-        {/* Government - Image only, no redirection */}
         <div className="profile">
           <img
             src={process.env.PUBLIC_URL + "/Profile/both.png"}
@@ -94,12 +89,41 @@ function HomePage() {
         </div>
         <p className="profile-name">Government</p>
 
+        {/* --- BEGIN: Modern Government Card/Button --- */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "25px 0" }}>
+          <button
+            onClick={handleGovernmentRedirect}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "18px",
+              padding: "18px 38px",
+              fontSize: "1.25rem",
+              color: "#fff",
+              background: "linear-gradient(94deg,#22b455 60%,#007bff 100%)",
+              border: "none",
+              borderRadius: "16px",
+              boxShadow: "0 8px 24px rgba(34,180,85,.24), 0 0 0 2px #007bff30",
+              fontWeight: "700",
+              cursor: "pointer",
+              transition: "transform 0.13s",
+              marginBottom: "10px"
+            }}
+            onMouseOver={e => { e.currentTarget.style.transform = "scale(1.045)"; }}
+            onMouseOut={e => { e.currentTarget.style.transform = "scale(1)"; }}
+            aria-label="Government Portal"
+          >
+            <FontAwesomeIcon icon={faLandmark} size="2x" style={{ color: "#f3f513" }} />
+            <span>Government / Admin Portal</span>
+          </button>
+        </div>
+        {/* --- END: Modern Government Card/Button --- */}
       </div>
 
       <div className="button-container">
         <button
           onClick={() => {
-            window.location.href = "/register"; // use relative URL
+            window.location.href = "/register";
           }}
           className="button-register"
         >
@@ -107,13 +131,12 @@ function HomePage() {
         </button>
       </div>
 
-      {/* About Section with id for anchor */}
+      {/* About Section */}
       <section id="about-section">
         <div className="welcome-text">
           <span className="welcome">Welcome to</span>{" "}
           <span className="AgriHub">AgriHub!</span>
         </div>
-
         <div className="main-paragraph">
           <p>
             Welcome to AgriHub, your digital marketplace for a bounty of fresh,
@@ -126,10 +149,8 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Categories Section - Images only, no redirection */}
       <Categories />
 
-      {/* How It Works Section */}
       <div className="how-it-works">
         <span className="welcome">How It</span>{" "}
         <span className="AgriHub">Works</span>
