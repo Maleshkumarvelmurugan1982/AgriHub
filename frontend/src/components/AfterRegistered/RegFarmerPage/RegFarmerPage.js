@@ -221,6 +221,40 @@ function FarmerPage() {
             // Quantity to restore (number)
             const restoredQty = Number(order.quantity ?? result.order?.quantity ?? result.order?.qty ?? 0);
 
+            // --- New: attempt to update product quantity on the backend so the source of truth is updated ---
+            if (restoredProductId) {
+              try {
+                // Try to GET the product to read current quantity (endpoint assumed: GET /product/:id)
+                const prodResp = await fetch(`${BASE_URL}/product/${restoredProductId}`);
+                if (prodResp.ok) {
+                  const prodData = await prodResp.json();
+                  // Support responses where product object may be at root or in data
+                  const productObj = prodData?.product || prodData?.data || prodData;
+                  const currentQty = Number(productObj?.quantity ?? 0) || 0;
+                  const newQty = currentQty + restoredQty;
+
+                  // PATCH the product with the updated quantity (endpoint pattern matches existing PATCH usage)
+                  const patchResp = await fetch(`${BASE_URL}/product/${restoredProductId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ quantity: newQty }),
+                  });
+
+                  if (!patchResp.ok) {
+                    console.warn("Failed to restore product quantity on server", await patchResp.text());
+                  } else {
+                    console.log(`Restored product ${restoredProductId} quantity from ${currentQty} to ${newQty}`);
+                  }
+                } else {
+                  console.warn("Could not fetch product to restore quantity", prodResp.status);
+                }
+              } catch (restoreErr) {
+                console.error("Error while restoring product quantity:", restoreErr);
+              }
+            } else {
+              console.warn("No productId found for order; skipping backend restore.");
+            }
+
             // Fire the event. RegVegetablePage listens for this and will update product qty locally or refresh.
             window.dispatchEvent(new CustomEvent('orderDisapproved', {
               detail: { productId: restoredProductId, quantity: restoredQty }
