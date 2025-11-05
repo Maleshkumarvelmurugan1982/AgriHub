@@ -6,9 +6,6 @@ import RegCategories from "../../AfterRegistered/RegCatoegories/RegCategories";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
   faChevronRight, 
-  faShoppingCart, 
-  faShoppingBag, 
-  faInfoCircle, 
   faThumbsUp, 
   faThumbsDown, 
   faTruck, 
@@ -18,7 +15,8 @@ import {
   faTimes,
   faWallet,
   faCreditCard,
-  faMoneyBillWave
+  faMoneyBillWave,
+  faInfoCircle
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
@@ -33,7 +31,6 @@ function FarmerPage() {
   const [showAppliedSchemes, setShowAppliedSchemes] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Show all seller orders by default (per your request to display all)
   const [showAllSellerOrders, setShowAllSellerOrders] = useState(true);
   const [showAllFarmerOrders, setShowAllFarmerOrders] = useState(false);
   const [showAllDeliveryPosts, setShowAllDeliveryPosts] = useState(false);
@@ -78,65 +75,49 @@ function FarmerPage() {
     const fetchSellerOrders = async () => {
       try {
         const response = await fetch(`${BASE_URL}/sellerorder/farmer/${farmerId}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
         const data = await response.json();
-        console.log("Seller Orders Response:", data);
-        
-        if (data.status === 'ok' && data.orders) {
+        if (data.status === "ok" && data.orders) {
           setSellerOrders(data.orders);
         } else if (Array.isArray(data)) {
           setSellerOrders(data);
         } else if (data.data && Array.isArray(data.data)) {
           setSellerOrders(data.data);
         } else {
-          console.error("Unexpected data format:", data);
           setSellerOrders([]);
         }
       } catch (err) {
-        console.error("Error fetching seller orders:", err);
         setSellerOrders([]);
       }
     };
-    
+
     const fetchFarmerOrders = async () => {
       try {
         const response = await fetch(`${BASE_URL}/farmerorder/`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
-        
         const orders = Array.isArray(data) ? data : (data.data && Array.isArray(data.data) ? data.data : []);
         const filteredOrders = orders.filter(order => order.farmerId !== farmerId);
         setFarmerOrders(filteredOrders);
       } catch (err) {
-        console.error("Error fetching farmer orders:", err);
         setFarmerOrders([]);
       }
     };
-    
+
     const fetchDeliveryPosts = async () => {
       try {
         const response = await fetch(`${BASE_URL}/deliverypost/`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         setDeliveryPosts(Array.isArray(data) ? data : (data.data && Array.isArray(data.data) ? data.data : []));
       } catch (err) {
-        console.error("Error fetching delivery posts:", err);
         setDeliveryPosts([]);
       }
     };
-    
+
     const fetchSchemes = async () => {
       try {
         const response = await fetch(`${BASE_URL}/schemes/`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         setSchemes(Array.isArray(data) ? data : (data.data && Array.isArray(data.data) ? data.data : []));
       } catch (err) {
-        console.error("Error fetching schemes:", err);
         setSchemes([]);
       }
     };
@@ -167,6 +148,7 @@ function FarmerPage() {
     }
   };
 
+  // FIXED: When disapproved, restore quantity to product in DB and fire "orderDisapproved" event!
   const handleOrderStatus = async (orderId, newStatus) => {
     try {
       const order = sellerOrders.find(o => o._id === orderId);
@@ -174,107 +156,65 @@ function FarmerPage() {
         alert("Order not found");
         return;
       }
-
-      // Show confirmation dialog with refund info
       if (newStatus === 'disapproved') {
         const confirmMessage = order.paymentStatus === 'paid' 
           ? `Are you sure you want to disapprove this order?\n\nThe seller will be refunded Rs. ${order.price}\nPayment Method: ${order.paymentMethod || 'wallet'}`
           : `Are you sure you want to disapprove this order?`;
-        
         if (!window.confirm(confirmMessage)) {
           return;
         }
       }
-
-      // Use the new endpoint with refund logic
       const res = await fetch(`${BASE_URL}/sellerorder/update-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          orderId: orderId, 
-          status: newStatus,
-          farmerId: farmerId
-        }),
+        body: JSON.stringify({ orderId: orderId, status: newStatus, farmerId: farmerId }),
       });
-      
       if (!res.ok) throw new Error("Failed to update order");
-      
       const result = await res.json();
-      
+
       if (result.status === 'ok') {
-        // Update local state
         setSellerOrders(prev =>
           prev.map(o => o._id === orderId ? result.order : o)
         );
-        
-        // When disapproved, restore the product quantity on the server using the same product id
+
+        // Restore quantity on disapprove
         if (newStatus === 'disapproved') {
           try {
-            // Determine product id defensively from returned payload or original order
             const productId =
               result.order?.productId ||
               result.order?.product?._id ||
               order.productId ||
               (order.product && order.product._id) ||
               null;
-
-            // Determine quantity to restore (ordered quantity)
             const restoreQty = Number(order.quantity ?? result.order?.quantity ?? result.order?.qty ?? 0);
 
-            if (productId) {
-              // Fetch current product to read its quantity
-              try {
-                const getProd = await fetch(`${BASE_URL}/product/${productId}`);
-                if (getProd.ok) {
-                  const prodJson = await getProd.json();
-                  // product may be root or inside data/product fields
-                  const productObj = prodJson?.product || prodJson?.data || prodJson;
-                  const currentQty = Number(productObj?.quantity ?? 0) || 0;
-                  const newQty = currentQty + restoreQty;
-
-                  // PATCH product to set quantity back to newQty (initial + restored)
-                  const patchResp = await fetch(`${BASE_URL}/product/${productId}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ quantity: newQty }),
-                  });
-
-                  if (!patchResp.ok) {
-                    console.warn("Failed to update product quantity on server", await patchResp.text());
-                  } else {
-                    console.log(`Product ${productId} quantity restored: ${currentQty} -> ${newQty}`);
-                  }
-                } else {
-                  console.warn("Failed to GET product for restore, status:", getProd.status);
-                }
-              } catch (restoreErr) {
-                console.error("Error restoring product quantity:", restoreErr);
+            if (productId && restoreQty > 0) {
+              const getProd = await fetch(`${BASE_URL}/product/${productId}`);
+              if (getProd.ok) {
+                const prodJson = await getProd.json();
+                const productObj = prodJson?.product || prodJson?.data || prodJson;
+                const currentQty = Number(productObj?.quantity ?? 0) || 0;
+                const newQty = currentQty + restoreQty;
+                await fetch(`${BASE_URL}/product/${productId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ quantity: newQty }),
+                });
+                window.dispatchEvent(new CustomEvent("orderDisapproved", {
+                  detail: { productId: productId, quantity: restoreQty }
+                }));
               }
-            } else {
-              console.warn("No productId available to restore quantity for order:", orderId);
             }
-
-            // Dispatch event so other pages update UI immediately
-            window.dispatchEvent(new CustomEvent("orderDisapproved", {
-              detail: { productId: productId, quantity: restoreQty }
-            }));
-          } catch (evtErr) {
-            console.error("Error during restore flow:", evtErr);
+          } catch (restoreErr) {
+            console.error("Error restoring product quantity:", restoreErr);
           }
         }
 
-        // Show success message
+        // Show feedback to user
         if (newStatus === 'disapproved' && result.refunded) {
           alert(`Order disapproved successfully!\n\nRefund Details:\nAmount: Rs. ${result.refundAmount}\nStatus: Refunded to seller's ${order.paymentMethod || 'wallet'}`);
         } else {
           alert(`Order ${newStatus} successfully!`);
-        }
-        
-        // Refresh orders to get updated data
-        const response = await fetch(`${BASE_URL}/sellerorder/farmer/${farmerId}`);
-        const data = await response.json();
-        if (data.status === 'ok' && data.orders) {
-          setSellerOrders(data.orders);
         }
       }
     } catch (err) {
@@ -298,23 +238,10 @@ function FarmerPage() {
       pending: { color: '#6c757d', icon: faInfoCircle, text: 'PENDING' },
       failed: { color: '#dc3545', icon: faTimesCircle, text: 'FAILED' }
     };
-
     const config = statusConfig[paymentStatus] || statusConfig.pending;
     const methodIcon = paymentMethod === 'wallet' ? faWallet : faCreditCard;
-
     return (
-      <div style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '5px',
-        padding: '5px 12px',
-        backgroundColor: `${config.color}20`,
-        borderRadius: '20px',
-        border: `2px solid ${config.color}`,
-        fontSize: '12px',
-        fontWeight: '600',
-        marginTop: '8px'
-      }}>
+      <div style={{display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 12px', backgroundColor: `${config.color}20`, borderRadius: '20px', border: `2px solid ${config.color}`, fontSize: '12px', fontWeight: '600', marginTop: '8px'}}>
         <FontAwesomeIcon icon={config.icon} style={{ color: config.color }} />
         <span style={{ color: config.color }}>{config.text}</span>
         {paymentMethod && (
@@ -358,10 +285,7 @@ function FarmerPage() {
 
   const getSoldProducts = () => {
     return sellerOrders
-      .filter(order => 
-        order.status === "approved" && 
-        (order.deliveryStatus === "delivered" || order.deliveryStatus === "approved")
-      )
+      .filter(order => order.status === "approved" && (order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"))
       .sort((a, b) => {
         const dateA = new Date(a.updatedAt || a.createdAt || 0);
         const dateB = new Date(b.updatedAt || b.createdAt || 0);
@@ -371,15 +295,12 @@ function FarmerPage() {
 
   const soldProducts = getSoldProducts();
 
-  // Helper to extract seller's name and place from order (robust against populated or non-populated sellerId)
   const getPlaceFromSeller = (sellerObj = {}) => {
-    // Try a number of typical location fields, join the ones that exist
     const placeParts = [];
     const maybe = (field) => {
       const v = sellerObj[field];
       if (v && typeof v === "string" && v.trim()) placeParts.push(v.trim());
     };
-
     maybe("village");
     maybe("place");
     maybe("city");
@@ -387,31 +308,24 @@ function FarmerPage() {
     maybe("taluk");
     maybe("district");
     maybe("state");
-
     return placeParts.join(", ");
   };
 
   const getSellerInfo = (order) => {
-    // seller may be in order.sellerId, order.seller or embedded elsewhere
     const sellerSource = order.sellerId && typeof order.sellerId === "object"
       ? order.sellerId
       : (order.seller && typeof order.seller === "object" ? order.seller : null);
-
     if (sellerSource) {
       const name = `${sellerSource.fname || sellerSource.firstName || ""} ${sellerSource.lname || sellerSource.lastName || ""}`.trim() || "Unknown Seller";
       const place = getPlaceFromSeller(sellerSource);
       return { name, place };
     }
-
-    // If seller is only an id (string), we don't have extra data client-side; show id as fallback
     if (order.sellerId && typeof order.sellerId === "string") {
       return { name: `Seller ID: ${order.sellerId}`, place: "" };
     }
-
     return { name: "Unknown Seller", place: "" };
   };
 
-  // Determine slice for display (if collapsed show first 4)
   const sellerOrdersToDisplay = showAllSellerOrders ? sellerOrders : sellerOrders.slice(0, 4);
 
   return (
@@ -504,7 +418,6 @@ function FarmerPage() {
               <FontAwesomeIcon icon={faTimes} />
             </button>
           </div>
-
           {soldProducts.length === 0 ? (
             <p style={{ textAlign: 'center', fontSize: '18px', color: '#666', padding: '40px' }}>
               No sales history yet. Your delivered orders will appear here.
@@ -516,7 +429,6 @@ function FarmerPage() {
                 const deliverymanName = hasDeliverymanInfo 
                   ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
                   : 'Assigned';
-
                 const { name: sellerName } = getSellerInfo(order);
 
                 return (
@@ -862,9 +774,8 @@ function FarmerPage() {
               const deliverymanName = hasDeliverymanInfo 
                 ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
                 : 'Assigned';
-
               const { name: sellerName, place: sellerPlace } = getSellerInfo(order);
-              
+
               return (
                 <div key={order._id} className="order-item1">
                   <img 
@@ -885,7 +796,6 @@ function FarmerPage() {
                   <p>Quantity: {order.quantity}</p>
                   <p>Price: Rs.{order.price}</p>
 
-                  {/* Seller info displayed for every order */}
                   <p style={{ marginTop: '6px', fontSize: '14px', color: '#333' }}>
                     <strong>Seller:</strong> {sellerName}
                     {sellerPlace ? <span style={{ color: '#666', marginLeft: '8px' }}> - {sellerPlace}</span> : null}
@@ -897,7 +807,6 @@ function FarmerPage() {
                     </b>
                   </p>
                   
-                  {/* Payment Status Badge */}
                   {order.paymentStatus && getPaymentStatusBadge(order.paymentStatus, order.paymentMethod)}
                   
                   {order.acceptedByDeliveryman && order.status === "approved" && (
@@ -906,11 +815,9 @@ function FarmerPage() {
                         <FontAwesomeIcon icon={faTruck} /> 
                         Deliveryman: <strong>{deliverymanName}</strong>
                       </p>
-                      
                       <p className="deliveryman-detail">
                         ID: <strong>{hasDeliverymanInfo ? order.deliverymanId._id : order.deliverymanId}</strong>
                       </p>
-                      
                       {hasDeliverymanInfo && (
                         <>
                           {order.deliverymanId.email && (
@@ -921,7 +828,6 @@ function FarmerPage() {
                           )}
                         </>
                       )}
-                      
                       {getDeliveryStatusBadge(order.deliveryStatus)}
                     </div>
                   )}
@@ -979,8 +885,6 @@ function FarmerPage() {
             })
           )}
         </div>
-
-        {/* Toggle button: now toggles between full list and condensed list */}
         {sellerOrders.length > 4 && (
           <button 
             className="view-all-button1" 
