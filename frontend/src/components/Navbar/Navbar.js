@@ -23,7 +23,7 @@ function Navbar() {
       <div className="container-fluid">
 
         {/* Logo */}
-        <Link className="navbar-brand" to="/" replace>
+        <Link className="navbar-brand" to="/">
           <img
             src={process.env.PUBLIC_URL + "/Navbar/icon.png"}
             alt="Logo"
@@ -53,7 +53,6 @@ function Navbar() {
               <li className="nav-item me-3">
                 <Link
                   to="/GovernmentPage"
-                  replace
                   className="badge bg-success text-white p-2"
                   style={{
                     fontSize: "0.9rem",
@@ -70,13 +69,13 @@ function Navbar() {
             {!hideAuthLinks() && (
               <>
                 <li className="nav-item">
-                  <Link className="login" to="/login" replace>
+                  <Link className="login" to="/login">
                     Login
                   </Link>
                 </li>
 
                 <li className="nav-item">
-                  <Link className="register" to="/register" replace>
+                  <Link className="register" to="/register">
                     Register
                   </Link>
                 </li>
