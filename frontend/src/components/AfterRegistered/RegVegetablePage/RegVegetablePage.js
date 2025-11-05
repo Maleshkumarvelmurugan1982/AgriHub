@@ -35,6 +35,41 @@ function RegVegetablePage() {
     }
   };
 
+  // Centralized product fetch so we can call it from the "orderDisapproved" handler
+  const refreshProducts = async () => {
+    try {
+      let response;
+      if (userType === "farmer") {
+        if (!farmerId) return;
+        response = await fetch(`${BASE_URL}/product/farmer/${farmerId}/category/vegetable`);
+      } else if (userType === "seller") {
+        response = await fetch(`${BASE_URL}/product/category/vegetable`);
+      } else {
+        return;
+      }
+
+      if (!response.ok) {
+        setProducts([]);
+        setFilteredProducts([]);
+        return;
+      }
+
+      const data = await response.json();
+      if (userType === "seller") {
+        const availableProducts = data.filter(p => p.quantity > 0);
+        setProducts(availableProducts);
+        setFilteredProducts(availableProducts);
+      } else {
+        setProducts(data);
+        setFilteredProducts(data);
+      }
+    } catch (error) {
+      console.error("Failed to load products:", error);
+      setProducts([]);
+      setFilteredProducts([]);
+    }
+  };
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -56,7 +91,9 @@ function RegVegetablePage() {
             setUserType("farmer");
             return;
           }
-        } catch {}
+        } catch (err) {
+          // ignore and try seller
+        }
 
         try {
           const sellerRes = await fetch(`${BASE_URL}/seller/userdata`, {
@@ -70,7 +107,9 @@ function RegVegetablePage() {
             setUserType("seller");
             return;
           }
-        } catch {}
+        } catch (err) {
+          // ignore
+        }
 
         alert("Unable to identify user type. Please login again.");
       } catch (err) {
@@ -80,49 +119,77 @@ function RegVegetablePage() {
     fetchUserData();
   }, []);
 
+  // load products when user type / farmer id available
   useEffect(() => {
     if (!userType) return;
-
-    const fetchProducts = async () => {
-      try {
-        let response;
-        if (userType === "farmer") {
-          if (!farmerId) return;
-          response = await fetch(`${BASE_URL}/product/farmer/${farmerId}/category/vegetable`);
-        } else if (userType === "seller") {
-          response = await fetch(`${BASE_URL}/product/category/vegetable`);
-        }
-
-        if (!response.ok) {
-          setProducts([]);
-          setFilteredProducts([]);
-          return;
-        }
-
-        const data = await response.json();
-        if (userType === "seller") {
-          const availableProducts = data.filter(p => p.quantity > 0);
-          setProducts(availableProducts);
-          setFilteredProducts(availableProducts);
-        } else {
-          setProducts(data);
-          setFilteredProducts(data);
-        }
-      } catch (error) {
-        setProducts([]);
-        setFilteredProducts([]);
-      }
-    };
-
-    fetchProducts();
+    refreshProducts();
   }, [userType, farmerId]);
 
+  // search filter
   useEffect(() => {
     const filtered = products.filter(product =>
       product.productName && product.productName.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredProducts(filtered);
   }, [searchQuery, products]);
+
+  // Listen for order disapproval events (dispatched by FarmerPage or other code)
+  // When an order is disapproved we expect detail: { productId, quantity }
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const { productId, quantity } = e.detail || {};
+        if (!productId || typeof quantity === "undefined") {
+          // If event is malformed, refresh whole product list to be safe
+          refreshProducts();
+          return;
+        }
+
+        // Try to update the product locally if present
+        setProducts((prev) => {
+          const found = prev.some(p => p._id === productId);
+          if (found) {
+            return prev.map(p => {
+              if (p._id === productId) {
+                // ensure numeric arithmetic
+                const oldQty = Number(p.quantity) || 0;
+                const addQty = Number(quantity) || 0;
+                return { ...p, quantity: oldQty + addQty };
+              }
+              return p;
+            });
+          }
+          // product not in list: trigger a refresh to get latest data
+          refreshProducts();
+          return prev;
+        });
+
+        // Also update filteredProducts to keep UI consistent
+        setFilteredProducts((prev) => {
+          const found = prev.some(p => p._id === productId);
+          if (found) {
+            return prev.map(p => {
+              if (p._id === productId) {
+                const oldQty = Number(p.quantity) || 0;
+                const addQty = Number(quantity) || 0;
+                return { ...p, quantity: oldQty + addQty };
+              }
+              return p;
+            });
+          }
+          return prev;
+        });
+      } catch (err) {
+        console.error("Error handling orderDisapproved event:", err);
+        // fallback: refresh list
+        refreshProducts();
+      }
+    };
+
+    window.addEventListener("orderDisapproved", handler);
+    return () => window.removeEventListener("orderDisapproved", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userType, farmerId]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
