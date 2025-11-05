@@ -47,14 +47,14 @@ function Login() {
         break;
     }
 
+    // ✅ FIXED: Removed problematic CORS headers from request
     fetch(url, {
       method: "POST",
-      crossDomain: true,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        "Access-Control-Allow-Origin": "*",
       },
+      credentials: "include", // Important for cookies/sessions
       body: JSON.stringify({ email, password, userRole }),
     })
       .then((res) => res.json())
