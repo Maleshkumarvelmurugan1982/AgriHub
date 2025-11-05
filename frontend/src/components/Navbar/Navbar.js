@@ -3,16 +3,10 @@ import "./Navbar.css";
 import { Link, useLocation } from "react-router-dom";
 
 function Navbar() {
-  // Check login based on localStorage flag
   const isGovLoggedIn = localStorage.getItem("govLoggedIn") === "true";
-  
-  // to detect current page route
   const location = useLocation();
 
-  // Hide auth links (Government / Login / Register) when:
-  // - already logged in, OR
-  // - user is on the GovernmentPage route (so while the gov login screen is shown)
-  // - user is on the login page OR register page
+  // retain for possible future logic use:
   const hideAuthLinks = () => {
     if (isGovLoggedIn) return true;
     if (location.pathname && location.pathname.startsWith("/GovernmentPage")) return true;
@@ -23,7 +17,6 @@ function Navbar() {
   return (
     <nav className="navbar navbar-expand-lg navbar-light fixed-top">
       <div className="container-fluid">
-
         {/* Logo */}
         <Link className="navbar-brand" to="/">
           <img
@@ -47,45 +40,8 @@ function Navbar() {
 
         <div className="collapse navbar-collapse" id="navbarSupportedContent">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0"></ul>
-
           <ul className="navbar-nav align-items-center">
-            
-            {/* Show Government Badge only if NOT logged in and NOT on GovernmentPage and NOT on login/register */}
-            {!hideAuthLinks() && (
-              <li className="nav-item me-3">
-                <Link
-                  to="/GovernmentPage"
-                  className="badge bg-success text-white p-2"
-                  style={{
-                    fontSize: "0.9rem",
-                    cursor: "pointer",
-                    textDecoration: "none",
-                  }}
-                >
-                  Government
-                </Link>
-              </li>
-            )}
-
-            {/* Show Login/Register only if NOT logged in and NOT on GovernmentPage and NOT on login/register */}
-            {!hideAuthLinks() && (
-              <>
-                <li className="nav-item">
-                  <Link className="login" to="/login">
-                    Login
-                  </Link>
-                </li>
-
-                <li className="nav-item">
-                  <Link className="register" to="/register">
-                    Register
-                  </Link>
-                </li>
-              </>
-            )}
-
-            {/* NOTE: Logout removed from Navbar as requested */}
-
+            {/* Government, Login, and Register buttons/links have been removed */}
           </ul>
         </div>
       </div>
