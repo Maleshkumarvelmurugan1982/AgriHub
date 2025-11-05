@@ -10,12 +10,13 @@ export default function SignUp() {
     register,
     handleSubmit,
     formState: { errors },
+    reset
   } = useForm();
 
-  // ✅ CHANGED: Use production backend URL
+  // Production backend URL
   const BASE_URL = "https://agrihub-2.onrender.com";
 
-  // Disable browser back button
+  // Disable browser back button while the Register page is mounted
   React.useEffect(() => {
     window.history.pushState(null, "", window.location.href);
 
@@ -31,7 +32,7 @@ export default function SignUp() {
   }, []);
 
   const onSubmit = async (data) => {
-    console.log(data);
+    console.log("Register payload:", data);
 
     let url = "";
 
@@ -60,17 +61,17 @@ export default function SignUp() {
       });
 
       if (response.ok) {
-        alert("Registration Successful! Redirecting to login page...");
-        
-        setTimeout(() => {
-          navigate("/login", { replace: true });
-        }, 1500);
+        // Registration succeeded — show success but do NOT redirect automatically
+        alert("Registration Successful! You can now sign in from the login page.");
+        // Optionally reset the form so user can re-use or verify fields
+        reset();
+        // Keep the user on the registration page — no automatic redirect
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         alert(errorData.error || "Registration failed");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Registration error:", error);
       alert("Registration failed. Please try again.");
     }
   };
