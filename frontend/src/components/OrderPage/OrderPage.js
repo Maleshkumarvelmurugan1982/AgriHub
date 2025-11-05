@@ -70,7 +70,6 @@ function OrderPage() {
         isInitial: true,
       },
     ]);
-
     setFormData({
       district: "",
       company: "",
@@ -190,20 +189,16 @@ function OrderPage() {
 
   const removeProduct = (id) => {
     const productToRemove = products.find(p => p.id === id);
-    
     if (productToRemove && productToRemove.isInitial) {
       alert("Cannot remove the initial product!");
       return;
     }
-
     if (products.length === 1) {
       alert("At least one product is required!");
       return;
     }
-
     const confirmRemove = window.confirm("Are you sure you want to remove this product?");
     if (!confirmRemove) return;
-
     setProducts((prev) => prev.filter((p) => p.id !== id));
   };
 
@@ -213,7 +208,6 @@ function OrderPage() {
     const selectedProduct = allAvailableProducts.find(
       p => p.productName === selectedProductName
     );
-
     if (!selectedProduct) return;
 
     const farmerIdValue =
@@ -338,8 +332,6 @@ function OrderPage() {
           paymentStatus: "completed",
           isPaid: true,
         };
-
-        console.log("🚀 Sending order data:", orderData);
 
         const res = await fetch(`${BASE_URL}/sellerorder/add`, {
           method: "POST",
