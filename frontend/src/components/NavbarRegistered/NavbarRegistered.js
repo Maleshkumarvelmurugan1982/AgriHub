@@ -68,11 +68,12 @@ function NavbarRegistered() {
     try {
       localStorage.removeItem("token");
       localStorage.removeItem("govLoggedIn"); // safe to remove if present
+      // remove any other session keys if needed, e.g. user role, cart, etc.
     } catch (e) {
       console.warn("Error clearing storage on logout:", e);
     }
-    // SPA navigation back to home
-    navigate("/", { replace: true });
+    // Redirect to the login page after logout
+    navigate("/login", { replace: true });
   };
 
   return (
