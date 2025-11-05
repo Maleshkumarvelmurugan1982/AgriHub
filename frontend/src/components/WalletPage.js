@@ -16,6 +16,35 @@ export default function SellerWalletPage() {
 
   const BASE_URL = 'https://agrihub-2.onrender.com';
 
+  // Inject CSS to hide Government / Login / Register links while this page is mounted.
+  useEffect(() => {
+    const styleId = 'hide-auth-links-wallet';
+    if (document.getElementById(styleId)) return;
+    const css = `
+      .navbar a[href="/GovernmentPage"],
+      .navbar a[href="/login"],
+      .navbar a[href="/register"],
+      .navbar .login,
+      .navbar .register,
+      .navbar .gov-link,
+      a.gov-link,
+      a.nav-gov,
+      a[href="/GovernmentPage"] .badge,
+      .navbar .badge.gov {
+        display: none !important;
+      }
+    `;
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = css;
+    document.head.appendChild(styleEl);
+
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) el.parentNode.removeChild(el);
+    };
+  }, []);
+
   useEffect(() => {
     fetchWalletData();
     
