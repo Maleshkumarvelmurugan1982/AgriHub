@@ -12,9 +12,11 @@ function Navbar() {
   // Hide auth links (Government / Login / Register) when:
   // - already logged in, OR
   // - user is on the GovernmentPage route (so while the gov login screen is shown)
+  // - user is on the login page OR register page
   const hideAuthLinks = () => {
     if (isGovLoggedIn) return true;
     if (location.pathname && location.pathname.startsWith("/GovernmentPage")) return true;
+    if (location.pathname === "/login" || location.pathname === "/register") return true;
     return false;
   };
 
@@ -48,7 +50,7 @@ function Navbar() {
 
           <ul className="navbar-nav align-items-center">
             
-            {/* Show Government Badge only if NOT logged in and NOT on GovernmentPage */}
+            {/* Show Government Badge only if NOT logged in and NOT on GovernmentPage and NOT on login/register */}
             {!hideAuthLinks() && (
               <li className="nav-item me-3">
                 <Link
@@ -65,7 +67,7 @@ function Navbar() {
               </li>
             )}
 
-            {/* Show Login/Register only if NOT logged in and NOT on GovernmentPage */}
+            {/* Show Login/Register only if NOT logged in and NOT on GovernmentPage and NOT on login/register */}
             {!hideAuthLinks() && (
               <>
                 <li className="nav-item">
