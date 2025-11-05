@@ -10,13 +10,12 @@ export default function SignUp() {
     register,
     handleSubmit,
     formState: { errors },
-    reset
   } = useForm();
 
-  // Production backend URL
+  // ✅ CHANGED: Use production backend URL
   const BASE_URL = "https://agrihub-2.onrender.com";
 
-  // Disable browser back button while the Register page is mounted
+  // Disable browser back button
   React.useEffect(() => {
     window.history.pushState(null, "", window.location.href);
 
@@ -32,19 +31,19 @@ export default function SignUp() {
   }, []);
 
   const onSubmit = async (data) => {
-    console.log("Register payload:", data);
+    console.log(data);
 
     let url = "";
 
     switch (data.userRole) {
       case "Farmer":
-        url = `${BASE_URL}/farmer/register`;
+        url = ${BASE_URL}/farmer/register;
         break;
       case "Seller":
-        url = `${BASE_URL}/seller/register`;
+        url = ${BASE_URL}/seller/register;
         break;
       case "Deliveryman":
-        url = `${BASE_URL}/deliveryman/register`;
+        url = ${BASE_URL}/deliveryman/register;
         break;
       default:
         break;
@@ -61,17 +60,17 @@ export default function SignUp() {
       });
 
       if (response.ok) {
-        // Registration succeeded — show success but do NOT redirect automatically
-        alert("Registration Successful! You can now sign in from the login page.");
-        // Optionally reset the form so user can re-use or verify fields
-        reset();
-        // Keep the user on the registration page — no automatic redirect
+        alert("Registration Successful! Redirecting to login page...");
+        
+        setTimeout(() => {
+          navigate("/login", { replace: true });
+        }, 1500);
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json();
         alert(errorData.error || "Registration failed");
       }
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error(error);
       alert("Registration failed. Please try again.");
     }
   };
