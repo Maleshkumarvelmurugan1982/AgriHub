@@ -1,5 +1,5 @@
 import "./login.css";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar";
 import FooterNew from "../Footer/FooterNew";
@@ -11,26 +11,20 @@ function Login() {
 
   const navigate = useNavigate();
 
-  // Determine backend URL based on environment
-  const getBackendUrl = (role) => {
-    const isLocal = window.location.hostname === "localhost";
-    let baseUrl = isLocal
-      ? "http://localhost:8070" // Local backend
-      : "https://agrihub-2.onrender.com"; // Deployed backend
+  // ✅ CHANGED: Use production backend URL
+  const BASE_URL = "https://agrihub-2.onrender.com";
 
-    switch (role) {
-      case "Farmer":
-        return `${baseUrl}/farmer/login`;
-      case "Seller":
-        return `${baseUrl}/seller/login`;
-      case "Deliveryman":
-        return `${baseUrl}/deliveryman/login`;
-      default:
-        return "";
-    }
-  };
+  // Prevent browser back button from leaving login page
+  useEffect(() => {
+    window.history.pushState(null, null, window.location.href);
+    const blockBack = () => {
+      window.history.pushState(null, null, window.location.href);
+    };
+    window.addEventListener("popstate", blockBack);
+    return () => window.removeEventListener("popstate", blockBack);
+  }, []);
 
-  const handleSubmit = async (e) => {
+  function handleSubmit(e) {
     e.preventDefault();
 
     if (!email || !password || !userRole) {
@@ -38,45 +32,51 @@ function Login() {
       return;
     }
 
-    const url = getBackendUrl(userRole);
-
-    if (!url) {
-      alert("Invalid role selected.");
-      return;
+    let url = "";
+    switch (userRole) {
+      case "Farmer":
+        url = `${BASE_URL}/farmer/login`;
+        break;
+      case "Seller":
+        url = `${BASE_URL}/seller/login`;
+        break;
+      case "Deliveryman":
+        url = `${BASE_URL}/deliveryman/login`;
+        break;
+      default:
+        break;
     }
 
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        credentials: "include", // Send cookies if backend uses sessions
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ email, password, userRole }),
+    fetch(url, {
+      method: "POST",
+      crossDomain: true,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({ email, password, userRole }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data, "userLogin");
+        if (data.status === "ok") {
+          alert("Login successful");
+          window.localStorage.setItem("token", data.data);
+          window.location.href = "/homepage-registeredusers";
+        } else {
+          alert("Login failed. Please check your credentials.");
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("Login failed. Please try again later.");
       });
+  }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Login failed");
-      }
-
-      const data = await response.json();
-
-      if (data.status === "ok") {
-        alert("Login successful!");
-        localStorage.setItem("token", data.data); // Store JWT token
-        navigate("/homepage-registeredusers");
-      } else {
-        alert(data.message || "Invalid credentials.");
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-      alert("Login failed. Please check the backend URL or network connection.");
-    }
+  const handleBack = () => {
+    navigate("/", { replace: true });
   };
-
-  const handleBack = () => navigate("/");
 
   return (
     <div>
@@ -85,7 +85,7 @@ function Login() {
         <div className="login-image">
           <img
             src="https://assets-global.website-files.com/5d2fb52b76aabef62647ed9a/6195c8e178a99295d45307cb_allgreen1000-550.jpg"
-            alt="Login"
+            alt=""
             className="img-login"
           />
         </div>
@@ -99,9 +99,7 @@ function Login() {
                 type="email"
                 className="form-control"
                 placeholder="Enter email"
-                value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
               />
             </div>
 
@@ -111,9 +109,7 @@ function Login() {
                 type="password"
                 className="form-control"
                 placeholder="Enter password"
-                value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
               />
             </div>
 
@@ -121,9 +117,7 @@ function Login() {
               <label>Role</label>
               <select
                 className="form-control"
-                value={userRole}
                 onChange={(e) => setUserRole(e.target.value)}
-                required
               >
                 <option value="">Select Role</option>
                 <option value="Farmer">Farmer</option>
@@ -146,7 +140,11 @@ function Login() {
             </div>
 
             <div className="back-button-container" style={{ marginTop: "10px" }}>
-              <button type="button" className="back-button" onClick={handleBack}>
+              <button
+                type="button"
+                className="back-button"
+                onClick={handleBack}
+              >
                 Back to Home
               </button>
             </div>
