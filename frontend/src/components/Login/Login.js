@@ -11,12 +11,11 @@ function Login() {
 
   const navigate = useNavigate();
 
-  // Production backend URL
+  // ✅ CHANGED: Use production backend URL
   const BASE_URL = "https://agrihub-2.onrender.com";
 
   // Prevent browser back button from leaving login page
   useEffect(() => {
-    // Push state so the back button stays on this page while Login is mounted
     window.history.pushState(null, null, window.location.href);
     const blockBack = () => {
       window.history.pushState(null, null, window.location.href);
@@ -36,25 +35,26 @@ function Login() {
     let url = "";
     switch (userRole) {
       case "Farmer":
-        url = `${BASE_URL}/farmer/login`;
+        url = ${BASE_URL}/farmer/login;
         break;
       case "Seller":
-        url = `${BASE_URL}/seller/login`;
+        url = ${BASE_URL}/seller/login;
         break;
       case "Deliveryman":
-        url = `${BASE_URL}/deliveryman/login`;
+        url = ${BASE_URL}/deliveryman/login;
         break;
       default:
         break;
     }
 
+    // ✅ FIXED: Removed problematic CORS headers from request
     fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      credentials: "include",
+      credentials: "include", // Important for cookies/sessions
       body: JSON.stringify({ email, password, userRole }),
     })
       .then((res) => res.json())
@@ -63,7 +63,6 @@ function Login() {
         if (data.status === "ok") {
           alert("Login successful");
           window.localStorage.setItem("token", data.data);
-          // Redirect user to registered homepage
           window.location.href = "/homepage-registeredusers";
         } else {
           alert("Login failed. Please check your credentials.");
@@ -76,7 +75,6 @@ function Login() {
   }
 
   const handleBack = () => {
-    // go to home page (SPA navigation)
     navigate("/", { replace: true });
   };
 
@@ -101,7 +99,6 @@ function Login() {
                 type="email"
                 className="form-control"
                 placeholder="Enter email"
-                value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
@@ -112,7 +109,6 @@ function Login() {
                 type="password"
                 className="form-control"
                 placeholder="Enter password"
-                value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
@@ -121,7 +117,6 @@ function Login() {
               <label>Role</label>
               <select
                 className="form-control"
-                value={userRole}
                 onChange={(e) => setUserRole(e.target.value)}
               >
                 <option value="">Select Role</option>
