@@ -9,14 +9,13 @@ function Navbar() {
   // to detect current page route
   const location = useLocation();
 
-  // New helper: show Government badge only when NOT logged in AND not currently on the GovernmentPage route
-  const shouldShowGovernmentBadge = () => {
-    // hide when already logged in
-    if (isGovLoggedIn) return false;
-    // hide when currently on the government login page (so it disappears as soon as you click/go there)
-    // use startsWith to handle potential trailing slashes or nested routes
-    if (location.pathname && location.pathname.startsWith("/GovernmentPage")) return false;
-    return true;
+  // Hide auth links (Government / Login / Register) when:
+  // - already logged in (existing behavior), OR
+  // - user is on the GovernmentPage route (so while the gov login screen is shown)
+  const hideAuthLinks = () => {
+    if (isGovLoggedIn) return true;
+    if (location.pathname && location.pathname.startsWith("/GovernmentPage")) return true;
+    return false;
   };
 
   return (
@@ -49,8 +48,8 @@ function Navbar() {
 
           <ul className="navbar-nav align-items-center">
             
-            {/* Show Government Badge only if NOT logged in and NOT currently on GovernmentPage */}
-            {shouldShowGovernmentBadge() && (
+            {/* Show Government Badge only if NOT logged in and NOT on GovernmentPage */}
+            {!hideAuthLinks() && (
               <li className="nav-item me-3">
                 <Link
                   to="/GovernmentPage"
@@ -67,8 +66,8 @@ function Navbar() {
               </li>
             )}
 
-            {/* Show Login/Register only if NOT logged in */}
-            {!isGovLoggedIn && (
+            {/* Show Login/Register only if NOT logged in and NOT on GovernmentPage */}
+            {!hideAuthLinks() && (
               <>
                 <li className="nav-item">
                   <Link className="login" to="/login" replace>
