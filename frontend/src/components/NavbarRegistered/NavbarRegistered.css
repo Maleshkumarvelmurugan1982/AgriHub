@@ -1,17 +1,22 @@
-/* Navbar styling */
+/* ===== Your existing navbar styling (merged & cleaned) ===== */
+
+/* Navbar base */
 .navbar {
   font-family: "Open Sans", sans-serif;
   background-color: #79ac78;
   color: black;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  padding: 0.5rem 1rem;
 }
 
 /* Brand logo */
 .navbar-icon {
   width: 320px;
   height: 50px;
+  object-fit: contain;
 }
 
-/* Home, Menu, About links */
+/* Home, Menu, About links (removed from DOM in component but keep styles if reused) */
 .home,
 .menu,
 .about {
@@ -43,7 +48,7 @@
   transform: scale(1.1);
 }
 
-/* Login button */
+/* Login button (kept for other contexts) */
 .login {
   padding: 10px;
   border-radius: 10px;
@@ -64,24 +69,27 @@
 
 /* Profile button - small circular */
 .profile-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
+  width: auto;
   height: 38px;
   border-radius: 50%;
-  background-color: #f1f1f1;
-  color: #0c0b0b;
-  font-size: 18px;
+  background-color: #f8f9fa;
+  color: #333;
+  font-size: 15px;
+  padding: 6px 12px;
   margin-top: 5px;
-  margin-right: 30px;
+  margin-right: 12px;
   text-decoration: none;
+  font-weight: 600;
   transition: background 0.2s ease-in-out, transform 0.2s ease-in-out;
 }
 
 .profile-btn:hover {
-  background-color: #ddd;
-  transform: scale(1.15);
+  background-color: #007bff;
+  color: white;
+  transform: translateY(-2px);
 }
 
 /* Cart styles removed completely */
@@ -90,7 +98,7 @@
   display: none !important;
 }
 
-/* Wallet Button Styling */
+/* Wallet Button Styling (kept if used elsewhere) */
 .wallet-btn {
   display: flex;
   align-items: center;
@@ -130,22 +138,79 @@
   }
 }
 
-/* Profile button adjustment to match */
-.profile-btn {
-  display: flex;
+/* ===== Logout Button Styles (attractive, pill-shaped) ===== */
+.logout-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
-  margin-right: 10px;
-  background-color: #f8f9fa;
-  color: #333;
-  border-radius: 50%;
-  text-decoration: none;
-  transition: all 0.3s ease;
+  gap: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+  background: linear-gradient(90deg, #ff416c 0%, #ff4b2b 50%, #ff7b2e 100%);
+  border: none;
+  border-radius: 999px; /* pill */
+  box-shadow: 0 8px 20px rgba(255,75,43,0.18), inset 0 -1px 0 rgba(255,255,255,0.06);
+  cursor: pointer;
+  transition: transform 180ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms ease, opacity 120ms ease;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.profile-btn:hover {
-  background-color: #007bff;
-  color: white;
-  transform: translateY(-2px);
+/* Decorative icon inside the button */
+.logout-btn .logout-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+/* Hide textual label on very small screens for compactness */
+@media (max-width: 420px) {
+  .logout-btn .logout-text {
+    display: none;
+  }
+  .logout-btn {
+    padding: 10px;
+    width: 44px;
+    justify-content: center;
+    border-radius: 12px;
+  }
+}
+
+/* Hover, focus, active */
+.logout-btn:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 18px 36px rgba(255,75,43,0.22), inset 0 -1px 0 rgba(255,255,255,0.08);
+}
+.logout-btn:active {
+  transform: translateY(-1px) scale(0.995);
+  box-shadow: 0 8px 18px rgba(255,75,43,0.16);
+}
+.logout-btn:focus {
+  box-shadow: 0 18px 36px rgba(255,75,43,0.22), 0 0 0 6px rgba(255,75,43,0.08);
+}
+
+/* Optional subtle pulse for attention (enable .pulse if needed) */
+.logout-btn.pulse {
+  animation: pulseGlow 2.2s infinite;
+}
+@keyframes pulseGlow {
+  0% { box-shadow: 0 8px 20px rgba(255,75,43,0.15); }
+  50% { box-shadow: 0 22px 46px rgba(255,75,43,0.20); transform: translateY(-2px) scale(1.01); }
+  100% { box-shadow: 0 8px 20px rgba(255,75,43,0.15); transform: translateY(0) scale(1); }
+}
+
+/* Ensure logout button sits nicely in navbar */
+.navbar .nav-item .logout-btn {
+  margin-left: 12px;
+}
+
+/* Small responsiveness tweaks */
+@media (max-width: 767px) {
+  .profile-btn { padding: 6px 10px; font-size: 0.9rem; }
+  .logout-btn { padding: 8px 12px; font-size: 0.9rem; border-radius: 18px; }
 }
