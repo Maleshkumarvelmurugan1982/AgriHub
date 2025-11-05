@@ -10,7 +10,7 @@ function Navbar() {
   const location = useLocation();
 
   // Hide auth links (Government / Login / Register) when:
-  // - already logged in (existing behavior), OR
+  // - already logged in, OR
   // - user is on the GovernmentPage route (so while the gov login screen is shown)
   const hideAuthLinks = () => {
     if (isGovLoggedIn) return true;
@@ -82,20 +82,7 @@ function Navbar() {
               </>
             )}
 
-            {/* Show Logout only when logged in */}
-            {isGovLoggedIn && (
-              <li className="nav-item">
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => {
-                    localStorage.removeItem("govLoggedIn");
-                    window.location.href = "/";
-                  }}
-                >
-                  Logout
-                </button>
-              </li>
-            )}
+            {/* NOTE: Logout removed from Navbar as requested */}
 
           </ul>
         </div>
