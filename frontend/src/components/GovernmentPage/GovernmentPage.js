@@ -51,30 +51,6 @@ function GovernmentPage() {
     return `${BASE_URL}${imagePath}`;
   };
 
-  // Disable browser back button
-  useEffect(() => {
-    // Disable browser back button - prevent default back navigation
-    const disableBackButton = () => {
-      window.history.pushState(null, null, window.location.pathname);
-    };
-
-    // Push initial state
-    disableBackButton();
-
-    // Handle popstate event (triggered by back/forward buttons)
-    const handlePopState = () => {
-      // Push state again to prevent going back
-      disableBackButton();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
   // Fetch schemes on mount but only if logged in
   useEffect(() => {
     if (loggedIn) {
