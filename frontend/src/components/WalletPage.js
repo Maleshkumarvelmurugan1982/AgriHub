@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function SellerWalletPage() {
   const [sellerId, setSellerId] = useState('');
@@ -13,6 +15,13 @@ export default function SellerWalletPage() {
   const [topUpAmount, setTopUpAmount] = useState('');
   const [showTopUp, setShowTopUp] = useState(false);
   const [processing, setProcessing] = useState(false);
+
+  // New states for date filtering and PDF generation
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  const transactionsRef = useRef(null);
 
   const BASE_URL = 'https://agrihub-2.onrender.com';
 
@@ -69,8 +78,12 @@ export default function SellerWalletPage() {
 
   const fetchWalletData = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
       const res = await fetch(`${BASE_URL}/seller/userdata`, {
         method: 'POST',
@@ -94,10 +107,17 @@ export default function SellerWalletPage() {
           });
         }
 
-        const txRes = await fetch(`${BASE_URL}/transactions/${id}?limit=20`);
+        // Keep limit but you may increase or add server-side date range support later
+        const txRes = await fetch(`${BASE_URL}/transactions/${id}?limit=200`);
         const txData = await txRes.json();
         if (txData.status === 'ok') {
-          setTransactions(txData.transactions || []);
+          // Normalize dates if they are strings
+          const normalized = (txData.transactions || []).map((t) => ({
+            ...t,
+            // ensure transactionDate is valid Date string
+            transactionDate: t.transactionDate ? new Date(t.transactionDate).toISOString() : new Date().toISOString()
+          }));
+          setTransactions(normalized);
         }
       }
     } catch (error) {
@@ -161,6 +181,116 @@ export default function SellerWalletPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Derived filtered transactions based on fromDate and toDate (client-side filtering)
+  const filteredTransactions = useMemo(() => {
+    if (!fromDate && !toDate) return transactions;
+    let from = fromDate ? new Date(fromDate) : null;
+    let to = toDate ? new Date(toDate) : null;
+
+    // If 'to' date exists, set to end of the day to include transactions of that day
+    if (to) {
+      to.setHours(23, 59, 59, 999);
+    }
+    if (from) {
+      from.setHours(0, 0, 0, 0);
+    }
+
+    return transactions.filter((tx) => {
+      if (!tx.transactionDate) return false;
+      const d = new Date(tx.transactionDate);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+  }, [transactions, fromDate, toDate]);
+
+  const clearDateFilters = () => {
+    setFromDate('');
+    setToDate('');
+  };
+
+  // PDF generation: captures the transactionsRef element and exports to PDF
+  const generatePDF = async () => {
+    if (!transactionsRef.current) {
+      alert('Nothing to export');
+      return;
+    }
+
+    setGeneratingPdf(true);
+    try {
+      // increase scale for better resolution
+      const canvas = await html2canvas(transactionsRef.current, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+
+      // Create A4 PDF (portrait)
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Calculate the image dimensions to fit in page while keeping aspect ratio
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgWidthMM = (imgProps.width * 25.4) / 96; // px to mm using 96 DPI
+      const imgHeightMM = (imgProps.height * 25.4) / 96;
+      let renderWidth = pageWidth - 20; // 10mm margin each side
+      let renderHeight = (imgHeightMM * renderWidth) / imgWidthMM;
+
+      let positionY = 10;
+
+      if (renderHeight <= pageHeight - 20) {
+        pdf.addImage(imgData, 'PNG', 10, positionY, renderWidth, renderHeight);
+      } else {
+        // If content is longer than one page, split into multiple pages
+        // We'll scale width to page and render pages by slicing the canvas
+        const pageCanvas = document.createElement('canvas');
+        const pageCtx = pageCanvas.getContext('2d');
+
+        const pxPerMm = 96 / 25.4;
+        const pageHeightPx = Math.floor((pageHeight - 20) * pxPerMm);
+        const totalHeight = canvas.height;
+        const totalPages = Math.ceil(totalHeight / pageHeightPx);
+
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = pageHeightPx;
+
+        for (let page = 0; page < totalPages; page++) {
+          pageCtx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
+          pageCtx.drawImage(
+            canvas,
+            0,
+            page * pageHeightPx,
+            canvas.width,
+            pageHeightPx,
+            0,
+            0,
+            canvas.width,
+            pageHeightPx
+          );
+          const pageData = pageCanvas.toDataURL('image/png');
+          if (page > 0) pdf.addPage();
+          // calculate render height for this slice
+          const sliceImgProps = pdf.getImageProperties(pageData);
+          const sliceImgHeightMM = (pageHeightPx * 25.4) / 96;
+          const sliceImgWidthMM = (canvas.width * 25.4) / 96;
+          const sliceRenderWidth = pageWidth - 20;
+          const sliceRenderHeight = (sliceImgHeightMM * sliceRenderWidth) / sliceImgWidthMM;
+
+          pdf.addImage(pageData, 'PNG', 10, 10, sliceRenderWidth, sliceRenderHeight);
+        }
+      }
+
+      const fromLabel = fromDate ? fromDate : 'start';
+      const toLabel = toDate ? toDate : 'end';
+      const filename = `agrihub-transactions-${fromLabel}_to_${toLabel}.pdf`.replace(/[:\/\\ ]/g, '_');
+
+      pdf.save(filename);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      alert('Failed to generate PDF. See console for details.');
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   if (loading) {
@@ -368,62 +498,129 @@ export default function SellerWalletPage() {
             </h3>
             <div className="flex items-center gap-2 text-gray-500">
               <span className="text-2xl">⏰</span>
-              <span className="text-sm font-semibold">Last 20 transactions</span>
+              <span className="text-sm font-semibold">Filtered transactions</span>
+            </div>
+          </div>
+
+          {/* Date filter UI */}
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">From</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-full p-3 border-2 border-green-100 rounded-xl"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">To</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-full p-3 border-2 border-green-100 rounded-xl"
+              />
+            </div>
+
+            <div className="md:col-span-2 flex gap-3">
+              <button
+                onClick={generatePDF}
+                disabled={generatingPdf || filteredTransactions.length === 0}
+                className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-2xl font-bold hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-60"
+              >
+                {generatingPdf ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-3 border-white border-t-transparent"></div>
+                    <span>Generating PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg">📄</span>
+                    <span>Export PDF</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={clearDateFilters}
+                className="px-6 py-3 border-2 border-green-100 rounded-2xl font-semibold hover:bg-green-50 transition-all"
+              >
+                Clear
+              </button>
+
+              <button
+                onClick={() => {
+                  // Quick range presets: last 7 days
+                  const now = new Date();
+                  const prior = new Date();
+                  prior.setDate(now.getDate() - 6);
+                  setFromDate(prior.toISOString().slice(0, 10));
+                  setToDate(now.toISOString().slice(0, 10));
+                }}
+                className="px-4 py-3 border-2 border-green-100 rounded-2xl font-semibold hover:bg-green-50 transition-all"
+                title="Last 7 days"
+              >
+                Last 7d
+              </button>
             </div>
           </div>
           
-          {transactions.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="text-9xl mb-6">🌱</div>
-              <p className="text-gray-600 text-xl font-semibold mb-2">No transactions yet</p>
-              <p className="text-gray-400">Your transaction history will appear here</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {transactions.map((tx) => (
-                <div 
-                  key={tx._id} 
-                  className="flex items-center justify-between p-5 border-4 border-green-100 rounded-2xl hover:border-green-300 hover:shadow-lg transition-all transform hover:-translate-y-1 bg-gradient-to-r hover:from-green-50 hover:to-emerald-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-4 rounded-2xl text-3xl ${
-                      tx.type === 'credit' 
-                        ? 'bg-gradient-to-br from-green-100 to-green-200' 
-                        : 'bg-gradient-to-br from-red-100 to-red-200'
-                    }`}>
-                      {tx.type === 'credit' ? '💰' : '💸'}
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900 text-lg">{tx.description}</p>
-                      <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
-                        <span className="font-medium">📅 {formatDate(tx.transactionDate)}</span>
-                        <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                        <span className="capitalize font-medium">{tx.paymentMethod}</span>
-                        {tx.status === 'completed' && (
-                          <>
-                            <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                            <span className="text-green-600 font-semibold">✅ Completed</span>
-                          </>
-                        )}
+          <div ref={transactionsRef}>
+            {filteredTransactions.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="text-9xl mb-6">🌱</div>
+                <p className="text-gray-600 text-xl font-semibold mb-2">No transactions for selected date range</p>
+                <p className="text-gray-400">Try clearing the filters or selecting a different range</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredTransactions.map((tx) => (
+                  <div 
+                    key={tx._id} 
+                    className="flex items-center justify-between p-5 border-4 border-green-100 rounded-2xl hover:border-green-300 hover:shadow-lg transition-all transform hover:-translate-y-1 bg-gradient-to-r hover:from-green-50 hover:to-emerald-50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-4 rounded-2xl text-3xl ${
+                        tx.type === 'credit' 
+                          ? 'bg-gradient-to-br from-green-100 to-green-200' 
+                          : 'bg-gradient-to-br from-red-100 to-red-200'
+                      }`}>
+                        {tx.type === 'credit' ? '💰' : '💸'}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 text-lg">{tx.description}</p>
+                        <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                          <span className="font-medium">📅 {formatDate(tx.transactionDate)}</span>
+                          <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
+                          <span className="capitalize font-medium">{tx.paymentMethod}</span>
+                          {tx.status === 'completed' && (
+                            <>
+                              <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
+                              <span className="text-green-600 font-semibold">✅ Completed</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <p className={`text-2xl font-black ${
+                        tx.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {tx.type === 'credit' ? '+' : '-'}₹{Number(tx.amount).toFixed(2)}
+                      </p>
+                      {tx.isRefund && (
+                        <span className="inline-block text-xs bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-bold mt-1">
+                          🔄 Refund
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-2xl font-black ${
-                      tx.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {tx.type === 'credit' ? '+' : '-'}₹{tx.amount.toFixed(2)}
-                    </p>
-                    {tx.isRefund && (
-                      <span className="inline-block text-xs bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-bold mt-1">
-                        🔄 Refund
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Floating Back Button */}
