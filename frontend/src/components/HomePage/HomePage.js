@@ -57,13 +57,15 @@ function HomePage() {
             display: "flex",
             flexDirection: "row",
             flexWrap: "nowrap",
-            gap: "80px",
+            gap: "100px",
             justifyContent: "flex-start",
             alignItems: "flex-start",
             margin: "0 auto",
-            maxWidth: "100%",
-            padding: "20px 40px",
-            overflowX: "auto",
+            width: "100%",
+            minWidth: "1200px",
+            padding: "20px 60px 20px 60px",
+            overflowX: "scroll",
+            overflowY: "hidden",
             scrollBehavior: "smooth",
             WebkitOverflowScrolling: "touch"
           }}
@@ -72,17 +74,17 @@ function HomePage() {
           <div style={{ 
             display: "inline-block",
             textAlign: "center", 
-            minWidth: "200px",
-            width: "200px",
-            flex: "0 0 200px"
+            minWidth: "220px",
+            width: "220px",
+            flex: "0 0 220px"
           }}>
             <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/farmer.png"}
                 alt="Farmer profile"
                 style={{ 
-                  width: "160px", 
-                  height: "160px",
+                  width: "180px", 
+                  height: "180px",
                   objectFit: "contain",
                   display: "block",
                   margin: "0 auto"
@@ -92,7 +94,7 @@ function HomePage() {
             <p style={{ 
               textAlign: "center",
               margin: "0",
-              fontSize: "20px",
+              fontSize: "22px",
               fontWeight: "700",
               color: "#333"
             }}>
@@ -104,17 +106,17 @@ function HomePage() {
           <div style={{ 
             display: "inline-block",
             textAlign: "center", 
-            minWidth: "200px",
-            width: "200px",
-            flex: "0 0 200px"
+            minWidth: "220px",
+            width: "220px",
+            flex: "0 0 220px"
           }}>
             <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/seller.png"}
                 alt="Seller profile"
                 style={{ 
-                  width: "160px", 
-                  height: "160px",
+                  width: "180px", 
+                  height: "180px",
                   objectFit: "contain",
                   display: "block",
                   margin: "0 auto"
@@ -124,7 +126,7 @@ function HomePage() {
             <p style={{ 
               textAlign: "center",
               margin: "0",
-              fontSize: "20px",
+              fontSize: "22px",
               fontWeight: "700",
               color: "#333"
             }}>
@@ -136,17 +138,17 @@ function HomePage() {
           <div style={{ 
             display: "inline-block",
             textAlign: "center", 
-            minWidth: "200px",
-            width: "200px",
-            flex: "0 0 200px"
+            minWidth: "220px",
+            width: "220px",
+            flex: "0 0 220px"
           }}>
             <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/delivery.png"}
                 alt="Deliveryman profile"
                 style={{ 
-                  width: "160px", 
-                  height: "160px",
+                  width: "180px", 
+                  height: "180px",
                   objectFit: "contain",
                   display: "block",
                   margin: "0 auto"
@@ -156,7 +158,7 @@ function HomePage() {
             <p style={{ 
               textAlign: "center",
               margin: "0",
-              fontSize: "20px",
+              fontSize: "22px",
               fontWeight: "700",
               color: "#333"
             }}>
@@ -168,17 +170,17 @@ function HomePage() {
           <div style={{ 
             display: "inline-block",
             textAlign: "center", 
-            minWidth: "200px",
-            width: "200px",
-            flex: "0 0 200px"
+            minWidth: "220px",
+            width: "220px",
+            flex: "0 0 220px"
           }}>
             <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/both.png"}
                 alt="Government profile"
                 style={{ 
-                  width: "160px", 
-                  height: "160px",
+                  width: "180px", 
+                  height: "180px",
                   objectFit: "contain",
                   display: "block",
                   margin: "0 auto"
@@ -188,13 +190,16 @@ function HomePage() {
             <p style={{ 
               textAlign: "center",
               margin: "0",
-              fontSize: "20px",
+              fontSize: "22px",
               fontWeight: "700",
               color: "#333"
             }}>
               Government
             </p>
           </div>
+          
+          {/* Extra padding space at the end to ensure Government is fully visible */}
+          <div style={{ minWidth: "60px", flex: "0 0 60px" }}></div>
         </div>
 
         {/* Government Button, after role images */}
