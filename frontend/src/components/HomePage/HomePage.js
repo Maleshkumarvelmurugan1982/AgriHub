@@ -63,11 +63,12 @@ function HomePage() {
             margin: "0 auto",
             width: "100%",
             minWidth: "1200px",
-            padding: "20px 60px 20px 60px",
+            padding: "20px 60px 20px 20px",
             overflowX: "scroll",
             overflowY: "hidden",
             scrollBehavior: "smooth",
-            WebkitOverflowScrolling: "touch"
+            WebkitOverflowScrolling: "touch",
+            paddingLeft: "max(20px, calc((100vw - 1000px) / 2))"
           }}
         >
           {/* Farmer */}
