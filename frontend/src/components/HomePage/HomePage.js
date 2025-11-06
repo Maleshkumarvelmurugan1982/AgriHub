@@ -52,65 +52,116 @@ function HomePage() {
       <div className="overlay-content">
         <p className="overlay-paragraph">Who Are You?</p>
         
-        {/* Flex row for roles */}
+        {/* Horizontal row for all user roles */}
         <div
           style={{
             display: "flex",
+            flexDirection: "row",
             flexWrap: "wrap",
-            gap: "28px",
+            gap: "40px",
             justifyContent: "center",
-            alignItems: "flex-end",
+            alignItems: "center",
+            margin: "30px auto",
+            maxWidth: "1200px",
+            padding: "0 20px"
           }}
         >
-          <div>
+          {/* Farmer */}
+          <div style={{ textAlign: "center", flex: "0 0 auto" }}>
             <div className="profile">
               <img
                 src={process.env.PUBLIC_URL + "/Profile/farmer.png"}
                 alt="Farmer profile"
                 className="img-user"
-                style={{ marginBottom: "8px" }}
+                style={{ 
+                  width: "120px", 
+                  height: "120px",
+                  objectFit: "contain",
+                  marginBottom: "10px" 
+                }}
               />
             </div>
-            <p className="profile-name" style={{ textAlign: "center" }}>
+            <p className="profile-name" style={{ 
+              textAlign: "center",
+              margin: "0",
+              fontSize: "18px",
+              fontWeight: "600"
+            }}>
               Farmer
             </p>
           </div>
-          <div>
+
+          {/* Seller */}
+          <div style={{ textAlign: "center", flex: "0 0 auto" }}>
             <div className="profile">
               <img
                 src={process.env.PUBLIC_URL + "/Profile/seller.png"}
                 alt="Seller profile"
                 className="img-user"
-                style={{ marginBottom: "8px" }}
+                style={{ 
+                  width: "120px", 
+                  height: "120px",
+                  objectFit: "contain",
+                  marginBottom: "10px" 
+                }}
               />
             </div>
-            <p className="profile-name" style={{ textAlign: "center" }}>
+            <p className="profile-name" style={{ 
+              textAlign: "center",
+              margin: "0",
+              fontSize: "18px",
+              fontWeight: "600"
+            }}>
               Seller
             </p>
           </div>
-          <div>
+
+          {/* Deliveryman */}
+          <div style={{ textAlign: "center", flex: "0 0 auto" }}>
             <div className="profile">
               <img
                 src={process.env.PUBLIC_URL + "/Profile/delivery.png"}
                 alt="Deliveryman profile"
                 className="img-user"
-                style={{ marginBottom: "8px" }}
+                style={{ 
+                  width: "120px", 
+                  height: "120px",
+                  objectFit: "contain",
+                  marginBottom: "10px" 
+                }}
               />
             </div>
-            <p className="profile-name" style={{ textAlign: "center" }}>
+            <p className="profile-name" style={{ 
+              textAlign: "center",
+              margin: "0",
+              fontSize: "18px",
+              fontWeight: "600"
+            }}>
               DeliveryMan
             </p>
           </div>
-          <div>
+
+          {/* Government */}
+          <div style={{ textAlign: "center", flex: "0 0 auto" }}>
             <div className="profile">
               <img
                 src={process.env.PUBLIC_URL + "/Profile/both.png"}
                 alt="Government profile"
                 className="img-user"
-                style={{ marginBottom: "8px" }}
+                style={{ 
+                  width: "120px", 
+                  height: "120px",
+                  objectFit: "contain",
+                  marginBottom: "10px" 
+                }}
               />
             </div>
-            <p className="profile-name" style={{ textAlign: "center" }}>
+            <p className="profile-name" style={{ 
+              textAlign: "center",
+              margin: "0",
+              fontSize: "18px",
+              fontWeight: "600"
+            }}>
               Government
             </p>
           </div>
@@ -122,7 +173,7 @@ function HomePage() {
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            marginTop: "32px",
+            marginTop: "40px",
           }}
         >
           <button
