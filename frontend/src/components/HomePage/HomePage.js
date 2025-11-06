@@ -57,29 +57,32 @@ function HomePage() {
             display: "flex",
             flexDirection: "row",
             flexWrap: "nowrap",
-            gap: "60px",
-            justifyContent: "center",
+            gap: "80px",
+            justifyContent: "flex-start",
             alignItems: "flex-start",
             margin: "0 auto",
             maxWidth: "100%",
-            padding: "20px",
-            overflowX: "auto"
+            padding: "20px 40px",
+            overflowX: "auto",
+            scrollBehavior: "smooth",
+            WebkitOverflowScrolling: "touch"
           }}
         >
           {/* Farmer */}
           <div style={{ 
             display: "inline-block",
             textAlign: "center", 
-            minWidth: "150px",
-            width: "150px"
+            minWidth: "200px",
+            width: "200px",
+            flex: "0 0 200px"
           }}>
             <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/farmer.png"}
                 alt="Farmer profile"
                 style={{ 
-                  width: "140px", 
-                  height: "140px",
+                  width: "160px", 
+                  height: "160px",
                   objectFit: "contain",
                   display: "block",
                   margin: "0 auto"
@@ -101,16 +104,17 @@ function HomePage() {
           <div style={{ 
             display: "inline-block",
             textAlign: "center", 
-            minWidth: "150px",
-            width: "150px"
+            minWidth: "200px",
+            width: "200px",
+            flex: "0 0 200px"
           }}>
             <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/seller.png"}
                 alt="Seller profile"
                 style={{ 
-                  width: "140px", 
-                  height: "140px",
+                  width: "160px", 
+                  height: "160px",
                   objectFit: "contain",
                   display: "block",
                   margin: "0 auto"
@@ -132,16 +136,17 @@ function HomePage() {
           <div style={{ 
             display: "inline-block",
             textAlign: "center", 
-            minWidth: "150px",
-            width: "150px"
+            minWidth: "200px",
+            width: "200px",
+            flex: "0 0 200px"
           }}>
             <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/delivery.png"}
                 alt="Deliveryman profile"
                 style={{ 
-                  width: "140px", 
-                  height: "140px",
+                  width: "160px", 
+                  height: "160px",
                   objectFit: "contain",
                   display: "block",
                   margin: "0 auto"
@@ -163,16 +168,17 @@ function HomePage() {
           <div style={{ 
             display: "inline-block",
             textAlign: "center", 
-            minWidth: "150px",
-            width: "150px"
+            minWidth: "200px",
+            width: "200px",
+            flex: "0 0 200px"
           }}>
             <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/both.png"}
                 alt="Government profile"
                 style={{ 
-                  width: "140px", 
-                  height: "140px",
+                  width: "160px", 
+                  height: "160px",
                   objectFit: "contain",
                   display: "block",
                   margin: "0 auto"
