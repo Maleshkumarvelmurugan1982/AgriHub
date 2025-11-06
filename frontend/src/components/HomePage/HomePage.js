@@ -49,118 +49,143 @@ function HomePage() {
 
       <div className="overlay-rectangle"></div>
 
-      <div className="overlay-content">
-        <p className="overlay-paragraph">Who Are You?</p>
+      <div className="overlay-content" style={{ paddingTop: "100px", minHeight: "500px" }}>
+        <p className="overlay-paragraph" style={{ marginBottom: "50px" }}>Who Are You?</p>
         
-        {/* Horizontal row for all user roles */}
+        {/* Horizontal row for all user roles - FORCED HORIZONTAL */}
         <div
           style={{
             display: "flex",
             flexDirection: "row",
-            flexWrap: "wrap",
-            gap: "40px",
+            flexWrap: "nowrap",
+            gap: "60px",
             justifyContent: "center",
-            alignItems: "center",
-            margin: "30px auto",
-            maxWidth: "1200px",
-            padding: "0 20px"
+            alignItems: "flex-start",
+            margin: "0 auto",
+            maxWidth: "100%",
+            padding: "20px",
+            overflowX: "auto"
           }}
         >
           {/* Farmer */}
-          <div style={{ textAlign: "center", flex: "0 0 auto" }}>
-            <div className="profile">
+          <div style={{ 
+            display: "inline-block",
+            textAlign: "center", 
+            minWidth: "150px",
+            width: "150px"
+          }}>
+            <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/farmer.png"}
                 alt="Farmer profile"
-                className="img-user"
                 style={{ 
-                  width: "120px", 
-                  height: "120px",
+                  width: "140px", 
+                  height: "140px",
                   objectFit: "contain",
-                  marginBottom: "10px" 
+                  display: "block",
+                  margin: "0 auto"
                 }}
               />
             </div>
-            <p className="profile-name" style={{ 
+            <p style={{ 
               textAlign: "center",
               margin: "0",
-              fontSize: "18px",
-              fontWeight: "600"
+              fontSize: "20px",
+              fontWeight: "700",
+              color: "#333"
             }}>
               Farmer
             </p>
           </div>
 
           {/* Seller */}
-          <div style={{ textAlign: "center", flex: "0 0 auto" }}>
-            <div className="profile">
+          <div style={{ 
+            display: "inline-block",
+            textAlign: "center", 
+            minWidth: "150px",
+            width: "150px"
+          }}>
+            <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/seller.png"}
                 alt="Seller profile"
-                className="img-user"
                 style={{ 
-                  width: "120px", 
-                  height: "120px",
+                  width: "140px", 
+                  height: "140px",
                   objectFit: "contain",
-                  marginBottom: "10px" 
+                  display: "block",
+                  margin: "0 auto"
                 }}
               />
             </div>
-            <p className="profile-name" style={{ 
+            <p style={{ 
               textAlign: "center",
               margin: "0",
-              fontSize: "18px",
-              fontWeight: "600"
+              fontSize: "20px",
+              fontWeight: "700",
+              color: "#333"
             }}>
               Seller
             </p>
           </div>
 
           {/* Deliveryman */}
-          <div style={{ textAlign: "center", flex: "0 0 auto" }}>
-            <div className="profile">
+          <div style={{ 
+            display: "inline-block",
+            textAlign: "center", 
+            minWidth: "150px",
+            width: "150px"
+          }}>
+            <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/delivery.png"}
                 alt="Deliveryman profile"
-                className="img-user"
                 style={{ 
-                  width: "120px", 
-                  height: "120px",
+                  width: "140px", 
+                  height: "140px",
                   objectFit: "contain",
-                  marginBottom: "10px" 
+                  display: "block",
+                  margin: "0 auto"
                 }}
               />
             </div>
-            <p className="profile-name" style={{ 
+            <p style={{ 
               textAlign: "center",
               margin: "0",
-              fontSize: "18px",
-              fontWeight: "600"
+              fontSize: "20px",
+              fontWeight: "700",
+              color: "#333"
             }}>
               DeliveryMan
             </p>
           </div>
 
           {/* Government */}
-          <div style={{ textAlign: "center", flex: "0 0 auto" }}>
-            <div className="profile">
+          <div style={{ 
+            display: "inline-block",
+            textAlign: "center", 
+            minWidth: "150px",
+            width: "150px"
+          }}>
+            <div style={{ marginBottom: "15px" }}>
               <img
                 src={process.env.PUBLIC_URL + "/Profile/both.png"}
                 alt="Government profile"
-                className="img-user"
                 style={{ 
-                  width: "120px", 
-                  height: "120px",
+                  width: "140px", 
+                  height: "140px",
                   objectFit: "contain",
-                  marginBottom: "10px" 
+                  display: "block",
+                  margin: "0 auto"
                 }}
               />
             </div>
-            <p className="profile-name" style={{ 
+            <p style={{ 
               textAlign: "center",
               margin: "0",
-              fontSize: "18px",
-              fontWeight: "600"
+              fontSize: "20px",
+              fontWeight: "700",
+              color: "#333"
             }}>
               Government
             </p>
@@ -173,7 +198,8 @@ function HomePage() {
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            marginTop: "40px",
+            marginTop: "60px",
+            paddingBottom: "40px"
           }}
         >
           <button
@@ -192,8 +218,7 @@ function HomePage() {
                 "0 8px 24px rgba(34,180,85,.24), 0 0 0 2px #007bff30",
               fontWeight: "700",
               cursor: "pointer",
-              transition: "transform 0.13s",
-              marginBottom: "10px",
+              transition: "transform 0.13s"
             }}
             onMouseOver={(e) => {
               e.currentTarget.style.transform = "scale(1.045)";
