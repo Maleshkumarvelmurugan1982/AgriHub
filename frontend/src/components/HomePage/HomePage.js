@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../Navbar/Navbar";
 import "./HomePage.css";
-import Categories from "../Catoegories/Categories";
 import TypeWriter from "../AutoWritingText/TypeWriter";
 import Video from "../ProcessLine/Video";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -266,9 +265,6 @@ function HomePage() {
           </p>
         </div>
       </section>
-
-      {/* Categories Section - Images only, no redirection */}
-      <Categories />
 
       {/* How It Works Section */}
       <div className="how-it-works">
