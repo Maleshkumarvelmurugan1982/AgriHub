@@ -153,11 +153,11 @@ function FarmerPage() {
         return;
       }
 
-      // Confirmation dialog for disapproval
+      // Show confirmation dialog for disapproval
       if (newStatus === 'disapproved') {
         const confirmMessage = order.paymentStatus === 'paid' 
-          ? `Are you sure you want to disapprove this order?\n\nThe seller will be refunded Rs. ${order.price}\nPayment Method: ${order.paymentMethod || 'wallet'}\n\nProduct quantity will be restored to inventory.`
-          : `Are you sure you want to disapprove this order?\n\nProduct quantity will be restored to inventory.`;
+          ? `Are you sure you want to disapprove this order?\n\n⚠️ Actions that will be taken:\n• Seller will be refunded Rs. ${order.price}\n• Payment Method: ${order.paymentMethod || 'wallet'}\n• Product quantity (${order.quantity} kg) will be restored to inventory`
+          : `Are you sure you want to disapprove this order?\n\n⚠️ Product quantity (${order.quantity} kg) will be restored to inventory`;
         
         if (!window.confirm(confirmMessage)) {
           return;
@@ -168,95 +168,142 @@ function FarmerPage() {
       const res = await fetch(`${BASE_URL}/sellerorder/update-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: orderId, status: newStatus, farmerId: farmerId }),
+        body: JSON.stringify({ 
+          orderId: orderId, 
+          status: newStatus, 
+          farmerId: farmerId 
+        }),
       });
 
-      if (!res.ok) throw new Error("Failed to update order");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to update order");
+      }
+      
       const result = await res.json();
 
       if (result.status === 'ok') {
-        // Update local state with new order status
+        // Update local order state
         setSellerOrders(prev =>
           prev.map(o => o._id === orderId ? result.order : o)
         );
 
         // RESTORE QUANTITY IF DISAPPROVED
         if (newStatus === 'disapproved') {
-          try {
-            // Extract product ID from various possible locations
-            const productId =
-              result.order?.productId ||
-              result.order?.product?._id ||
-              order.productId ||
-              (order.product && order.product._id) ||
-              null;
-            
-            // Get quantity to restore
-            const restoreQty = Number(order.quantity ?? result.order?.quantity ?? result.order?.qty ?? 0);
-
-            if (productId && restoreQty > 0) {
-              console.log(`🔄 Restoring ${restoreQty}kg to product ${productId}`);
-
-              // Fetch current product data
-              const getProd = await fetch(`${BASE_URL}/product/${productId}`);
-              if (getProd.ok) {
-                const prodJson = await getProd.json();
-                const productObj = prodJson?.product || prodJson?.data || prodJson;
-                const currentQty = Number(productObj?.quantity ?? 0) || 0;
-                const restoredQty = currentQty + restoreQty;
-
-                console.log(`📦 Current: ${currentQty}kg → Restored: ${restoredQty}kg`);
-
-                // Update product with restored quantity
-                const updateRes = await fetch(`${BASE_URL}/product/${productId}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ quantity: restoredQty })
-                });
-
-                if (updateRes.ok) {
-                  console.log(`✅ Quantity successfully restored!`);
-
-                  // Dispatch custom event to notify other components (OrderPage)
-                  window.dispatchEvent(new CustomEvent("productQuantityRestored", {
-                    detail: { 
-                      productId: productId, 
-                      restoredQuantity: restoreQty,
-                      newTotalQuantity: restoredQty 
-                    }
-                  }));
-
-                  // Also dispatch for backwards compatibility
-                  window.dispatchEvent(new CustomEvent("orderDisapproved", {
-                    detail: { productId: productId, quantity: restoreQty }
-                  }));
-                } else {
-                  console.error("❌ Failed to update product quantity");
-                }
-              } else {
-                console.error("❌ Failed to fetch product details");
-              }
-            } else {
-              console.warn("⚠️ Invalid product ID or quantity for restoration");
-            }
-          } catch (restoreErr) {
-            console.error("❌ Error restoring product quantity:", restoreErr);
-            // Don't fail the entire operation if quantity restoration fails
-          }
+          await restoreProductQuantity(order, result);
         }
 
-        // Show user feedback
-        if (newStatus === 'disapproved' && result.refunded) {
-          alert(`Order disapproved successfully!\n\n✓ Product quantity restored to inventory\n\nRefund Details:\nAmount: Rs. ${result.refundAmount}\nStatus: Refunded to seller's ${order.paymentMethod || 'wallet'}`);
-        } else if (newStatus === 'disapproved') {
-          alert(`Order disapproved successfully!\n\n✓ Product quantity has been restored to inventory`);
-        } else {
-          alert(`Order ${newStatus} successfully!`);
-        }
+        // Show success feedback
+        showSuccessMessage(newStatus, result, order);
       }
     } catch (err) {
       console.error("Error updating order:", err);
       alert("Error updating order: " + err.message);
+    }
+  };
+
+  const restoreProductQuantity = async (order, result) => {
+    try {
+      // Extract product ID from various possible locations
+      const productId =
+        result.order?.productId ||
+        result.order?.product?._id ||
+        order.productId ||
+        (order.product && order.product._id) ||
+        null;
+      
+      // Get quantity to restore
+      const restoreQty = Number(
+        order.quantity ?? 
+        result.order?.quantity ?? 
+        result.order?.qty ?? 
+        0
+      );
+
+      if (!productId) {
+        console.error("❌ Product ID not found in order:", order);
+        throw new Error("Product ID not found");
+      }
+
+      if (restoreQty <= 0) {
+        console.error("❌ Invalid quantity to restore:", restoreQty);
+        throw new Error("Invalid quantity to restore");
+      }
+
+      console.log(`🔄 Restoring quantity: ${restoreQty} kg for product: ${productId}`);
+
+      // Get current product data
+      const getProd = await fetch(`${BASE_URL}/product/${productId}`);
+      if (!getProd.ok) {
+        throw new Error("Failed to fetch product details");
+      }
+
+      const prodJson = await getProd.json();
+      const productObj = prodJson?.product || prodJson?.data || prodJson;
+      const currentQty = Number(productObj?.quantity ?? 0) || 0;
+      const restoredQty = currentQty + restoreQty;
+
+      console.log(`📊 Current quantity: ${currentQty} kg`);
+      console.log(`➕ Adding back: ${restoreQty} kg`);
+      console.log(`✅ New quantity: ${restoredQty} kg`);
+
+      // Update product with restored quantity
+      const updateRes = await fetch(`${BASE_URL}/product/${productId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: restoredQty })
+      });
+
+      if (!updateRes.ok) {
+        throw new Error("Failed to update product quantity");
+      }
+
+      // Dispatch custom events to notify other components
+      window.dispatchEvent(new CustomEvent("orderDisapproved", {
+        detail: { 
+          productId: productId, 
+          quantity: restoreQty,
+          newQuantity: restoredQty 
+        }
+      }));
+
+      window.dispatchEvent(new CustomEvent("productQuantityRestored", {
+        detail: { 
+          productId: productId, 
+          restoredQuantity: restoreQty,
+          totalQuantity: restoredQty 
+        }
+      }));
+
+      console.log(`✅ Quantity successfully restored: ${currentQty} + ${restoreQty} = ${restoredQty} kg`);
+      
+      return { success: true, restoredQty, newTotal: restoredQty };
+    } catch (restoreErr) {
+      console.error("❌ Error restoring product quantity:", restoreErr);
+      alert("⚠️ Order was disapproved but there was an issue restoring the product quantity. Please check the product inventory manually.");
+      return { success: false, error: restoreErr.message };
+    }
+  };
+
+  const showSuccessMessage = (newStatus, result, order) => {
+    if (newStatus === 'disapproved') {
+      let message = `✅ Order disapproved successfully!\n\n`;
+      
+      // Add refund details if applicable
+      if (result.refunded && order.paymentStatus === 'paid') {
+        message += `💰 Refund Details:\n`;
+        message += `   Amount: Rs. ${result.refundAmount || order.price}\n`;
+        message += `   Status: Refunded to seller's ${order.paymentMethod || 'wallet'}\n\n`;
+      }
+      
+      // Add quantity restoration confirmation
+      message += `📦 Inventory Update:\n`;
+      message += `   ${order.quantity} kg has been restored to product inventory\n`;
+      message += `   Product: ${order.item}`;
+      
+      alert(message);
+    } else if (newStatus === 'approved') {
+      alert(`✅ Order approved successfully!`);
     }
   };
 
@@ -925,6 +972,9 @@ function FarmerPage() {
                           💰 Refund processed
                         </p>
                       )}
+                      <p style={{ fontSize: '12px', marginTop: '5px', color: '#28a745' }}>
+                        📦 Quantity restored to inventory
+                      </p>
                     </div>
                   )}
                 </div>
