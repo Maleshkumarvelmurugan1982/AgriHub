@@ -13,6 +13,9 @@ export default function SellerWalletPage() {
   const [topUpAmount, setTopUpAmount] = useState('');
   const [showTopUp, setShowTopUp] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
 
   const BASE_URL = 'https://agrihub-2.onrender.com';
 
@@ -97,7 +100,9 @@ export default function SellerWalletPage() {
         const txRes = await fetch(`${BASE_URL}/transactions/${id}?limit=20`);
         const txData = await txRes.json();
         if (txData.status === 'ok') {
-          setTransactions(txData.transactions || []);
+          const txList = txData.transactions || [];
+          setTransactions(txList);
+          setFilteredTransactions(txList);
         }
       }
     } catch (error) {
@@ -162,6 +167,86 @@ export default function SellerWalletPage() {
       minute: '2-digit'
     });
   };
+
+  const filterTransactionsByDate = () => {
+    if (!startDate && !endDate) {
+      setFilteredTransactions(transactions);
+      return;
+    }
+
+    const filtered = transactions.filter(tx => {
+      const txDate = new Date(tx.transactionDate);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+
+      if (end) {
+        end.setHours(23, 59, 59, 999);
+      }
+
+      if (start && end) {
+        return txDate >= start && txDate <= end;
+      } else if (start) {
+        return txDate >= start;
+      } else if (end) {
+        return txDate <= end;
+      }
+      return true;
+    });
+
+    setFilteredTransactions(filtered);
+  };
+
+  const clearDateFilter = () => {
+    setStartDate('');
+    setEndDate('');
+    setFilteredTransactions(transactions);
+  };
+
+  const downloadCSV = () => {
+    if (filteredTransactions.length === 0) {
+      alert('No transactions to download');
+      return;
+    }
+
+    const headers = ['Date', 'Description', 'Type', 'Amount', 'Payment Method', 'Status', 'Refund'];
+    const csvData = filteredTransactions.map(tx => [
+      new Date(tx.transactionDate).toLocaleString('en-US'),
+      tx.description,
+      tx.type,
+      tx.amount.toFixed(2),
+      tx.paymentMethod,
+      tx.status || 'completed',
+      tx.isRefund ? 'Yes' : 'No'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const dateRange = startDate && endDate 
+      ? `_${startDate}_to_${endDate}` 
+      : startDate 
+      ? `_from_${startDate}` 
+      : endDate 
+      ? `_until_${endDate}` 
+      : '';
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `agrihub_transactions${dateRange}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  useEffect(() => {
+    filterTransactionsByDate();
+  }, [startDate, endDate, transactions]);
 
   if (loading) {
     return (
@@ -371,16 +456,78 @@ export default function SellerWalletPage() {
               <span className="text-sm font-semibold">Last 20 transactions</span>
             </div>
           </div>
+
+          {/* Date Filter Section */}
+          <div className="mb-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border-3 border-green-200">
+            <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span className="text-2xl">📅</span>
+              Filter by Date Range
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Start Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-green-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">End Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-green-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-all"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={clearDateFilter}
+                  className="w-full px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="text-xl">🔄</span>
+                  Clear Filter
+                </button>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={downloadCSV}
+                  disabled={filteredTransactions.length === 0}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold transition-all disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:transform-none"
+                >
+                  <span className="text-xl">📥</span>
+                  Download CSV
+                </button>
+              </div>
+            </div>
+            {(startDate || endDate) && (
+              <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+                <span className="text-lg">ℹ️</span>
+                <span className="font-semibold">
+                  Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
+                  {startDate && endDate && ` from ${startDate} to ${endDate}`}
+                  {startDate && !endDate && ` from ${startDate} onwards`}
+                  {!startDate && endDate && ` until ${endDate}`}
+                </span>
+              </div>
+            )}
+          </div>
           
-          {transactions.length === 0 ? (
+          {filteredTransactions.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-9xl mb-6">🌱</div>
-              <p className="text-gray-600 text-xl font-semibold mb-2">No transactions yet</p>
-              <p className="text-gray-400">Your transaction history will appear here</p>
+              <p className="text-gray-600 text-xl font-semibold mb-2">
+                {transactions.length === 0 ? 'No transactions yet' : 'No transactions found for selected dates'}
+              </p>
+              <p className="text-gray-400">
+                {transactions.length === 0 ? 'Your transaction history will appear here' : 'Try adjusting your date filter'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {transactions.map((tx) => (
+              {filteredTransactions.map((tx) => (
                 <div 
                   key={tx._id} 
                   className="flex items-center justify-between p-5 border-4 border-green-100 rounded-2xl hover:border-green-300 hover:shadow-lg transition-all transform hover:-translate-y-1 bg-gradient-to-r hover:from-green-50 hover:to-emerald-50"
