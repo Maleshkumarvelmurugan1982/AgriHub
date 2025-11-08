@@ -35,6 +35,31 @@ function RegVegetablePage() {
     }
   };
 
+  // Helper function to get proper image URL
+  const getImageUrl = (productImage) => {
+    if (!productImage) {
+      return 'https://via.placeholder.com/150?text=No+Image';
+    }
+    
+    // If it's already a full URL, return it
+    if (typeof productImage === 'string' && (productImage.startsWith('http://') || productImage.startsWith('https://'))) {
+      return productImage;
+    }
+    
+    // If it's an object with a url property
+    if (typeof productImage === 'object' && productImage.url) {
+      return productImage.url;
+    }
+    
+    // If it's a relative path, prepend BASE_URL
+    if (typeof productImage === 'string') {
+      return `${BASE_URL}${productImage.startsWith('/') ? '' : '/'}${productImage}`;
+    }
+    
+    // Fallback to placeholder
+    return 'https://via.placeholder.com/150?text=No+Image';
+  };
+
   // Fetch farmer details for each product
   const fetchFarmerDetails = async (farmerId) => {
     try {
@@ -48,7 +73,7 @@ function RegVegetablePage() {
     }
   };
 
-  // Centralized product fetch so we can call it from the "orderDisapproved" handler
+  // Centralized product fetch
   const refreshProducts = async () => {
     try {
       let response;
@@ -69,9 +94,15 @@ function RegVegetablePage() {
 
       const data = await response.json();
       
+      // Process products and normalize image URLs
+      const processedProducts = data.map(product => ({
+        ...product,
+        productImage: getImageUrl(product.productImage)
+      }));
+      
       // If seller, fetch farmer details for each product
       if (userType === "seller") {
-        const availableProducts = data.filter(p => p.quantity > 0);
+        const availableProducts = processedProducts.filter(p => p.quantity > 0);
         
         // Fetch farmer details for each product
         const productsWithFarmerDetails = await Promise.all(
@@ -88,10 +119,11 @@ function RegVegetablePage() {
         setProducts(productsWithFarmerDetails);
         setFilteredProducts(productsWithFarmerDetails);
       } else {
-        setProducts(data);
-        setFilteredProducts(data);
+        setProducts(processedProducts);
+        setFilteredProducts(processedProducts);
       }
     } catch (error) {
+      console.error("Error fetching products:", error);
       setProducts([]);
       setFilteredProducts([]);
     }
@@ -119,7 +151,7 @@ function RegVegetablePage() {
             return;
           }
         } catch (err) {
-          // ignore and try seller
+          console.error("Farmer auth error:", err);
         }
 
         try {
@@ -135,25 +167,25 @@ function RegVegetablePage() {
             return;
           }
         } catch (err) {
-          // ignore
+          console.error("Seller auth error:", err);
         }
 
         alert("Unable to identify user type. Please login again.");
       } catch (err) {
-        console.error(err);
+        console.error("User data fetch error:", err);
       }
     };
     fetchUserData();
   }, []);
 
-  // load products when user type / farmer id available
+  // Load products when user type / farmer id available
   useEffect(() => {
     if (!userType) return;
     refreshProducts();
     // eslint-disable-next-line
   }, [userType, farmerId]);
 
-  // search filter
+  // Search filter
   useEffect(() => {
     const filtered = products.filter(product =>
       product.productName && product.productName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -161,10 +193,9 @@ function RegVegetablePage() {
     setFilteredProducts(filtered);
   }, [searchQuery, products]);
 
-  // Listen for order disapproval events. Will refresh product DB data live if another page (like Farmer) reverts a product's quantity.
+  // Listen for order disapproval events
   useEffect(() => {
-    const handler = (e) => {
-      // If specific product can be detected, you could optimize, but safest is to always refresh all.
+    const handler = () => {
       refreshProducts();
     };
     window.addEventListener("orderDisapproved", handler);
@@ -201,14 +232,20 @@ function RegVegetablePage() {
       }
 
       const addedProduct = await response.json();
-      const updatedProducts = [...products, addedProduct];
+      // Normalize the image URL for the newly added product
+      const normalizedProduct = {
+        ...addedProduct,
+        productImage: getImageUrl(addedProduct.productImage)
+      };
+      
+      const updatedProducts = [...products, normalizedProduct];
       setProducts(updatedProducts);
       setFilteredProducts(updatedProducts);
       setIsModalOpen(false);
       setNewProduct({ productName: "", quantity: "", price: "", productImage: null });
       alert("Product added successfully!");
     } catch (err) {
-      console.error(err);
+      console.error("Add product error:", err);
       alert("Error adding product. Please try again.");
     }
   };
@@ -234,14 +271,20 @@ function RegVegetablePage() {
       if (!response.ok) return alert("Failed to update product");
 
       const updated = await response.json();
-      const updatedProducts = products.map(p => p._id === updated._id ? updated : p);
+      // Normalize the image URL
+      const normalizedUpdated = {
+        ...updated,
+        productImage: getImageUrl(updated.productImage)
+      };
+      
+      const updatedProducts = products.map(p => p._id === normalizedUpdated._id ? normalizedUpdated : p);
       setProducts(updatedProducts);
       setFilteredProducts(updatedProducts);
       setIsEditModalOpen(false);
       setEditProduct(null);
       alert("Product updated successfully!");
     } catch (err) {
-      console.error(err);
+      console.error("Update product error:", err);
       alert("Error updating product. Please try again.");
     }
   };
@@ -257,7 +300,7 @@ function RegVegetablePage() {
       setFilteredProducts(updatedProducts);
       alert("Product deleted successfully!");
     } catch (err) {
-      console.error(err);
+      console.error("Delete product error:", err);
       alert("Error deleting product. Please try again.");
     }
   };
@@ -331,7 +374,10 @@ function RegVegetablePage() {
                   <img
                     src={product.productImage}
                     alt={product.productName}
-                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=No+Image'; }}
+                    onError={(e) => { 
+                      e.target.onerror = null; 
+                      e.target.src = 'https://via.placeholder.com/150?text=No+Image'; 
+                    }}
                     style={{ width: "150px", height: "150px", objectFit: "cover", borderRadius: "8px" }}
                   />
                   <p><strong>{product.productName}</strong></p>
@@ -362,7 +408,10 @@ function RegVegetablePage() {
                   <img
                     src={product.productImage}
                     alt={product.productName}
-                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=No+Image'; }}
+                    onError={(e) => { 
+                      e.target.onerror = null; 
+                      e.target.src = 'https://via.placeholder.com/150?text=No+Image'; 
+                    }}
                     style={{ width: "150px", height: "150px", objectFit: "cover", borderRadius: "8px" }}
                   />
                   <p><strong>{product.productName}</strong></p>
