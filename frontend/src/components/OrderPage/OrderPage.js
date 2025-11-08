@@ -19,6 +19,7 @@ function OrderPage() {
       quantityError: "",
       productId: "",
       farmerId: "",
+      farmerName: "",
       isInitial: true,
     },
   ]);
@@ -67,6 +68,7 @@ function OrderPage() {
         quantityError: "",
         productId: "",
         farmerId: "",
+        farmerName: "",
         isInitial: true,
       },
     ]);
@@ -83,7 +85,22 @@ function OrderPage() {
     navigate("/regseller");
   };
 
-  // Only fetch seller info, redirect to login if not found
+  // Fetch farmer details
+  const fetchFarmerDetails = async (farmerId) => {
+    if (!farmerId || typeof farmerId !== 'string') return null;
+    
+    try {
+      const response = await fetch(`${BASE_URL}/farmer/get/${farmerId}`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.farmer;
+    } catch (error) {
+      console.error("Error fetching farmer details:", error);
+      return null;
+    }
+  };
+
+  // Fetch seller info
   useEffect(() => {
     const fetchSellerData = async () => {
       try {
@@ -117,6 +134,7 @@ function OrderPage() {
     fetchSellerData();
   }, [navigate]);
 
+  // Fetch all products with farmer details
   useEffect(() => {
     const fetchAllProducts = async () => {
       try {
@@ -125,7 +143,26 @@ function OrderPage() {
         
         const data = await response.json();
         const availableProducts = data.filter(p => p.quantity > 0);
-        setAllAvailableProducts(availableProducts);
+        
+        // Fetch farmer details for each product
+        const productsWithFarmerDetails = await Promise.all(
+          availableProducts.map(async (product) => {
+            const farmerIdValue = typeof product.farmerId === 'object' 
+              ? product.farmerId._id 
+              : product.farmerId;
+            
+            const farmerDetails = await fetchFarmerDetails(farmerIdValue);
+            
+            return {
+              ...product,
+              farmerId: farmerIdValue,
+              farmerName: farmerDetails?.fname || "Unknown Farmer",
+              farmerDistrict: farmerDetails?.district || "Unknown"
+            };
+          })
+        );
+        
+        setAllAvailableProducts(productsWithFarmerDetails);
       } catch (error) {
         console.error("Error fetching products:", error);
       }
@@ -133,6 +170,7 @@ function OrderPage() {
     fetchAllProducts();
   }, []);
 
+  // Handle initial product from URL
   useEffect(() => {
     const productNameFromUrl = queryParams.get("item");
     const priceFromUrl = queryParams.get("price");
@@ -144,13 +182,15 @@ function OrderPage() {
         if (!res.ok) throw new Error("Product not found");
         return res.json();
       })
-      .then((product) => {
+      .then(async (product) => {
         if (!product) return;
 
         const farmerIdValue =
           typeof product.farmerId === "object"
             ? product.farmerId._id
             : product.farmerId || product.userId;
+
+        const farmerDetails = await fetchFarmerDetails(farmerIdValue);
 
         setProducts((prev) => {
           const updated = [...prev];
@@ -161,6 +201,7 @@ function OrderPage() {
             availableQuantity: Number(product.quantity || 0),
             productId: product._id || "",
             farmerId: farmerIdValue || "",
+            farmerName: farmerDetails?.fname || "Unknown Farmer",
             productImage: product.productImage || updated[0].productImage,
           };
           return updated;
@@ -183,6 +224,7 @@ function OrderPage() {
         quantityError: "",
         productId: "",
         farmerId: "",
+        farmerName: "",
         isInitial: false,
       },
     ]);
@@ -203,11 +245,12 @@ function OrderPage() {
     setProducts((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleProductSelect = (index, selectedProductName) => {
-    if (!selectedProductName) return;
+  // Fixed: Select product by unique productId instead of just name
+  const handleProductSelect = (index, selectedProductId) => {
+    if (!selectedProductId) return;
 
     const selectedProduct = allAvailableProducts.find(
-      p => p.productName === selectedProductName
+      p => p._id === selectedProductId
     );
     if (!selectedProduct) return;
 
@@ -225,6 +268,7 @@ function OrderPage() {
         availableQuantity: Number(selectedProduct.quantity || 0),
         productId: selectedProduct._id || "",
         farmerId: farmerIdValue || "",
+        farmerName: selectedProduct.farmerName || "Unknown Farmer",
         productImage: selectedProduct.productImage || "",
         quantity: "",
         totalPrice: 0,
@@ -273,7 +317,6 @@ function OrderPage() {
     return walletBalance >= totalPrice;
   };
 
-  // Only handles login redirection on protected route, not in form/UI
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -395,7 +438,6 @@ function OrderPage() {
     }
   };
 
-  // NO extra buttons for government, registration or login!
   return (
     <div className="form-container">
       <h3>Place New Order</h3>
@@ -441,24 +483,31 @@ function OrderPage() {
               )}
 
               <div className="input-field-container">
-                <p>Product Name *</p>
+                <p>Product Name & Farmer *</p>
               </div>
               <select
-                value={product.productName}
+                value={product.productId}
                 onChange={(e) => handleProductSelect(index, e.target.value)}
                 required
                 className="product-select"
               >
-                <option value="">-- Select Product --</option>
+                <option value="">-- Select Product & Farmer --</option>
                 {allAvailableProducts.map((p) => (
-                  <option key={p._id} value={p.productName}>
-                    {p.productName} (Rs.{p.price} - {p.quantity}kg available)
+                  <option key={p._id} value={p._id}>
+                    {p.productName} - Farmer: {p.farmerName} ({p.farmerDistrict}) - Rs.{p.price} - {p.quantity}kg
                   </option>
                 ))}
               </select>
 
               {product.productId && (
                 <>
+                  <div className="input-field-container">
+                    <p>Farmer</p>
+                  </div>
+                  <div className="category-display">
+                    <h4>{product.farmerName}</h4>
+                  </div>
+
                   <div className="input-field-container">
                     <p>Unit Price (Rs.)</p>
                   </div>
