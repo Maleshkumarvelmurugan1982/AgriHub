@@ -1,5 +1,5 @@
 // ============================================
-// models/SellerOrder.js - Updated with Payment Fields
+// models/SellerOrder.js - Updated with Payment Fields & Product ID
 // ============================================
 
 const mongoose = require("mongoose");
@@ -35,6 +35,16 @@ const sellerOrderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: "Farmer",
     required: true
+  },
+  
+  // ============================================
+  // ⭐ PRODUCT ID - CRITICAL FOR INVENTORY RESTORATION ⭐
+  // ============================================
+  productId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Product",
+    required: true,
+    description: 'Reference to the original product for inventory management'
   },
   
   acceptedByDeliveryman: { 
@@ -197,6 +207,7 @@ sellerOrderSchema.index({ farmerId: 1, status: 1 });
 sellerOrderSchema.index({ deliverymanId: 1, deliveryStatus: 1 });
 sellerOrderSchema.index({ paymentStatus: 1 });
 sellerOrderSchema.index({ orderNumber: 1 });
+sellerOrderSchema.index({ productId: 1 }); // ⭐ NEW INDEX for product lookups
 sellerOrderSchema.index({ createdAt: -1 });
 
 // ============================================
@@ -210,6 +221,7 @@ sellerOrderSchema.statics.getSellerOrders = function(sellerId, options = {}) {
   return this.find(query)
     .populate('farmerId', 'fname lname email mobile')
     .populate('deliverymanId', 'fname lname email mobile')
+    .populate('productId', 'productName quantity') // ⭐ NEW: Populate product info
     .sort({ createdAt: -1 })
     .limit(options.limit || 100);
 };
@@ -222,6 +234,7 @@ sellerOrderSchema.statics.getFarmerOrders = function(farmerId, options = {}) {
   return this.find(query)
     .populate('sellerId', 'fname lname email mobile')
     .populate('deliverymanId', 'fname lname email mobile')
+    .populate('productId', 'productName quantity') // ⭐ NEW: Populate product info
     .sort({ createdAt: -1 })
     .limit(options.limit || 100);
 };
