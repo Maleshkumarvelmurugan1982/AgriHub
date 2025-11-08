@@ -15,6 +15,7 @@ router.get("/seller/:sellerId", async (req, res) => {
     const orders = await SellerOrder.find({ sellerId })
       .populate('farmerId', 'fname lname email mobile district')
       .populate('deliverymanId', 'fname lname email mobile')
+      .populate('productId', 'productName quantity') // ⭐ NEW: Populate product
       .sort({ createdAt: -1 }); // Latest first
     
     console.log(`✅ Found ${orders.length} orders for seller ${sellerId}`);
@@ -36,6 +37,7 @@ router.get("/seller/:sellerId/status/:status", async (req, res) => {
     const orders = await SellerOrder.find({ sellerId, status })
       .populate('farmerId', 'fname lname email mobile')
       .populate('deliverymanId', 'fname lname email mobile')
+      .populate('productId', 'productName quantity') // ⭐ NEW: Populate product
       .sort({ createdAt: -1 });
     
     res.json(orders);
@@ -61,7 +63,8 @@ router.get("/farmer/:farmerId", async (req, res) => {
     
     const orders = await SellerOrder.find({ farmerId: farmerId })
       .populate('deliverymanId', 'fname lname email mobile')
-      .populate('sellerId', 'fname lname email mobile district') // ✅ Also populate seller info
+      .populate('sellerId', 'fname lname email mobile district')
+      .populate('productId', 'productName quantity') // ⭐ NEW: Populate product
       .sort({ createdAt: -1 });
     
     console.log(`✅ Found ${orders.length} orders for farmer ${farmerId}`);
@@ -84,6 +87,7 @@ router.get("/farmer/:farmerId/pending", async (req, res) => {
     const orders = await SellerOrder.find({ farmerId, status: "pending" })
       .populate('sellerId', 'fname lname email mobile')
       .populate('deliverymanId', 'fname lname email mobile')
+      .populate('productId', 'productName quantity') // ⭐ NEW: Populate product
       .sort({ createdAt: -1 });
     
     res.json(orders);
@@ -143,6 +147,7 @@ router.get("/deliveryman/available", async (req, res) => {
     })
       .populate('sellerId', 'fname lname email mobile district')
       .populate('farmerId', 'fname lname email mobile district')
+      .populate('productId', 'productName quantity') // ⭐ NEW: Populate product
       .sort({ createdAt: -1 })
       .limit(50);
     
@@ -164,6 +169,7 @@ router.get("/deliveryman/:deliverymanId", async (req, res) => {
     const orders = await SellerOrder.find({ deliverymanId })
       .populate('sellerId', 'fname lname email mobile district address')
       .populate('farmerId', 'fname lname email mobile district address')
+      .populate('productId', 'productName quantity') // ⭐ NEW: Populate product
       .sort({ createdAt: -1 });
     
     res.json(orders);
@@ -215,6 +221,7 @@ router.put("/:id/accept", async (req, res) => {
     await order.populate('sellerId', 'fname lname email mobile');
     await order.populate('farmerId', 'fname lname email mobile');
     await order.populate('deliverymanId', 'fname lname email mobile');
+    await order.populate('productId', 'productName quantity'); // ⭐ NEW
     
     res.json({ 
       message: "Order accepted by deliveryman successfully", 
@@ -259,6 +266,7 @@ router.put("/:id/status", async (req, res) => {
     await order.populate('sellerId', 'fname lname email mobile');
     await order.populate('farmerId', 'fname lname email mobile');
     await order.populate('deliverymanId', 'fname lname email mobile');
+    await order.populate('productId', 'productName quantity'); // ⭐ NEW
     
     res.json({ 
       message: `Order marked as ${status}`, 
@@ -282,7 +290,8 @@ router.get("/", (req, res) => {
   SellerOrder.find()
     .populate('deliverymanId')
     .populate('farmerId')
-    .populate('sellerId', 'fname lname email') // ✅ Also populate seller
+    .populate('sellerId', 'fname lname email')
+    .populate('productId', 'productName quantity') // ⭐ NEW: Populate product
     .then(orders => {
       // ✅ FIX: Migrate old data
       const fixedOrders = orders.map(order => {
@@ -297,7 +306,7 @@ router.get("/", (req, res) => {
     .catch(err => res.status(500).send({ status: "Error fetching seller orders" }));
 });
 
-// ✅ UPDATED: Add new seller order with payment information
+// ⭐⭐⭐ UPDATED: Add new seller order with payment information AND productId ⭐⭐⭐
 router.post("/add", async (req, res) => {
   try {
     const {
@@ -305,6 +314,7 @@ router.post("/add", async (req, res) => {
       district, company, mobile, land, email, address, postedDate, expireDate,
       farmerId,      // ✅ CRITICAL: Farmer who owns the product
       sellerId,      // ✅ CRITICAL: Seller who is placing the order
+      productId,     // ⭐⭐⭐ NEW: Product ID for inventory tracking ⭐⭐⭐
       paymentMethod, // ✅ NEW: Payment method (wallet/card)
       paymentStatus, // ✅ NEW: Payment status (completed/pending)
       isPaid         // ✅ NEW: Payment flag
@@ -315,6 +325,7 @@ router.post("/add", async (req, res) => {
     console.log("   - paymentMethod:", paymentMethod);
     console.log("   - paymentStatus:", paymentStatus);
     console.log("   - isPaid:", isPaid);
+    console.log("🆔 Product ID:", productId); // ⭐ NEW LOG
     
     // ✅ Validate required fields
     if (!farmerId) {
@@ -330,6 +341,15 @@ router.post("/add", async (req, res) => {
       return res.status(400).json({ 
         message: 'Seller ID is required',
         error: 'Missing sellerId field' 
+      });
+    }
+    
+    // ⭐ NEW: Validate productId
+    if (!productId) {
+      console.error("❌ Missing productId in request");
+      return res.status(400).json({ 
+        message: 'Product ID is required for inventory tracking',
+        error: 'Missing productId field' 
       });
     }
     
@@ -369,6 +389,7 @@ router.post("/add", async (req, res) => {
       expireDate,
       farmerId,           // ✅ CRITICAL: Store farmerId
       sellerId,           // ✅ CRITICAL: Store sellerId
+      productId,          // ⭐⭐⭐ NEW: Store productId ⭐⭐⭐
       status: "pending",
       deliverymanId: null,
       acceptedByDeliveryman: false,
@@ -385,6 +406,7 @@ router.post("/add", async (req, res) => {
     const savedOrder = await newOrder.save();
     
     console.log("✅ Order created successfully!");
+    console.log("🆔 Saved with Product ID:", savedOrder.productId); // ⭐ NEW LOG
     console.log("💰 Saved Payment Info:");
     console.log("   - Method:", savedOrder.paymentMethod);
     console.log("   - Status:", savedOrder.paymentStatus);
@@ -393,13 +415,8 @@ router.post("/add", async (req, res) => {
     
     // ✅ Reduce product quantity when order is placed
     try {
-      // Try to find product by productName field
-      let product = await Product.findOne({ productName: item });
-      
-      // If not found, try by name field (fallback)
-      if (!product) {
-        product = await Product.findOne({ name: item });
-      }
+      // ⭐ NEW: Use productId directly instead of searching by name
+      const product = await Product.findById(productId);
       
       if (product) {
         console.log("🔍 Found product:", product.productName || product.name);
@@ -412,12 +429,15 @@ router.post("/add", async (req, res) => {
           console.log(`   New quantity: ${product.quantity} kg`);
         } else {
           console.error("❌ Insufficient product quantity");
+          // Still create order but log the error
         }
       } else {
-        console.error("❌ Product not found for quantity reduction:", item);
+        console.error("❌ Product not found with ID:", productId);
+        // Still create order but log the error
       }
     } catch (err) {
       console.error("❌ Error reducing product quantity:", err);
+      // Order is still created, just log the error
     }
     
     res.status(201).json({ 
@@ -477,7 +497,8 @@ router.put("/update/:id", async (req, res) => {
     )
       .populate('deliverymanId')
       .populate('sellerId', 'fname lname email mobile')
-      .populate('farmerId', 'fname lname email mobile');
+      .populate('farmerId', 'fname lname email mobile')
+      .populate('productId', 'productName quantity'); // ⭐ NEW: Populate product
     
     console.log("✅ Order updated:", updatedOrder);
     
@@ -489,6 +510,78 @@ router.put("/update/:id", async (req, res) => {
     console.error("❌ Error updating seller order:", err);
     res.status(500).send({ 
       status: "Error updating seller order",
+      error: err.message 
+    });
+  }
+});
+
+// ⭐⭐⭐ NEW: Update order status with refund handling (for RegFarmerPage) ⭐⭐⭐
+router.post("/update-status", async (req, res) => {
+  try {
+    const { orderId, status, farmerId } = req.body;
+    
+    console.log(`📝 Status update request for order ${orderId} to ${status}`);
+    
+    const order = await SellerOrder.findById(orderId)
+      .populate('sellerId')
+      .populate('farmerId')
+      .populate('productId'); // ⭐ Populate product for inventory restoration
+    
+    if (!order) {
+      return res.status(404).json({ 
+        status: 'error',
+        message: 'Order not found' 
+      });
+    }
+    
+    // Verify farmer owns this order
+    if (order.farmerId._id.toString() !== farmerId) {
+      return res.status(403).json({ 
+        status: 'error',
+        message: 'Unauthorized: You can only update your own orders' 
+      });
+    }
+    
+    const oldStatus = order.status;
+    order.status = status;
+    order.statusUpdatedAt = new Date();
+    
+    // Handle disapproval with refund
+    if (status === 'disapproved') {
+      order.farmerDisapprovalDate = new Date();
+      
+      // Process refund if order was paid
+      if (order.paymentStatus === 'paid') {
+        order.paymentStatus = 'refunded';
+        order.refundAmount = order.paidAmount;
+        order.refundDate = new Date();
+        
+        console.log(`💰 Refund processed: Rs. ${order.refundAmount} via ${order.paymentMethod}`);
+      }
+    } else if (status === 'approved') {
+      order.farmerApprovalDate = new Date();
+    }
+    
+    await order.save();
+    
+    // Populate for response
+    await order.populate('deliverymanId');
+    
+    console.log(`✅ Order ${orderId} status updated: ${oldStatus} → ${status}`);
+    
+    res.json({ 
+      status: 'ok',
+      message: `Order ${status} successfully`,
+      order: order,
+      refunded: status === 'disapproved' && order.paymentStatus === 'refunded',
+      refundAmount: order.refundAmount
+    });
+    
+  } catch (err) {
+    console.error("❌ Error updating order status:", err);
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Failed to update order status',
       error: err.message 
     });
   }
@@ -522,7 +615,8 @@ router.get("/:id", async (req, res) => {
     const order = await SellerOrder.findById(req.params.id)
       .populate('deliverymanId')
       .populate('farmerId')
-      .populate('sellerId', 'fname lname email mobile');
+      .populate('sellerId', 'fname lname email mobile')
+      .populate('productId', 'productName quantity'); // ⭐ NEW: Populate product
     
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
