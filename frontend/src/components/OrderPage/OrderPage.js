@@ -37,6 +37,7 @@ function OrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [allAvailableProducts, setAllAvailableProducts] = useState([]);
+  const [initialProductLoaded, setInitialProductLoaded] = useState(false);
 
   // Backend API URL
   const BASE_URL = "https://agrihub-2.onrender.com";
@@ -135,80 +136,184 @@ function OrderPage() {
   }, [navigate]);
 
   // Fetch all products with farmer details
+  const fetchAllProducts = async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/product/category/vegetable`);
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      const availableProducts = data.filter(p => p.quantity > 0);
+      
+      // Fetch farmer details for each product
+      const productsWithFarmerDetails = await Promise.all(
+        availableProducts.map(async (product) => {
+          const farmerIdValue = typeof product.farmerId === 'object' 
+            ? product.farmerId._id 
+            : product.farmerId;
+          
+          const farmerDetails = await fetchFarmerDetails(farmerIdValue);
+          
+          return {
+            ...product,
+            farmerId: farmerIdValue,
+            farmerName: farmerDetails?.fname || "Unknown Farmer",
+            farmerDistrict: farmerDetails?.district || "Unknown"
+          };
+        })
+      );
+      
+      setAllAvailableProducts(productsWithFarmerDetails);
+      return productsWithFarmerDetails;
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      return [];
+    }
+  };
+
   useEffect(() => {
-    const fetchAllProducts = async () => {
-      try {
-        const response = await fetch(`${BASE_URL}/product/category/vegetable`);
-        if (!response.ok) return;
-        
-        const data = await response.json();
-        const availableProducts = data.filter(p => p.quantity > 0);
-        
-        // Fetch farmer details for each product
-        const productsWithFarmerDetails = await Promise.all(
-          availableProducts.map(async (product) => {
-            const farmerIdValue = typeof product.farmerId === 'object' 
-              ? product.farmerId._id 
-              : product.farmerId;
-            
-            const farmerDetails = await fetchFarmerDetails(farmerIdValue);
-            
-            return {
-              ...product,
-              farmerId: farmerIdValue,
-              farmerName: farmerDetails?.fname || "Unknown Farmer",
-              farmerDistrict: farmerDetails?.district || "Unknown"
-            };
-          })
-        );
-        
-        setAllAvailableProducts(productsWithFarmerDetails);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-      }
-    };
     fetchAllProducts();
   }, []);
 
-  // Handle initial product from URL
+  // Handle initial product from URL - FIXED VERSION
   useEffect(() => {
-    const productNameFromUrl = queryParams.get("item");
-    const priceFromUrl = queryParams.get("price");
+    const loadInitialProduct = async () => {
+      if (initialProductLoaded) return; // Prevent double loading
 
-    if (!productNameFromUrl) return;
+      const productIdFromUrl = queryParams.get("productId");
+      const productNameFromUrl = queryParams.get("item");
+      const priceFromUrl = queryParams.get("price");
+      const imageFromUrl = queryParams.get("image");
 
-    fetch(`${BASE_URL}/product/name/${productNameFromUrl}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Product not found");
-        return res.json();
-      })
-      .then(async (product) => {
-        if (!product) return;
+      console.log("🔍 URL Params:", { productIdFromUrl, productNameFromUrl, priceFromUrl });
 
-        const farmerIdValue =
-          typeof product.farmerId === "object"
-            ? product.farmerId._id
-            : product.farmerId || product.userId;
+      // Priority 1: Use productId if available (most reliable)
+      if (productIdFromUrl) {
+        try {
+          console.log(`📦 Fetching product by ID: ${productIdFromUrl}`);
+          const response = await fetch(`${BASE_URL}/product/${productIdFromUrl}`);
+          
+          if (!response.ok) {
+            console.error("❌ Product not found by ID");
+            setInitialProductLoaded(true);
+            return;
+          }
 
-        const farmerDetails = await fetchFarmerDetails(farmerIdValue);
+          const responseData = await response.json();
+          const product = responseData.product || responseData.data || responseData;
+          
+          if (!product) {
+            console.error("❌ Invalid product data");
+            setInitialProductLoaded(true);
+            return;
+          }
 
-        setProducts((prev) => {
-          const updated = [...prev];
-          updated[0] = {
-            ...updated[0],
-            productName: product.productName || productNameFromUrl,
-            unitPrice: Number(product.price || priceFromUrl || 0),
-            availableQuantity: Number(product.quantity || 0),
-            productId: product._id || "",
-            farmerId: farmerIdValue || "",
-            farmerName: farmerDetails?.fname || "Unknown Farmer",
-            productImage: product.productImage || updated[0].productImage,
-          };
-          return updated;
-        });
-      })
-      .catch(console.error);
-  }, [queryParams]);
+          console.log("✅ Product found:", product);
+
+          const farmerIdValue =
+            typeof product.farmerId === "object"
+              ? product.farmerId._id
+              : product.farmerId || product.userId;
+
+          const farmerDetails = await fetchFarmerDetails(farmerIdValue);
+
+          setProducts((prev) => {
+            const updated = [...prev];
+            updated[0] = {
+              ...updated[0],
+              productName: product.productName || productNameFromUrl,
+              unitPrice: Number(product.price || priceFromUrl || 0),
+              availableQuantity: Number(product.quantity || 0),
+              productId: product._id || productIdFromUrl,
+              farmerId: farmerIdValue || "",
+              farmerName: farmerDetails?.fname || "Unknown Farmer",
+              productImage: product.productImage || imageFromUrl || updated[0].productImage,
+            };
+            return updated;
+          });
+
+          setInitialProductLoaded(true);
+          console.log("✅ Initial product loaded successfully");
+        } catch (err) {
+          console.error("❌ Error loading product by ID:", err);
+          setInitialProductLoaded(true);
+        }
+      } 
+      // Priority 2: Fallback to name search (less reliable)
+      else if (productNameFromUrl) {
+        try {
+          console.log(`📦 Fetching product by name: ${productNameFromUrl}`);
+          const response = await fetch(`${BASE_URL}/product/name/${productNameFromUrl}`);
+          
+          if (!response.ok) {
+            console.error("❌ Product not found by name");
+            setInitialProductLoaded(true);
+            return;
+          }
+
+          const product = await response.json();
+          
+          if (!product) {
+            console.error("❌ Invalid product data");
+            setInitialProductLoaded(true);
+            return;
+          }
+
+          console.log("✅ Product found:", product);
+
+          const farmerIdValue =
+            typeof product.farmerId === "object"
+              ? product.farmerId._id
+              : product.farmerId || product.userId;
+
+          const farmerDetails = await fetchFarmerDetails(farmerIdValue);
+
+          setProducts((prev) => {
+            const updated = [...prev];
+            updated[0] = {
+              ...updated[0],
+              productName: product.productName || productNameFromUrl,
+              unitPrice: Number(product.price || priceFromUrl || 0),
+              availableQuantity: Number(product.quantity || 0),
+              productId: product._id || "",
+              farmerId: farmerIdValue || "",
+              farmerName: farmerDetails?.fname || "Unknown Farmer",
+              productImage: product.productImage || imageFromUrl || updated[0].productImage,
+            };
+            return updated;
+          });
+
+          setInitialProductLoaded(true);
+          console.log("✅ Initial product loaded successfully");
+        } catch (err) {
+          console.error("❌ Error loading product by name:", err);
+          setInitialProductLoaded(true);
+        }
+      } else {
+        setInitialProductLoaded(true);
+      }
+    };
+
+    loadInitialProduct();
+  }, [queryParams, initialProductLoaded]);
+
+  // Listen for quantity restoration events
+  useEffect(() => {
+    const handleQuantityRestored = (event) => {
+      const { productId, newTotalQuantity } = event.detail;
+      console.log(`🔄 Received quantity restoration event for product ${productId}: ${newTotalQuantity}kg`);
+      
+      // Refresh products to get updated quantities
+      fetchAllProducts();
+    };
+
+    window.addEventListener('productQuantityRestored', handleQuantityRestored);
+    window.addEventListener('orderDisapproved', handleQuantityRestored);
+
+    return () => {
+      window.removeEventListener('productQuantityRestored', handleQuantityRestored);
+      window.removeEventListener('orderDisapproved', handleQuantityRestored);
+    };
+  }, []);
 
   const addProduct = () => {
     setProducts((prev) => [
@@ -245,7 +350,7 @@ function OrderPage() {
     setProducts((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // Fixed: Select product by unique productId instead of just name
+  // Select product by unique productId
   const handleProductSelect = (index, selectedProductId) => {
     if (!selectedProductId) return;
 
@@ -373,6 +478,7 @@ function OrderPage() {
           expireDate: formData.expireDate,
           sellerId,
           farmerId: product.farmerId,
+          productId: product.productId, // Include productId for proper tracking
           paymentMethod: "wallet",
           paymentStatus: "completed",
           isPaid: true,
@@ -387,12 +493,16 @@ function OrderPage() {
         const result = await res.json();
         if (!res.ok) throw new Error(result.message || "Order failed");
 
+        // Update product quantity in database
         try {
+          const newQuantity = product.availableQuantity - Number(product.quantity);
+          console.log(`📦 Reducing product ${product.productId} quantity: ${product.availableQuantity} - ${product.quantity} = ${newQuantity}`);
+          
           await fetch(`${BASE_URL}/product/${product.productId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              quantity: product.availableQuantity - Number(product.quantity),
+              quantity: newQuantity,
             }),
           });
         } catch (err) {
@@ -494,7 +604,7 @@ function OrderPage() {
                 <option value="">-- Select Product & Farmer --</option>
                 {allAvailableProducts.map((p) => (
                   <option key={p._id} value={p._id}>
-                    {p.productName} - Farmer: {p.farmerName} ({p.farmerDistrict}) - Rs.{p.price} - {p.quantity}kg
+                    {p.productName} - Farmer: {p.farmerName} ({p.farmerDistrict}) - Rs.{p.price} - {p.quantity}kg available
                   </option>
                 ))}
               </select>
