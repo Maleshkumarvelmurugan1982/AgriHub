@@ -150,11 +150,24 @@ function FarmerPage() {
       console.log("🔍 Starting quantity restoration...");
       console.log("📦 Order data:", order);
 
-      // Extract productId from order
-      const productId = order.productId;
+      // CRITICAL FIX: Extract productId correctly from object or string
+      let productId;
+      if (order.productId && typeof order.productId === 'object' && order.productId._id) {
+        // If productId is an object with _id property
+        productId = order.productId._id;
+        console.log("📌 Extracted productId from object:", productId);
+      } else if (order.productId && typeof order.productId === 'string') {
+        // If productId is already a string
+        productId = order.productId;
+        console.log("📌 Using productId as string:", productId);
+      } else {
+        console.error("❌ Invalid productId format:", order.productId);
+        productId = null;
+      }
+
       const restoreQty = Number(order.quantity) || 0;
 
-      console.log("🆔 Product ID from order:", productId);
+      console.log("🆔 Final Product ID:", productId);
       console.log("📊 Quantity to restore:", restoreQty, "kg");
 
       // Validation
@@ -224,7 +237,7 @@ function FarmerPage() {
 
       // Step 3: Verify the update
       console.log("🔍 Verifying update...");
-      await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for DB sync
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       const verifyRes = await fetch(`${BASE_URL}/product/${productId}`);
       if (verifyRes.ok) {
@@ -273,14 +286,12 @@ function FarmerPage() {
     if (newStatus === 'disapproved') {
       let message = `✅ Order disapproved successfully!\n\n`;
       
-      // Add refund details if applicable
       if (result.refunded && order.paymentStatus === 'paid') {
         message += `💰 Refund Details:\n`;
         message += `   Amount: Rs. ${result.refundAmount || order.price}\n`;
         message += `   Status: Refunded to seller's ${order.paymentMethod || 'wallet'}\n\n`;
       }
       
-      // Add quantity restoration confirmation
       if (restoreResult && restoreResult.success) {
         message += `📦 Inventory Update:\n`;
         message += `   Product: ${restoreResult.productName || order.item}\n`;
@@ -306,7 +317,6 @@ function FarmerPage() {
         return;
       }
 
-      // Show confirmation dialog for disapproval
       if (newStatus === 'disapproved') {
         const confirmMessage = order.paymentStatus === 'paid' 
           ? `Are you sure you want to disapprove this order?\n\n⚠️ Actions that will be taken:\n• Seller will be refunded Rs. ${order.price}\n• Payment Method: ${order.paymentMethod || 'wallet'}\n• Product quantity (${order.quantity} kg) will be restored to inventory`
@@ -317,7 +327,6 @@ function FarmerPage() {
         }
       }
 
-      // Update order status on backend
       const res = await fetch(`${BASE_URL}/sellerorder/update-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -336,18 +345,15 @@ function FarmerPage() {
       const result = await res.json();
 
       if (result.status === 'ok') {
-        // Update local order state
         setSellerOrders(prev =>
           prev.map(o => o._id === orderId ? result.order : o)
         );
 
-        // RESTORE QUANTITY IF DISAPPROVED
         let restoreResult = null;
         if (newStatus === 'disapproved') {
           restoreResult = await restoreProductQuantity(order, result);
         }
 
-        // Show success feedback
         showSuccessMessage(newStatus, result, order, restoreResult);
       }
     } catch (err) {
