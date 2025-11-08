@@ -69,10 +69,15 @@ function RegVegetablePage() {
     }
     
     try {
-      const response = await fetch(`${BASE_URL}/farmer/${farmerId}`);
-      if (!response.ok) return null;
+      // Use the correct endpoint: /farmer/get/:id instead of /farmer/:id
+      const response = await fetch(`${BASE_URL}/farmer/get/${farmerId}`);
+      if (!response.ok) {
+        console.warn(`Farmer not found for ID: ${farmerId}`);
+        return null;
+      }
       const data = await response.json();
-      return data;
+      // Backend returns { status: "User fetched", farmer: {...} }
+      return data.farmer;
     } catch (error) {
       console.error("Error fetching farmer details:", error);
       return null;
@@ -115,6 +120,9 @@ function RegVegetablePage() {
       if (userType === "seller") {
         const availableProducts = processedProducts.filter(p => p.quantity > 0);
         
+        // Create a cache to avoid duplicate requests for the same farmer
+        const farmerCache = new Map();
+        
         // Fetch farmer details for each product
         const productsWithFarmerDetails = await Promise.all(
           availableProducts.map(async (product) => {
@@ -132,11 +140,29 @@ function RegVegetablePage() {
               };
             }
             
+            // Check cache first
+            if (farmerCache.has(farmerIdToFetch)) {
+              const cachedDetails = farmerCache.get(farmerIdToFetch);
+              return {
+                ...product,
+                farmerName: cachedDetails.name,
+                farmerPlace: cachedDetails.place
+              };
+            }
+            
+            // Fetch from API
             const farmerDetails = await fetchFarmerDetails(farmerIdToFetch);
+            
+            const farmerName = farmerDetails?.fname || farmerDetails?.name || "Farmer Info Unavailable";
+            const farmerPlace = farmerDetails?.place || farmerDetails?.location || "Location Unavailable";
+            
+            // Cache the result (even if null)
+            farmerCache.set(farmerIdToFetch, { name: farmerName, place: farmerPlace });
+            
             return {
               ...product,
-              farmerName: farmerDetails?.fname || farmerDetails?.name || "Unknown Farmer",
-              farmerPlace: farmerDetails?.place || farmerDetails?.location || "Unknown Location"
+              farmerName,
+              farmerPlace
             };
           })
         );
