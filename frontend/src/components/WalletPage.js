@@ -19,7 +19,6 @@ export default function SellerWalletPage() {
 
   const BASE_URL = 'https://agrihub-2.onrender.com';
 
-  // Inject CSS to hide Government / Login / Register links while this page is mounted.
   useEffect(() => {
     const styleId = 'hide-auth-links-wallet';
     if (document.getElementById(styleId)) return;
@@ -250,7 +249,6 @@ export default function SellerWalletPage() {
       return;
     }
 
-    // Create a new window for printing
     const printWindow = window.open('', '_blank');
     
     const dateRange = startDate && endDate 
@@ -488,7 +486,6 @@ export default function SellerWalletPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-4 md:p-8 relative overflow-hidden">
-      {/* Decorative plant elements */}
       <div className="fixed top-0 left-0 w-64 h-64 opacity-10 pointer-events-none">
         <div className="text-9xl">🌿</div>
       </div>
@@ -514,7 +511,6 @@ export default function SellerWalletPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="relative bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 rounded-3xl shadow-2xl p-8 text-white overflow-hidden transform hover:scale-105 transition-all duration-300">
-              {/* Leaf patterns */}
               <div className="absolute top-0 right-0 text-9xl opacity-10">🍃</div>
               <div className="absolute bottom-0 left-0 text-7xl opacity-10">🌿</div>
               
@@ -681,13 +677,12 @@ export default function SellerWalletPage() {
             </div>
           </div>
 
-          {/* Date Filter Section */}
           <div className="mb-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border-3 border-green-200">
             <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
               <span className="text-2xl">📅</span>
               Filter by Date Range
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Start Date</label>
                 <input
@@ -712,7 +707,7 @@ export default function SellerWalletPage() {
                   className="w-full px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
                 >
                   <span className="text-xl">🔄</span>
-                  Clear Filter
+                  Clear
                 </button>
               </div>
               <div className="flex items-end">
@@ -722,7 +717,17 @@ export default function SellerWalletPage() {
                   className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold transition-all disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:transform-none"
                 >
                   <span className="text-xl">📥</span>
-                  Download CSV
+                  CSV
+                </button>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={downloadPDF}
+                  disabled={filteredTransactions.length === 0}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white rounded-xl font-bold transition-all disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:transform-none"
+                >
+                  <span className="text-xl">📄</span>
+                  PDF
                 </button>
               </div>
             </div>
@@ -797,7 +802,6 @@ export default function SellerWalletPage() {
           )}
         </div>
 
-        {/* Floating Back Button */}
         <button
           onClick={() => window.location.href = '/regseller'}
           className="fixed bottom-8 right-8 bg-white text-black px-6 py-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all transform hover:scale-110 hover:-translate-y-1 z-50 group flex items-center gap-3 border-4 border-green-200 hover:border-green-500"
