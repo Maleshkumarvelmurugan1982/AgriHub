@@ -275,10 +275,16 @@ function RegVegetablePage() {
   // Listen for order disapproval events
   useEffect(() => {
     const handler = () => {
+      console.log("🔄 Order disapproved event received, refreshing products...");
       refreshProducts();
     };
     window.addEventListener("orderDisapproved", handler);
-    return () => window.removeEventListener("orderDisapproved", handler);
+    window.addEventListener("productQuantityRestored", handler);
+    
+    return () => {
+      window.removeEventListener("orderDisapproved", handler);
+      window.removeEventListener("productQuantityRestored", handler);
+    };
     // eslint-disable-next-line
   }, [userType, farmerId]);
 
@@ -467,7 +473,7 @@ function RegVegetablePage() {
             <div className="products-item-veg" key={product._id}>
               {userType === "seller" ? (
                 <a
-                  href={`/order?image=${encodeURIComponent(product.productImage)}&item=${encodeURIComponent(product.productName)}`}
+                  href={`/order?productId=${product._id}&item=${encodeURIComponent(product.productName)}&price=${product.price}&image=${encodeURIComponent(product.productImage)}`}
                   className="product-item-veg-link"
                 >
                   <img
