@@ -154,7 +154,7 @@ function RegVegetablePage() {
             const farmerDetails = await fetchFarmerDetails(farmerIdToFetch);
             
             const farmerName = farmerDetails?.fname || farmerDetails?.name || "Farmer Info Unavailable";
-            const farmerPlace = farmerDetails?.place || farmerDetails?.location || "Location Unavailable";
+            const farmerPlace = farmerDetails?.district || farmerDetails?.place || farmerDetails?.location || "Location Unavailable";
             
             // Cache the result (even if null)
             farmerCache.set(farmerIdToFetch, { name: farmerName, place: farmerPlace });
