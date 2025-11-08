@@ -62,6 +62,12 @@ function RegVegetablePage() {
 
   // Fetch farmer details for each product
   const fetchFarmerDetails = async (farmerId) => {
+    // Validate farmerId before making request
+    if (!farmerId || typeof farmerId !== 'string') {
+      console.error("Invalid farmerId:", farmerId);
+      return null;
+    }
+    
     try {
       const response = await fetch(`${BASE_URL}/farmer/${farmerId}`);
       if (!response.ok) return null;
@@ -78,7 +84,10 @@ function RegVegetablePage() {
     try {
       let response;
       if (userType === "farmer") {
-        if (!farmerId) return;
+        if (!farmerId || typeof farmerId !== 'string') {
+          console.error("Invalid farmerId:", farmerId);
+          return;
+        }
         response = await fetch(`${BASE_URL}/product/farmer/${farmerId}/category/vegetable`);
       } else if (userType === "seller") {
         response = await fetch(`${BASE_URL}/product/category/vegetable`);
@@ -87,12 +96,14 @@ function RegVegetablePage() {
       }
 
       if (!response.ok) {
+        console.error("Failed to fetch products:", response.status);
         setProducts([]);
         setFilteredProducts([]);
         return;
       }
 
       const data = await response.json();
+      console.log("Products fetched:", data);
       
       // Process products and normalize image URLs
       const processedProducts = data.map(product => ({
@@ -107,11 +118,25 @@ function RegVegetablePage() {
         // Fetch farmer details for each product
         const productsWithFarmerDetails = await Promise.all(
           availableProducts.map(async (product) => {
-            const farmerDetails = await fetchFarmerDetails(product.farmerId);
+            // Validate farmerId before fetching
+            const farmerIdToFetch = typeof product.farmerId === 'string' 
+              ? product.farmerId 
+              : (product.farmerId?._id || product.farmerId?.id);
+            
+            if (!farmerIdToFetch) {
+              console.warn("Invalid farmerId for product:", product);
+              return {
+                ...product,
+                farmerName: "Unknown Farmer",
+                farmerPlace: "Unknown Location"
+              };
+            }
+            
+            const farmerDetails = await fetchFarmerDetails(farmerIdToFetch);
             return {
               ...product,
-              farmerName: farmerDetails?.fname || "Unknown Farmer",
-              farmerPlace: farmerDetails?.place || "Unknown Location"
+              farmerName: farmerDetails?.fname || farmerDetails?.name || "Unknown Farmer",
+              farmerPlace: farmerDetails?.place || farmerDetails?.location || "Unknown Location"
             };
           })
         );
@@ -145,10 +170,19 @@ function RegVegetablePage() {
             body: JSON.stringify({ token }),
           });
           const farmerData = await farmerRes.json();
-          if (farmerData.status === "ok") {
-            setFarmerId(farmerData.data._id);
-            setUserType("farmer");
-            return;
+          console.log("Farmer response:", farmerData);
+          
+          if (farmerData.status === "ok" && farmerData.data) {
+            // Extract the ID - handle both string and object cases
+            const id = typeof farmerData.data === 'string' 
+              ? farmerData.data 
+              : (farmerData.data._id || farmerData.data.id);
+            
+            if (id) {
+              setFarmerId(id);
+              setUserType("farmer");
+              return;
+            }
           }
         } catch (err) {
           console.error("Farmer auth error:", err);
@@ -161,10 +195,19 @@ function RegVegetablePage() {
             body: JSON.stringify({ token }),
           });
           const sellerData = await sellerRes.json();
-          if (sellerData.status === "ok") {
-            setSellerId(sellerData.data._id);
-            setUserType("seller");
-            return;
+          console.log("Seller response:", sellerData);
+          
+          if (sellerData.status === "ok" && sellerData.data) {
+            // Extract the ID - handle both string and object cases
+            const id = typeof sellerData.data === 'string'
+              ? sellerData.data
+              : (sellerData.data._id || sellerData.data.id);
+            
+            if (id) {
+              setSellerId(id);
+              setUserType("seller");
+              return;
+            }
           }
         } catch (err) {
           console.error("Seller auth error:", err);
