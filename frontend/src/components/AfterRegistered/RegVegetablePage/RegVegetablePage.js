@@ -3,7 +3,7 @@ import "./RegVegetablePage.css";
 import Navbar from "../../NavbarRegistered/NavbarRegistered";
 import FooterNew from "../../Footer/FooterNew";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearch, faSquarePlus, faCartPlus, faTimes, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import { faSearch, faSquarePlus, faCartPlus, faTimes, faArrowLeft, faUser, faMapMarkerAlt } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 
 function RegVegetablePage() {
@@ -35,6 +35,19 @@ function RegVegetablePage() {
     }
   };
 
+  // Fetch farmer details for each product
+  const fetchFarmerDetails = async (farmerId) => {
+    try {
+      const response = await fetch(`${BASE_URL}/farmer/${farmerId}`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching farmer details:", error);
+      return null;
+    }
+  };
+
   // Centralized product fetch so we can call it from the "orderDisapproved" handler
   const refreshProducts = async () => {
     try {
@@ -55,10 +68,25 @@ function RegVegetablePage() {
       }
 
       const data = await response.json();
+      
+      // If seller, fetch farmer details for each product
       if (userType === "seller") {
         const availableProducts = data.filter(p => p.quantity > 0);
-        setProducts(availableProducts);
-        setFilteredProducts(availableProducts);
+        
+        // Fetch farmer details for each product
+        const productsWithFarmerDetails = await Promise.all(
+          availableProducts.map(async (product) => {
+            const farmerDetails = await fetchFarmerDetails(product.farmerId);
+            return {
+              ...product,
+              farmerName: farmerDetails?.fname || "Unknown Farmer",
+              farmerPlace: farmerDetails?.place || "Unknown Location"
+            };
+          })
+        );
+        
+        setProducts(productsWithFarmerDetails);
+        setFilteredProducts(productsWithFarmerDetails);
       } else {
         setProducts(data);
         setFilteredProducts(data);
@@ -309,6 +337,25 @@ function RegVegetablePage() {
                   <p><strong>{product.productName}</strong></p>
                   <p>Qty: {product.quantity} kg</p>
                   <p>Price: Rs.{product.price}</p>
+                  
+                  {/* Farmer Details Display */}
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '8px',
+                    backgroundColor: '#f0f9ff',
+                    borderRadius: '6px',
+                    border: '1px solid #bae6fd',
+                    fontSize: '13px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#0369a1' }}>
+                      <FontAwesomeIcon icon={faUser} style={{ fontSize: '12px' }} />
+                      <span style={{ fontWeight: '600' }}>Farmer: {product.farmerName}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0369a1' }}>
+                      <FontAwesomeIcon icon={faMapMarkerAlt} style={{ fontSize: '12px' }} />
+                      <span>Place: {product.farmerPlace}</span>
+                    </div>
+                  </div>
                 </a>
               ) : (
                 <div className="product-item-veg-view">
