@@ -244,6 +244,230 @@ export default function SellerWalletPage() {
     document.body.removeChild(link);
   };
 
+  const downloadPDF = () => {
+    if (filteredTransactions.length === 0) {
+      alert('No transactions to download');
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    
+    const dateRange = startDate && endDate 
+      ? `from ${startDate} to ${endDate}` 
+      : startDate 
+      ? `from ${startDate} onwards` 
+      : endDate 
+      ? `until ${endDate}` 
+      : 'All Transactions';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>AgriHub Transaction Report</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 40px;
+              background: white;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #16a34a;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              color: #16a34a;
+              font-size: 32px;
+              margin-bottom: 10px;
+            }
+            .header p {
+              color: #666;
+              font-size: 14px;
+            }
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 20px;
+              margin-bottom: 30px;
+            }
+            .summary-card {
+              border: 2px solid #16a34a;
+              border-radius: 8px;
+              padding: 15px;
+              text-align: center;
+            }
+            .summary-card h3 {
+              color: #16a34a;
+              font-size: 14px;
+              margin-bottom: 8px;
+            }
+            .summary-card p {
+              color: #000;
+              font-size: 24px;
+              font-weight: bold;
+            }
+            .date-range {
+              background: #f0fdf4;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              text-align: center;
+              font-weight: bold;
+              color: #16a34a;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+            }
+            th {
+              background: #16a34a;
+              color: white;
+              padding: 12px;
+              text-align: left;
+              font-size: 12px;
+              text-transform: uppercase;
+            }
+            td {
+              padding: 12px;
+              border-bottom: 1px solid #e5e7eb;
+              font-size: 13px;
+            }
+            tr:hover {
+              background: #f9fafb;
+            }
+            .credit {
+              color: #16a34a;
+              font-weight: bold;
+            }
+            .debit {
+              color: #dc2626;
+              font-weight: bold;
+            }
+            .refund-badge {
+              background: #fef3c7;
+              color: #92400e;
+              padding: 2px 8px;
+              border-radius: 12px;
+              font-size: 10px;
+              font-weight: bold;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              color: #666;
+              font-size: 12px;
+              border-top: 2px solid #e5e7eb;
+              padding-top: 20px;
+            }
+            @media print {
+              body { padding: 20px; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>🌱 AgriHub Wallet</h1>
+            <p>Transaction Report</p>
+          </div>
+
+          <div class="date-range">
+            📅 ${dateRange}
+          </div>
+
+          <div class="summary">
+            <div class="summary-card">
+              <h3>Current Balance</h3>
+              <p>₹${walletData.balance.toFixed(2)}</p>
+            </div>
+            <div class="summary-card">
+              <h3>Total Spent</h3>
+              <p>₹${walletData.totalSpent.toFixed(2)}</p>
+            </div>
+            <div class="summary-card">
+              <h3>Total Refunded</h3>
+              <p>₹${walletData.totalRefunded.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Payment Method</th>
+                <th>Status</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredTransactions.map(tx => `
+                <tr>
+                  <td>${new Date(tx.transactionDate).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</td>
+                  <td>
+                    ${tx.description}
+                    ${tx.isRefund ? '<span class="refund-badge">🔄 Refund</span>' : ''}
+                  </td>
+                  <td style="text-transform: capitalize;">${tx.type}</td>
+                  <td style="text-transform: capitalize;">${tx.paymentMethod}</td>
+                  <td>${tx.status || 'completed'}</td>
+                  <td class="${tx.type === 'credit' ? 'credit' : 'debit'}" style="text-align: right;">
+                    ${tx.type === 'credit' ? '+' : '-'}₹${tx.amount.toFixed(2)}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <p><strong>Total Transactions:</strong> ${filteredTransactions.length}</p>
+            <p>Generated on ${new Date().toLocaleString('en-US')}</p>
+            <p style="margin-top: 10px;">AgriHub - Your Agricultural Finance Hub</p>
+          </div>
+
+          <div class="no-print" style="text-align: center; margin-top: 30px;">
+            <button onclick="window.print()" style="
+              background: #16a34a;
+              color: white;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-size: 16px;
+              font-weight: bold;
+              cursor: pointer;
+              margin-right: 10px;
+            ">🖨️ Print / Save as PDF</button>
+            <button onclick="window.close()" style="
+              background: #6b7280;
+              color: white;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-size: 16px;
+              font-weight: bold;
+              cursor: pointer;
+            ">✖️ Close</button>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   useEffect(() => {
     filterTransactionsByDate();
   }, [startDate, endDate, transactions]);
