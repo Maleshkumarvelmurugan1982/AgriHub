@@ -150,7 +150,7 @@ function FarmerPage() {
       console.log("🔍 Starting quantity restoration...");
       console.log("📦 Order data:", order);
 
-      // Extract productId directly from order (OrderPage now saves it)
+      // Extract productId from order
       const productId = order.productId;
       const restoreQty = Number(order.quantity) || 0;
 
@@ -160,8 +160,7 @@ function FarmerPage() {
       // Validation
       if (!productId || productId === 'undefined' || productId === 'null') {
         console.error("❌ Product ID not found in order");
-        console.error("Order keys:", Object.keys(order));
-        alert("❌ ERROR: Product ID not found in order.\nCannot restore quantity.\n\nPlease update inventory manually.");
+        alert("❌ ERROR: Product ID not found in order.\nCannot restore quantity.\n\nThis may be an old order created before the system update.\nPlease update inventory manually.");
         return { success: false, error: "Product ID not found" };
       }
 
@@ -287,6 +286,10 @@ function FarmerPage() {
         message += `   Product: ${restoreResult.productName || order.item}\n`;
         message += `   Restored: +${restoreResult.restoredQty} kg\n`;
         message += `   New Total: ${restoreResult.newTotal} kg`;
+      } else if (restoreResult && !restoreResult.success) {
+        message += `⚠️ Inventory Warning:\n`;
+        message += `   Automatic restoration failed\n`;
+        message += `   Please manually add ${order.quantity} kg to "${order.item}"`;
       }
       
       alert(message);
