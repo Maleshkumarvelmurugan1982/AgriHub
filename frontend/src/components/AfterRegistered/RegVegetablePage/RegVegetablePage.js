@@ -12,6 +12,7 @@ function RegVegetablePage() {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [sortOrder, setSortOrder] = useState("newest"); // 'newest' or 'oldest'
   const [farmerId, setFarmerId] = useState("");
   const [sellerId, setSellerId] = useState("");
   const [userType, setUserType] = useState(""); // 'farmer' or 'seller'
@@ -111,10 +112,19 @@ function RegVegetablePage() {
       console.log("Products fetched:", data);
       
       // Process products and normalize image URLs
-      const processedProducts = data.map(product => ({
+      let processedProducts = data.map(product => ({
         ...product,
         productImage: getImageUrl(product.productImage)
       }));
+      
+      // Sort products by date/time if seller is viewing
+      if (userType === "seller") {
+        processedProducts.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.uploadDate || 0);
+          const dateB = new Date(b.createdAt || b.uploadDate || 0);
+          return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+        });
+      }
       
       // If seller, fetch farmer details for each product
       if (userType === "seller") {
@@ -247,12 +257,12 @@ function RegVegetablePage() {
     fetchUserData();
   }, []);
 
-  // Load products when user type / farmer id available
+  // Load products when user type / farmer id available or sort order changes
   useEffect(() => {
     if (!userType) return;
     refreshProducts();
     // eslint-disable-next-line
-  }, [userType, farmerId]);
+  }, [userType, farmerId, sortOrder]);
 
   // Search filter
   useEffect(() => {
@@ -419,6 +429,26 @@ function RegVegetablePage() {
           <FontAwesomeIcon icon={faSearch} />
         </button>
 
+        {userType === "seller" && (
+          <select 
+            value={sortOrder} 
+            onChange={(e) => setSortOrder(e.target.value)}
+            style={{
+              padding: '10px 15px',
+              fontSize: '14px',
+              borderRadius: '8px',
+              border: '2px solid #e5e7eb',
+              backgroundColor: '#fff',
+              cursor: 'pointer',
+              marginLeft: '10px',
+              fontWeight: '500'
+            }}
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        )}
+
         {userType === "farmer" && (
           <button className="add-products-button" onClick={() => setIsModalOpen(true)}>
             <FontAwesomeIcon icon={faSquarePlus} /> Add New Product
@@ -453,6 +483,19 @@ function RegVegetablePage() {
                   <p>Qty: {product.quantity} kg</p>
                   <p>Price: Rs.{product.price}</p>
                   
+                  {/* Upload Date/Time Display */}
+                  {(product.createdAt || product.uploadDate) && (
+                    <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
+                      Uploaded: {new Date(product.createdAt || product.uploadDate).toLocaleDateString('en-IN', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+                  
                   {/* Farmer Details Display */}
                   <div style={{
                     marginTop: '12px',
@@ -468,7 +511,7 @@ function RegVegetablePage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0369a1' }}>
                       <FontAwesomeIcon icon={faMapMarkerAlt} style={{ fontSize: '12px' }} />
-                      <span>Place: {product.farmerPlace}</span>
+                      <span>District: {product.farmerPlace}</span>
                     </div>
                   </div>
                 </a>
@@ -486,6 +529,19 @@ function RegVegetablePage() {
                   <p><strong>{product.productName}</strong></p>
                   <p>Qty: {product.quantity} kg</p>
                   <p>Price: Rs.{product.price}</p>
+                  
+                  {/* Upload Date/Time Display for Farmer */}
+                  {(product.createdAt || product.uploadDate) && (
+                    <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
+                      Uploaded: {new Date(product.createdAt || product.uploadDate).toLocaleDateString('en-IN', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )}
                 </div>
               )}
 
