@@ -204,61 +204,128 @@ function FarmerPage() {
 
   const restoreProductQuantity = async (order, result) => {
     try {
-      // Extract product ID from various possible locations
-      const productId =
-        result.order?.productId ||
-        result.order?.product?._id ||
-        order.productId ||
-        (order.product && order.product._id) ||
-        null;
+      console.log("🔍 Starting quantity restoration...");
+      console.log("📦 Order data:", order);
+      console.log("📦 Result data:", result);
+
+      // Extract product ID - try multiple sources
+      let productId = null;
       
+      // Try from result.order first
+      if (result?.order?.productId) {
+        productId = typeof result.order.productId === 'string' 
+          ? result.order.productId 
+          : result.order.productId._id;
+      }
+      
+      // Try from order object
+      if (!productId && order?.productId) {
+        productId = typeof order.productId === 'string' 
+          ? order.productId 
+          : order.productId._id;
+      }
+      
+      // Try from order.product
+      if (!productId && order?.product) {
+        productId = typeof order.product === 'string' 
+          ? order.product 
+          : order.product._id;
+      }
+      
+      console.log("🆔 Extracted Product ID:", productId);
+
       // Get quantity to restore
-      const restoreQty = Number(
-        order.quantity ?? 
-        result.order?.quantity ?? 
-        result.order?.qty ?? 
-        0
-      );
+      const restoreQty = Number(order.quantity) || Number(result?.order?.quantity) || 0;
 
-      if (!productId) {
-        console.error("❌ Product ID not found in order:", order);
-        throw new Error("Product ID not found");
+      console.log("📊 Quantity to restore:", restoreQty, "kg");
+
+      // Validation
+      if (!productId || productId === 'undefined' || productId === 'null') {
+        console.error("❌ Product ID not found or invalid");
+        console.error("Order object keys:", Object.keys(order));
+        alert("❌ ERROR: Product ID not found in order.\nCannot restore quantity.\n\nPlease update inventory manually.");
+        return { success: false, error: "Product ID not found" };
       }
 
-      if (restoreQty <= 0) {
-        console.error("❌ Invalid quantity to restore:", restoreQty);
-        throw new Error("Invalid quantity to restore");
+      if (restoreQty <= 0 || isNaN(restoreQty)) {
+        console.error("❌ Invalid quantity:", restoreQty);
+        alert(`❌ ERROR: Invalid quantity to restore: ${restoreQty}\n\nPlease update inventory manually.`);
+        return { success: false, error: "Invalid quantity" };
       }
 
-      console.log(`🔄 Restoring quantity: ${restoreQty} kg for product: ${productId}`);
+      console.log(`🔄 Will restore ${restoreQty} kg to product ${productId}`);
 
-      // Get current product data
+      // Step 1: Fetch current product
+      console.log("🌐 GET request to:", `${BASE_URL}/product/${productId}`);
       const getProd = await fetch(`${BASE_URL}/product/${productId}`);
+      
+      console.log("📡 GET Status:", getProd.status, getProd.statusText);
+      
       if (!getProd.ok) {
-        throw new Error("Failed to fetch product details");
+        const errorText = await getProd.text();
+        console.error("❌ Failed to fetch product:", errorText);
+        alert(`❌ ERROR: Cannot fetch product from database.\nStatus: ${getProd.status}\nProduct ID: ${productId}\n\nPlease update inventory manually.`);
+        return { success: false, error: `Fetch failed: ${getProd.status}` };
       }
 
-      const prodJson = await getProd.json();
-      const productObj = prodJson?.product || prodJson?.data || prodJson;
-      const currentQty = Number(productObj?.quantity ?? 0) || 0;
+      const productData = await getProd.json();
+      console.log("📦 Received product data:", productData);
+      
+      // Backend returns product directly (based on your routes)
+      const currentQty = Number(productData.quantity) || 0;
+      const productName = productData.productName || "Unknown Product";
       const restoredQty = currentQty + restoreQty;
 
-      console.log(`📊 Current quantity: ${currentQty} kg`);
-      console.log(`➕ Adding back: ${restoreQty} kg`);
-      console.log(`✅ New quantity: ${restoredQty} kg`);
+      console.log(`📊 Product: ${productName}`);
+      console.log(`📊 Current DB quantity: ${currentQty} kg`);
+      console.log(`➕ Restoring: ${restoreQty} kg`);
+      console.log(`✅ New total: ${restoredQty} kg`);
 
-      // Update product with restored quantity
+      // Step 2: Update product quantity
+      console.log("🌐 PATCH request to:", `${BASE_URL}/product/${productId}`);
+      console.log("📤 Sending data:", { quantity: restoredQty });
+      
       const updateRes = await fetch(`${BASE_URL}/product/${productId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({ quantity: restoredQty })
       });
 
+      console.log("📡 PATCH Status:", updateRes.status, updateRes.statusText);
+
       if (!updateRes.ok) {
-        throw new Error("Failed to update product quantity");
+        const errorText = await updateRes.text();
+        console.error("❌ Update failed:", errorText);
+        alert(`❌ ERROR: Failed to update product quantity in database.\nStatus: ${updateRes.status}\nProduct: ${productName}\nTried to set: ${restoredQty} kg\n\nPlease update inventory manually to: ${restoredQty} kg`);
+        return { success: false, error: `Update failed: ${updateRes.status}` };
       }
 
-      // Dispatch custom events to notify other components
+      const updateResult = await updateRes.json();
+      console.log("✅ Update response:", updateResult);
+
+      // Step 3: Verify the update
+      console.log("🔍 Verifying update...");
+      await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for DB sync
+      
+      const verifyRes = await fetch(`${BASE_URL}/product/${productId}`);
+      if (verifyRes.ok) {
+        const verifiedData = await verifyRes.json();
+        const verifiedQty = Number(verifiedData.quantity) || 0;
+        console.log("🔍 Verified quantity in DB:", verifiedQty, "kg");
+        
+        if (Math.abs(verifiedQty - restoredQty) < 0.01) {
+          console.log("✅✅✅ VERIFICATION PASSED!");
+          alert(`✅ SUCCESS: Product quantity restored!\n\n${productName}\nPrevious: ${currentQty} kg\nRestored: +${restoreQty} kg\nNew Total: ${verifiedQty} kg`);
+        } else {
+          console.warn(`⚠️ Verification mismatch! Expected: ${restoredQty}, Got: ${verifiedQty}`);
+          alert(`⚠️ WARNING: Update completed but verification shows:\nExpected: ${restoredQty} kg\nActual in DB: ${verifiedQty} kg\n\nPlease verify manually in the product list.`);
+        }
+      }
+
+      // Step 4: Dispatch events to refresh UI
       window.dispatchEvent(new CustomEvent("orderDisapproved", {
         detail: { 
           productId: productId, 
@@ -275,12 +342,15 @@ function FarmerPage() {
         }
       }));
 
-      console.log(`✅ Quantity successfully restored: ${currentQty} + ${restoreQty} = ${restoredQty} kg`);
+      console.log(`✅ Restoration complete: ${currentQty} + ${restoreQty} = ${restoredQty} kg`);
       
       return { success: true, restoredQty, newTotal: restoredQty };
+      
     } catch (restoreErr) {
-      console.error("❌ Error restoring product quantity:", restoreErr);
-      alert("⚠️ Order was disapproved but there was an issue restoring the product quantity. Please check the product inventory manually.");
+      console.error("❌❌❌ EXCEPTION in restoreProductQuantity:");
+      console.error("Error:", restoreErr);
+      console.error("Stack:", restoreErr.stack);
+      alert(`❌ CRITICAL ERROR: ${restoreErr.message}\n\nOrder was disapproved but quantity restoration failed.\n\nPlease manually restore ${order.quantity} kg to the product inventory.\n\nCheck browser console (F12) for technical details.`);
       return { success: false, error: restoreErr.message };
     }
   };
