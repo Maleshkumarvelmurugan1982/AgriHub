@@ -15,7 +15,9 @@ import {
   faTimes,
   faUser,
   faWallet,
-  faBoxOpen
+  faBoxOpen,
+  faDownload,
+  faFileDownload
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
@@ -26,6 +28,7 @@ function RegSellerPage() {
   const [toasts, setToasts] = useState([]);
   const [showAllSellerOrders, setShowAllSellerOrders] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const notifiedOrdersRef = useRef(new Set());
 
   const BACKEND_URL = "https://agrihub-2.onrender.com";
@@ -86,12 +89,10 @@ function RegSellerPage() {
     },
   };
 
-  // Inject CSS to hide Government / Login / Register links while this page is mounted.
   useEffect(() => {
     const styleId = 'hide-auth-links-regseller';
     if (document.getElementById(styleId)) return;
     const css = `
-      /* target common navbar link patterns: specific hrefs and common classes */
       .navbar a[href="/GovernmentPage"],
       .navbar a[href="/login"],
       .navbar a[href="/register"],
@@ -190,6 +191,442 @@ function RegSellerPage() {
 
   const purchasedItems = getPurchasedItems();
 
+  // Statistics calculation functions
+  const calculateStatistics = (orders, period) => {
+    const now = new Date();
+    let startDate;
+
+    if (period === 'monthly') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (period === 'yearly') {
+      startDate = new Date(now.getFullYear(), 0, 1);
+    }
+
+    const filteredOrders = orders.filter(order => {
+      const orderDate = new Date(order.updatedAt || order.createdAt);
+      return orderDate >= startDate && orderDate <= now;
+    });
+
+    const totalSpent = filteredOrders.reduce((sum, order) => sum + (Number(order.price) || 0), 0);
+    const totalOrders = filteredOrders.length;
+    const totalQuantity = filteredOrders.reduce((sum, order) => sum + (Number(order.quantity) || 0), 0);
+
+    // Product breakdown
+    const productStats = {};
+    filteredOrders.forEach(order => {
+      const productName = order.item || 'Unknown';
+      if (!productStats[productName]) {
+        productStats[productName] = {
+          quantity: 0,
+          spent: 0,
+          orders: 0
+        };
+      }
+      productStats[productName].quantity += Number(order.quantity) || 0;
+      productStats[productName].spent += Number(order.price) || 0;
+      productStats[productName].orders += 1;
+    });
+
+    // Farmer breakdown
+    const farmerStats = {};
+    filteredOrders.forEach(order => {
+      const hasFarmerInfo = order.farmerId && typeof order.farmerId === 'object';
+      const farmerName = hasFarmerInfo 
+        ? `${order.farmerId.fname || ''} ${order.farmerId.lname || ''}`.trim() || 'Unknown Farmer'
+        : 'Unknown Farmer';
+      
+      if (!farmerStats[farmerName]) {
+        farmerStats[farmerName] = {
+          orders: 0,
+          spent: 0,
+          quantity: 0
+        };
+      }
+      farmerStats[farmerName].orders += 1;
+      farmerStats[farmerName].spent += Number(order.price) || 0;
+      farmerStats[farmerName].quantity += Number(order.quantity) || 0;
+    });
+
+    // Payment method breakdown
+    const paymentStats = {
+      wallet: { count: 0, amount: 0 },
+      card: { count: 0, amount: 0 },
+      other: { count: 0, amount: 0 }
+    };
+
+    filteredOrders.forEach(order => {
+      const method = order.paymentMethod || 'other';
+      const category = method === 'wallet' ? 'wallet' : (method === 'card' ? 'card' : 'other');
+      paymentStats[category].count += 1;
+      paymentStats[category].amount += Number(order.price) || 0;
+    });
+
+    return {
+      period,
+      startDate,
+      endDate: now,
+      totalSpent,
+      totalOrders,
+      totalQuantity,
+      productStats,
+      farmerStats,
+      paymentStats,
+      orders: filteredOrders
+    };
+  };
+
+  // Get Farmer Info Helper
+  const getFarmerInfo = (order) => {
+    const hasFarmerInfo = order.farmerId && typeof order.farmerId === 'object';
+    const farmerName = hasFarmerInfo 
+      ? `${order.farmerId.fname || ''} ${order.farmerId.lname || ''}`.trim() || 'Unknown Farmer'
+      : 'Unknown Farmer';
+    return { name: farmerName, info: order.farmerId };
+  };
+
+  // Download as CSV
+  const downloadCSV = (period) => {
+    const stats = calculateStatistics(purchasedItems, period);
+    
+    let csv = `Purchase Report - ${period.charAt(0).toUpperCase() + period.slice(1)}\n`;
+    csv += `Generated on: ${new Date().toLocaleString()}\n`;
+    csv += `Period: ${stats.startDate.toLocaleDateString()} to ${stats.endDate.toLocaleDateString()}\n\n`;
+    
+    csv += `Summary\n`;
+    csv += `Total Orders,${stats.totalOrders}\n`;
+    csv += `Total Spent (Rs.),${stats.totalSpent.toFixed(2)}\n`;
+    csv += `Total Quantity Purchased (kg),${stats.totalQuantity.toFixed(2)}\n`;
+    csv += `Average Order Value (Rs.),${stats.totalOrders > 0 ? (stats.totalSpent / stats.totalOrders).toFixed(2) : 0}\n\n`;
+    
+    csv += `Product Breakdown\n`;
+    csv += `Product Name,Quantity Purchased (kg),Total Spent (Rs.),Number of Orders,Average Price per kg (Rs.)\n`;
+    Object.entries(stats.productStats).forEach(([product, data]) => {
+      csv += `${product},${data.quantity.toFixed(2)},${data.spent.toFixed(2)},${data.orders},${(data.spent / data.quantity).toFixed(2)}\n`;
+    });
+    
+    csv += `\nFarmer Breakdown\n`;
+    csv += `Farmer Name,Total Orders,Total Spent (Rs.),Total Quantity (kg)\n`;
+    Object.entries(stats.farmerStats).forEach(([farmer, data]) => {
+      csv += `${farmer},${data.orders},${data.spent.toFixed(2)},${data.quantity.toFixed(2)}\n`;
+    });
+    
+    csv += `\nPayment Method Breakdown\n`;
+    csv += `Method,Number of Transactions,Total Amount (Rs.)\n`;
+    csv += `Wallet,${stats.paymentStats.wallet.count},${stats.paymentStats.wallet.amount.toFixed(2)}\n`;
+    csv += `Card,${stats.paymentStats.card.count},${stats.paymentStats.card.amount.toFixed(2)}\n`;
+    csv += `Other,${stats.paymentStats.other.count},${stats.paymentStats.other.amount.toFixed(2)}\n`;
+    
+    csv += `\nDetailed Orders\n`;
+    csv += `Order Number,Date,Product,Quantity (kg),Price (Rs.),Payment Status,Payment Method,Farmer,Deliveryman\n`;
+    stats.orders.forEach(order => {
+      const orderDate = new Date(order.updatedAt || order.createdAt).toLocaleDateString();
+      const farmerInfo = getFarmerInfo(order);
+      const hasDeliverymanInfo = order.deliverymanId && typeof order.deliverymanId === 'object';
+      const deliverymanName = hasDeliverymanInfo
+        ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim()
+        : 'N/A';
+      
+      csv += `${order.orderNumber || order._id},${orderDate},${order.item},${order.quantity},${order.price},${order.paymentStatus || 'N/A'},${order.paymentMethod || 'N/A'},${farmerInfo.name},${deliverymanName}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `purchase_report_${period}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Download as PDF using HTML to print
+  const downloadPDF = (period) => {
+    const stats = calculateStatistics(purchasedItems, period);
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Purchase Report - ${period.charAt(0).toUpperCase() + period.slice(1)}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 20px;
+          }
+          h1 {
+            color: #007bff;
+            margin: 0;
+            font-size: 28px;
+          }
+          .meta {
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+          }
+          .section {
+            margin: 30px 0;
+            page-break-inside: avoid;
+          }
+          h2 {
+            color: #333;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 10px;
+            font-size: 20px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            page-break-inside: avoid;
+          }
+          th {
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+          }
+          td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+          }
+          tr:nth-child(even) {
+            background-color: #f8f9fa;
+          }
+          tr:hover {
+            background-color: #e9ecef;
+          }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+          }
+          .summary-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+          }
+          .summary-card h3 {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 14px;
+          }
+          .summary-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+          }
+          .product-table th {
+            background-color: #28a745;
+          }
+          .farmer-table th {
+            background-color: #ffc107;
+            color: #333;
+          }
+          .payment-table th {
+            background-color: #17a2b8;
+          }
+          .order-table th {
+            background-color: #dc3545;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+            color: #666;
+            font-size: 12px;
+          }
+          @media print {
+            body {
+              padding: 20px;
+            }
+            .section {
+              page-break-inside: avoid;
+            }
+            table {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Purchase Report - ${period.charAt(0).toUpperCase() + period.slice(1)}</h1>
+          <div class="meta">
+            <p>Generated on: ${new Date().toLocaleString()}</p>
+            <p>Period: ${stats.startDate.toLocaleDateString()} to ${stats.endDate.toLocaleDateString()}</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Summary</h2>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <h3>Total Orders</h3>
+              <div class="value">${stats.totalOrders}</div>
+            </div>
+            <div class="summary-card">
+              <h3>Total Spent</h3>
+              <div class="value">Rs. ${stats.totalSpent.toFixed(2)}</div>
+            </div>
+            <div class="summary-card">
+              <h3>Total Quantity Purchased</h3>
+              <div class="value">${stats.totalQuantity.toFixed(2)} kg</div>
+            </div>
+            <div class="summary-card">
+              <h3>Average Order Value</h3>
+              <div class="value">Rs. ${stats.totalOrders > 0 ? (stats.totalSpent / stats.totalOrders).toFixed(2) : 0}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Product Breakdown</h2>
+          <table class="product-table">
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>Quantity Purchased</th>
+                <th>Total Spent</th>
+                <th>Orders</th>
+                <th>Avg Price/kg</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(stats.productStats).map(([product, data]) => `
+                <tr>
+                  <td>${product}</td>
+                  <td>${data.quantity.toFixed(2)} kg</td>
+                  <td>Rs. ${data.spent.toFixed(2)}</td>
+                  <td>${data.orders}</td>
+                  <td>Rs. ${(data.spent / data.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Farmer Breakdown (Purchase History by Farmer)</h2>
+          <table class="farmer-table">
+            <thead>
+              <tr>
+                <th>Farmer Name</th>
+                <th>Total Orders</th>
+                <th>Total Spent</th>
+                <th>Total Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(stats.farmerStats).map(([farmer, data]) => `
+                <tr>
+                  <td>${farmer}</td>
+                  <td>${data.orders}</td>
+                  <td>Rs. ${data.spent.toFixed(2)}</td>
+                  <td>${data.quantity.toFixed(2)} kg</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Payment Method Breakdown</h2>
+          <table class="payment-table">
+            <thead>
+              <tr>
+                <th>Payment Method</th>
+                <th>Number of Transactions</th>
+                <th>Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Wallet</td>
+                <td>${stats.paymentStats.wallet.count}</td>
+                <td>Rs. ${stats.paymentStats.wallet.amount.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td>Card</td>
+                <td>${stats.paymentStats.card.count}</td>
+                <td>Rs. ${stats.paymentStats.card.amount.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td>Other</td>
+                <td>${stats.paymentStats.other.count}</td>
+                <td>Rs. ${stats.paymentStats.other.amount.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Recent Orders (Latest 20)</h2>
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Payment</th>
+                <th>Farmer</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stats.orders.slice(0, 20).map(order => {
+                const farmerInfo = getFarmerInfo(order);
+                return `
+                  <tr>
+                    <td>${order.orderNumber || order._id.substring(0, 8)}</td>
+                    <td>${new Date(order.updatedAt || order.createdAt).toLocaleDateString()}</td>
+                    <td>${order.item}</td>
+                    <td>${order.quantity} kg</td>
+                    <td>Rs. ${order.price}</td>
+                    <td>${order.paymentStatus || 'N/A'}</td>
+                    <td>${farmerInfo.name}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="footer">
+          <p>This is an automatically generated purchase report</p>
+          <p>© AgriHub - Farm Management System</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    printWindow.onload = function() {
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.onafterprint = function() {
+          printWindow.close();
+        };
+      }, 250);
+    };
+  };
+
   useEffect(() => {
     const fetchSellerData = async () => {
       try {
@@ -280,7 +717,6 @@ function RegSellerPage() {
         });
 
         for (const order of orders) {
-          // Notification for "in-transit" status (when deliveryman accepts)
           if (order.acceptedByDeliveryman && order.deliveryStatus === "in-transit" && 
               !notifiedOrdersRef.current.has(`in-transit-${order._id}`)) {
             try {
@@ -295,7 +731,6 @@ function RegSellerPage() {
             notifiedOrdersRef.current.add(`in-transit-${order._id}`);
           }
 
-          // Existing notification for delivery acceptance (backward compatibility)
           if (order.acceptedByDeliveryman && order.deliverymanId && 
               !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
             try {
@@ -310,7 +745,6 @@ function RegSellerPage() {
             notifiedOrdersRef.current.add(`delivery-${order._id}`);
           }
 
-          // Delivered notification
           if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
               !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
             showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
@@ -481,18 +915,135 @@ function RegSellerPage() {
             <h2 style={{ margin: 0, color: '#333' }}>
               <FontAwesomeIcon icon={faHistory} /> Purchase History
             </h2>
-            <button 
-              onClick={() => setShowHistory(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '24px',
-                cursor: 'pointer',
-                color: '#666'
-              }}
-            >
-              <FontAwesomeIcon icon={faTimes} />
-            </button>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div style={{ position: 'relative' }}>
+                <button 
+                  onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                  style={{
+                    padding: '8px 20px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                >
+                  <FontAwesomeIcon icon={faDownload} />
+                  Download Report
+                </button>
+                {showDownloadMenu && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '5px',
+                    backgroundColor: 'white',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 1000,
+                    minWidth: '200px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ padding: '10px', borderBottom: '1px solid #eee', backgroundColor: '#f8f9fa' }}>
+                      <strong style={{ fontSize: '14px', color: '#333' }}>Select Report Type</strong>
+                    </div>
+                    <button 
+                      onClick={() => { downloadPDF('monthly'); setShowDownloadMenu(false); }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 15px',
+                        border: 'none',
+                        backgroundColor: 'white',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        borderBottom: '1px solid #f0f0f0',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                    >
+                      <FontAwesomeIcon icon={faFileDownload} style={{ marginRight: '10px', color: '#dc3545' }} />
+                      Monthly Report (PDF)
+                    </button>
+                    <button 
+                      onClick={() => { downloadCSV('monthly'); setShowDownloadMenu(false); }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 15px',
+                        border: 'none',
+                        backgroundColor: 'white',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        borderBottom: '1px solid #f0f0f0',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                    >
+                      <FontAwesomeIcon icon={faFileDownload} style={{ marginRight: '10px', color: '#28a745' }} />
+                      Monthly Report (CSV)
+                    </button>
+                    <button 
+                      onClick={() => { downloadPDF('yearly'); setShowDownloadMenu(false); }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 15px',
+                        border: 'none',
+                        backgroundColor: 'white',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        borderBottom: '1px solid #f0f0f0',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                    >
+                      <FontAwesomeIcon icon={faFileDownload} style={{ marginRight: '10px', color: '#dc3545' }} />
+                      Yearly Report (PDF)
+                    </button>
+                    <button 
+                      onClick={() => { downloadCSV('yearly'); setShowDownloadMenu(false); }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 15px',
+                        border: 'none',
+                        backgroundColor: 'white',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                    >
+                      <FontAwesomeIcon icon={faFileDownload} style={{ marginRight: '10px', color: '#28a745' }} />
+                      Yearly Report (CSV)
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button 
+                onClick={() => setShowHistory(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
           </div>
 
           {purchasedItems.length === 0 ? (
