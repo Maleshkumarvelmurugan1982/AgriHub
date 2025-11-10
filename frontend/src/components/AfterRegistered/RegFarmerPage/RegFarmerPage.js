@@ -21,8 +21,6 @@ import {
   faFileDownload
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 function FarmerPage() {
   const [farmerId, setFarmerId] = useState("");
@@ -555,129 +553,268 @@ function FarmerPage() {
     document.body.removeChild(link);
   };
 
-  // Download as PDF
+  // Download as PDF using HTML to print
   const downloadPDF = (period) => {
     const stats = calculateStatistics(soldProducts, period);
-    const doc = new jsPDF();
     
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(40, 116, 240);
-    doc.text(`Sales Report - ${period.charAt(0).toUpperCase() + period.slice(1)}`, 14, 22);
+    // Create HTML content for PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Sales Report - ${period.charAt(0).toUpperCase() + period.slice(1)}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 20px;
+          }
+          h1 {
+            color: #007bff;
+            margin: 0;
+            font-size: 28px;
+          }
+          .meta {
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+          }
+          .section {
+            margin: 30px 0;
+            page-break-inside: avoid;
+          }
+          h2 {
+            color: #333;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 10px;
+            font-size: 20px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            page-break-inside: avoid;
+          }
+          th {
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+          }
+          td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+          }
+          tr:nth-child(even) {
+            background-color: #f8f9fa;
+          }
+          tr:hover {
+            background-color: #e9ecef;
+          }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+          }
+          .summary-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+          }
+          .summary-card h3 {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 14px;
+          }
+          .summary-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+          }
+          .product-table th {
+            background-color: #28a745;
+          }
+          .payment-table th {
+            background-color: #ffc107;
+            color: #333;
+          }
+          .order-table th {
+            background-color: #dc3545;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+            color: #666;
+            font-size: 12px;
+          }
+          @media print {
+            body {
+              padding: 20px;
+            }
+            .section {
+              page-break-inside: avoid;
+            }
+            table {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Sales Report - ${period.charAt(0).toUpperCase() + period.slice(1)}</h1>
+          <div class="meta">
+            <p>Generated on: ${new Date().toLocaleString()}</p>
+            <p>Period: ${stats.startDate.toLocaleDateString()} to ${stats.endDate.toLocaleDateString()}</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Summary</h2>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <h3>Total Orders</h3>
+              <div class="value">${stats.totalOrders}</div>
+            </div>
+            <div class="summary-card">
+              <h3>Total Revenue</h3>
+              <div class="value">Rs. ${stats.totalRevenue.toFixed(2)}</div>
+            </div>
+            <div class="summary-card">
+              <h3>Total Quantity Sold</h3>
+              <div class="value">${stats.totalQuantity.toFixed(2)} kg</div>
+            </div>
+            <div class="summary-card">
+              <h3>Average Order Value</h3>
+              <div class="value">Rs. ${stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : 0}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Product Breakdown</h2>
+          <table class="product-table">
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>Quantity Sold</th>
+                <th>Revenue</th>
+                <th>Orders</th>
+                <th>Avg Price/kg</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(stats.productStats).map(([product, data]) => `
+                <tr>
+                  <td>${product}</td>
+                  <td>${data.quantity.toFixed(2)} kg</td>
+                  <td>Rs. ${data.revenue.toFixed(2)}</td>
+                  <td>${data.orders}</td>
+                  <td>Rs. ${(data.revenue / data.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Payment Method Breakdown</h2>
+          <table class="payment-table">
+            <thead>
+              <tr>
+                <th>Payment Method</th>
+                <th>Number of Transactions</th>
+                <th>Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Wallet</td>
+                <td>${stats.paymentStats.wallet.count}</td>
+                <td>Rs. ${stats.paymentStats.wallet.amount.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td>Card</td>
+                <td>${stats.paymentStats.card.count}</td>
+                <td>Rs. ${stats.paymentStats.card.amount.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td>Other</td>
+                <td>${stats.paymentStats.other.count}</td>
+                <td>Rs. ${stats.paymentStats.other.amount.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Recent Orders (Latest 20)</h2>
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Payment</th>
+                <th>Seller</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stats.orders.slice(0, 20).map(order => {
+                const sellerInfo = getSellerInfo(order);
+                return `
+                  <tr>
+                    <td>${order.orderNumber || order._id.substring(0, 8)}</td>
+                    <td>${new Date(order.updatedAt || order.createdAt).toLocaleDateString()}</td>
+                    <td>${order.item}</td>
+                    <td>${order.quantity} kg</td>
+                    <td>Rs. ${order.price}</td>
+                    <td>${order.paymentStatus || 'N/A'}</td>
+                    <td>${sellerInfo.name}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="footer">
+          <p>This is an automatically generated sales report</p>
+          <p>© AgriHub - Farm Management System</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create a new window and print
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
     
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
-    doc.text(`Period: ${stats.startDate.toLocaleDateString()} to ${stats.endDate.toLocaleDateString()}`, 14, 36);
-    
-    // Summary Section
-    doc.setFontSize(14);
-    doc.setTextColor(0);
-    doc.text('Summary', 14, 48);
-    
-    const summaryData = [
-      ['Total Orders', stats.totalOrders.toString()],
-      ['Total Revenue', `Rs. ${stats.totalRevenue.toFixed(2)}`],
-      ['Total Quantity Sold', `${stats.totalQuantity.toFixed(2)} kg`],
-      ['Average Order Value', `Rs. ${stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : 0}`]
-    ];
-    
-    doc.autoTable({
-      startY: 52,
-      head: [['Metric', 'Value']],
-      body: summaryData,
-      theme: 'grid',
-      headStyles: { fillColor: [40, 116, 240] }
-    });
-    
-    // Product Breakdown
-    let finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(14);
-    doc.text('Product Breakdown', 14, finalY);
-    
-    const productData = Object.entries(stats.productStats).map(([product, data]) => [
-      product,
-      `${data.quantity.toFixed(2)} kg`,
-      `Rs. ${data.revenue.toFixed(2)}`,
-      data.orders.toString(),
-      `Rs. ${(data.revenue / data.quantity).toFixed(2)}`
-    ]);
-    
-    doc.autoTable({
-      startY: finalY + 4,
-      head: [['Product', 'Quantity', 'Revenue', 'Orders', 'Avg Price/kg']],
-      body: productData,
-      theme: 'striped',
-      headStyles: { fillColor: [40, 167, 69] }
-    });
-    
-    // Payment Method Breakdown
-    finalY = doc.lastAutoTable.finalY + 10;
-    
-    if (finalY > 250) {
-      doc.addPage();
-      finalY = 20;
-    }
-    
-    doc.setFontSize(14);
-    doc.text('Payment Method Breakdown', 14, finalY);
-    
-    const paymentData = [
-      ['Wallet', stats.paymentStats.wallet.count.toString(), `Rs. ${stats.paymentStats.wallet.amount.toFixed(2)}`],
-      ['Card', stats.paymentStats.card.count.toString(), `Rs. ${stats.paymentStats.card.amount.toFixed(2)}`],
-      ['Other', stats.paymentStats.other.count.toString(), `Rs. ${stats.paymentStats.other.amount.toFixed(2)}`]
-    ];
-    
-    doc.autoTable({
-      startY: finalY + 4,
-      head: [['Method', 'Transactions', 'Total Amount']],
-      body: paymentData,
-      theme: 'grid',
-      headStyles: { fillColor: [255, 193, 7] }
-    });
-    
-    // Detailed Orders (if space permits or on new page)
-    finalY = doc.lastAutoTable.finalY + 10;
-    
-    if (finalY > 240 || stats.orders.length > 5) {
-      doc.addPage();
-      finalY = 20;
-    }
-    
-    doc.setFontSize(14);
-    doc.text('Recent Orders', 14, finalY);
-    
-    const orderData = stats.orders.slice(0, 10).map(order => {
-      const sellerInfo = getSellerInfo(order);
-      return [
-        order.orderNumber || order._id.substring(0, 8),
-        new Date(order.updatedAt || order.createdAt).toLocaleDateString(),
-        order.item,
-        `${order.quantity} kg`,
-        `Rs. ${order.price}`,
-        order.paymentStatus || 'N/A'
-      ];
-    });
-    
-    doc.autoTable({
-      startY: finalY + 4,
-      head: [['Order #', 'Date', 'Product', 'Quantity', 'Price', 'Payment']],
-      body: orderData,
-      theme: 'striped',
-      headStyles: { fillColor: [220, 53, 69] },
-      styles: { fontSize: 8 }
-    });
-    
-    // Footer
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-    }
-    
-    doc.save(`sales_report_${period}_${new Date().toISOString().split('T')[0]}.pdf`);
+    // Wait for content to load then trigger print dialog
+    printWindow.onload = function() {
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        // Close the window after printing (user can cancel)
+        printWindow.onafterprint = function() {
+          printWindow.close();
+        };
+      }, 250);
+    };
   };
 
   const getPlaceFromSeller = (sellerObj = {}) => {
