@@ -730,12 +730,6 @@ function RegDeliverymanPage() {
         />
       </div>
 
-      <div className="categories-container">
-        <div className="categories-div">
-          <RegCategories />
-        </div>
-      </div>
-
       {showSalary && (
         <div className="salary-modal">
           <div className="salary-content">
