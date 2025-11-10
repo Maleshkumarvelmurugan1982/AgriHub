@@ -1,9 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import "./RegSellerPage.css";
-import NavbarRegistered from "../../NavbarRegistered/NavbarRegistered";
-import FooterNew from "../../Footer/FooterNew";
-import RegCategories from "../RegCatoegories/RegCategories";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
   faChevronRight, 
   faCheckCircle, 
@@ -15,17 +10,38 @@ import {
   faTimes,
   faUser,
   faWallet,
-  faBoxOpen
+  faBoxOpen,
+  faFilePdf,
+  faFileCsv,
+  faDownload
 } from "@fortawesome/free-solid-svg-icons";
-import TypeWriter from "../../AutoWritingText/TypeWriter";
+
+// Mock FontAwesomeIcon component for demonstration
+const FontAwesomeIcon = ({ icon, style, className }) => (
+  <span style={style} className={className}>
+    {icon === faCheckCircle && '✓'}
+    {icon === faTimesCircle && '✗'}
+    {icon === faTruck && '🚚'}
+    {icon === faHistory && '📜'}
+    {icon === faTimes && '✕'}
+    {icon === faUser && '👤'}
+    {icon === faWallet && '💰'}
+    {icon === faFilePdf && '📄'}
+    {icon === faFileCsv && '📊'}
+    {icon === faDownload && '⬇'}
+    {icon === faInfoCircle && 'ℹ'}
+    {icon === faChevronRight && '›'}
+  </span>
+);
 
 function RegSellerPage() {
-  const [sellerId, setSellerId] = useState("");
+  const [sellerId, setSellerId] = useState("mock-seller-123");
   const [sellerOrders, setSellerOrders] = useState([]);
   const [imageErrors, setImageErrors] = useState({});
   const [toasts, setToasts] = useState([]);
   const [showAllSellerOrders, setShowAllSellerOrders] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const notifiedOrdersRef = useRef(new Set());
 
   const BACKEND_URL = "https://agrihub-2.onrender.com";
@@ -86,34 +102,69 @@ function RegSellerPage() {
     },
   };
 
-  // Inject CSS to hide Government / Login / Register links while this page is mounted.
+  // Mock data for demonstration
   useEffect(() => {
-    const styleId = 'hide-auth-links-regseller';
-    if (document.getElementById(styleId)) return;
-    const css = `
-      /* target common navbar link patterns: specific hrefs and common classes */
-      .navbar a[href="/GovernmentPage"],
-      .navbar a[href="/login"],
-      .navbar a[href="/register"],
-      .navbar .login,
-      .navbar .register,
-      .navbar .gov-link,
-      a.gov-link,
-      a.nav-gov,
-      a[href="/GovernmentPage"] .badge,
-      .navbar .badge.gov {
-        display: none !important;
+    const mockOrders = [
+      {
+        _id: "1",
+        item: "Fresh Tomatoes",
+        quantity: "50 kg",
+        price: 2500,
+        status: "approved",
+        deliveryStatus: "delivered",
+        productImage: "https://via.placeholder.com/300x200?text=Tomatoes",
+        createdAt: "2025-10-15T10:30:00Z",
+        updatedAt: "2025-10-20T14:45:00Z",
+        farmerId: {
+          fname: "Rajesh",
+          lname: "Kumar",
+          mobile: "9876543210"
+        },
+        deliverymanId: {
+          fname: "Amit",
+          lname: "Sharma",
+          mobile: "9123456789"
+        }
+      },
+      {
+        _id: "2",
+        item: "Organic Potatoes",
+        quantity: "100 kg",
+        price: 3000,
+        status: "approved",
+        deliveryStatus: "delivered",
+        productImage: "https://via.placeholder.com/300x200?text=Potatoes",
+        createdAt: "2025-10-10T08:15:00Z",
+        updatedAt: "2025-10-18T16:20:00Z",
+        farmerId: {
+          fname: "Priya",
+          lname: "Patel",
+          mobile: "9988776655"
+        },
+        deliverymanId: {
+          fname: "Suresh",
+          lname: "Singh",
+          mobile: "9111222333"
+        }
+      },
+      {
+        _id: "3",
+        item: "Fresh Carrots",
+        quantity: "30 kg",
+        price: 1500,
+        status: "approved",
+        deliveryStatus: "in-transit",
+        productImage: "https://via.placeholder.com/300x200?text=Carrots",
+        createdAt: "2025-11-01T09:00:00Z",
+        acceptedByDeliveryman: true,
+        deliverymanId: {
+          fname: "Ramesh",
+          lname: "Verma",
+          mobile: "9444555666"
+        }
       }
-    `;
-    const styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    styleEl.textContent = css;
-    document.head.appendChild(styleEl);
-
-    return () => {
-      const el = document.getElementById(styleId);
-      if (el) el.parentNode.removeChild(el);
-    };
+    ];
+    setSellerOrders(mockOrders);
   }, []);
 
   const getImageUrl = (imagePath) => {
@@ -131,37 +182,6 @@ function RegSellerPage() {
   };
 
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
-
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "approved": return "green";
-      case "disapproved": return "red";
-      default: return "orange";
-    }
-  };
-
-  const getDeliveryStatusBadge = (deliveryStatus) => {
-    if (deliveryStatus === "delivered" || deliveryStatus === "approved") {
-      return (
-        <div className="delivery-status-badge delivered">
-          <FontAwesomeIcon icon={faCheckCircle} /> Delivered
-        </div>
-      );
-    } else if (deliveryStatus === "not-delivered") {
-      return (
-        <div className="delivery-status-badge not-delivered">
-          <FontAwesomeIcon icon={faTimesCircle} /> Not Delivered
-        </div>
-      );
-    } else if (deliveryStatus === "in-transit") {
-      return (
-        <div className="delivery-status-badge in-transit">
-          <FontAwesomeIcon icon={faTruck} /> In Transit
-        </div>
-      );
-    }
-    return null;
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "Date not available";
@@ -190,152 +210,279 @@ function RegSellerPage() {
 
   const purchasedItems = getPurchasedItems();
 
-  useEffect(() => {
-    const fetchSellerData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          console.error("No token found");
-          showToast("Please log in to view your orders", "error");
-          return;
-        }
+  // Export to CSV
+  const exportToCSV = () => {
+    if (purchasedItems.length === 0) {
+      showToast("No purchase history to export", "error");
+      return;
+    }
 
-        const res = await fetch(`${BACKEND_URL}/seller/userdata`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
+    const headers = [
+      "Item Name",
+      "Quantity",
+      "Price (Rs.)",
+      "Order Date",
+      "Delivery Date",
+      "Farmer Name",
+      "Farmer Contact",
+      "Deliveryman Name",
+      "Deliveryman Contact",
+      "Status"
+    ];
 
-        const data = await res.json();
-        if (data.status === "ok") {
-          setSellerId(data.data._id);
-          console.log("Seller ID:", data.data._id);
-        } else {
-          console.error("Failed to fetch seller data:", data);
-          showToast("Failed to load user data", "error");
-        }
-      } catch (err) {
-        console.error("Error fetching seller data:", err);
-        showToast("Error loading user data", "error");
-      }
-    };
+    const csvRows = [headers.join(",")];
 
-    fetchSellerData();
-  }, []);
+    purchasedItems.forEach(order => {
+      const hasFarmerInfo = order.farmerId && typeof order.farmerId === 'object';
+      const farmerName = hasFarmerInfo 
+        ? `${order.farmerId.fname || ''} ${order.farmerId.lname || ''}`.trim() 
+        : 'Unknown';
+      const farmerContact = hasFarmerInfo && order.farmerId.mobile ? order.farmerId.mobile : 'N/A';
 
-  useEffect(() => {
-    if (!sellerId) return;
+      const hasDeliverymanInfo = order.deliverymanId && typeof order.deliverymanId === 'object';
+      const deliverymanName = hasDeliverymanInfo 
+        ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
+        : 'Unknown';
+      const deliverymanContact = hasDeliverymanInfo && order.deliverymanId.mobile ? order.deliverymanId.mobile : 'N/A';
 
-    const styleSheet = document.createElement("style");
-    styleSheet.textContent = `
-      @keyframes slideIn { 
-        from { transform: translateX(400px); opacity:0; } 
-        to { transform: translateX(0); opacity:1; } 
-      }
-      .delivery-status-badge.in-transit {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 8px 12px;
-        border-radius: 5px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: bold;
-        margin-top: 10px;
-        border: 2px solid #ffc107;
-      }
-    `;
-    document.head.appendChild(styleSheet);
+      const row = [
+        `"${order.item}"`,
+        `"${order.quantity}"`,
+        order.price,
+        `"${formatDate(order.createdAt)}"`,
+        `"${formatDate(order.updatedAt)}"`,
+        `"${farmerName}"`,
+        farmerContact,
+        `"${deliverymanName}"`,
+        deliverymanContact,
+        "DELIVERED"
+      ];
+      csvRows.push(row.join(","));
+    });
 
-    const fetchData = async () => {
-      try {
-        const sellerRes = await fetch(`${BACKEND_URL}/sellerorder/seller/${sellerId}`);
-        
-        if (!sellerRes.ok) {
-          throw new Error(`HTTP error! status: ${sellerRes.status}`);
-        }
-        
-        const sellerData = await sellerRes.json();
-        console.log("Seller Orders Response:", sellerData);
-        
-        let orders = [];
-        if (Array.isArray(sellerData)) {
-          orders = sellerData;
-        } else if (sellerData.data && Array.isArray(sellerData.data)) {
-          orders = sellerData.data;
-        } else if (sellerData.message) {
-          console.error("Backend error:", sellerData.message);
-          orders = [];
-        }
-
-        orders.forEach(order => {
-          if (order.status && !notifiedOrdersRef.current.has(order._id) && 
-              (order.status === "approved" || order.status === "disapproved")) {
-            showToast(
-              `Your order for ${order.item} has been ${order.status}!`, 
-              order.status === "approved" ? "success" : "error"
-            );
-            notifiedOrdersRef.current.add(order._id);
-          }
-        });
-
-        for (const order of orders) {
-          // Notification for "in-transit" status (when deliveryman accepts)
-          if (order.acceptedByDeliveryman && order.deliveryStatus === "in-transit" && 
-              !notifiedOrdersRef.current.has(`in-transit-${order._id}`)) {
-            try {
-              const name = typeof order.deliverymanId === 'object' 
-                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
-                : "Deliveryman";
-              
-              showToast(`Your order for ${order.item} is now in transit! Accepted by ${name}`, "success");
-            } catch (err) {
-              showToast(`Your order for ${order.item} is now in transit!`, "success");
-            }
-            notifiedOrdersRef.current.add(`in-transit-${order._id}`);
-          }
-
-          // Existing notification for delivery acceptance (backward compatibility)
-          if (order.acceptedByDeliveryman && order.deliverymanId && 
-              !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
-            try {
-              const name = typeof order.deliverymanId === 'object' 
-                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
-                : "Deliveryman";
-              
-              showToast(`Your order for ${order.item} has been accepted by ${name}!`, "success");
-            } catch (err) {
-              showToast(`Your order for ${order.item} has been accepted by a deliveryman!`, "success");
-            }
-            notifiedOrdersRef.current.add(`delivery-${order._id}`);
-          }
-
-          // Delivered notification
-          if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
-              !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
-            showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
-            notifiedOrdersRef.current.add(`delivered-${order._id}`);
-          }
-        }
-
-        setSellerOrders(orders);
-
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        showToast("Error fetching data", "error");
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
     
-    return () => { 
-      clearInterval(interval); 
-      if (document.head.contains(styleSheet)) {
-        document.head.removeChild(styleSheet); 
-      }
-    };
-  }, [sellerId]);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `purchase_history_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast("Purchase history exported as CSV", "success");
+    setShowExportMenu(false);
+  };
+
+  // Export to PDF using browser print
+  const exportToPDF = () => {
+    if (purchasedItems.length === 0) {
+      showToast("No purchase history to export", "error");
+      return;
+    }
+
+    // Create a new window with print-friendly content
+    const printWindow = window.open('', '_blank');
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Purchase History</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 20px; }
+              .no-print { display: none; }
+            }
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #4caf50;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              margin: 0;
+              color: #4caf50;
+              font-size: 28px;
+            }
+            .header p {
+              margin: 5px 0;
+              color: #666;
+            }
+            .order-item {
+              margin-bottom: 30px;
+              padding: 20px;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              page-break-inside: avoid;
+            }
+            .order-header {
+              background-color: #f5f5f5;
+              padding: 10px;
+              border-radius: 5px;
+              margin-bottom: 15px;
+            }
+            .order-header h3 {
+              margin: 0;
+              color: #333;
+            }
+            .order-details {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 10px;
+              margin-bottom: 15px;
+            }
+            .detail-item {
+              padding: 5px 0;
+            }
+            .detail-item strong {
+              color: #555;
+            }
+            .info-box {
+              background-color: #fff3cd;
+              padding: 15px;
+              border-radius: 5px;
+              margin-top: 10px;
+              border-left: 4px solid #ffc107;
+            }
+            .delivery-box {
+              background-color: #e9f7ef;
+              padding: 15px;
+              border-radius: 5px;
+              margin-top: 10px;
+              border-left: 4px solid #28a745;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 5px 15px;
+              background-color: #28a745;
+              color: white;
+              border-radius: 20px;
+              font-weight: bold;
+              font-size: 14px;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              font-size: 12px;
+              color: #666;
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+            }
+            @media print {
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Purchase History Report</h1>
+            <p>Generated on: ${new Date().toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}</p>
+            <p>Total Orders: ${purchasedItems.length}</p>
+          </div>
+
+          ${purchasedItems.map((order, index) => {
+            const hasFarmerInfo = order.farmerId && typeof order.farmerId === 'object';
+            const farmerName = hasFarmerInfo 
+              ? `${order.farmerId.fname || ''} ${order.farmerId.lname || ''}`.trim() 
+              : 'Unknown Farmer';
+            
+            const hasDeliverymanInfo = order.deliverymanId && typeof order.deliverymanId === 'object';
+            const deliverymanName = hasDeliverymanInfo 
+              ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
+              : 'Unknown Deliveryman';
+
+            return `
+              <div class="order-item">
+                <div class="order-header">
+                  <h3>Order #${index + 1}: ${order.item}</h3>
+                </div>
+                
+                <div class="order-details">
+                  <div class="detail-item">
+                    <strong>Quantity:</strong> ${order.quantity}
+                  </div>
+                  <div class="detail-item">
+                    <strong>Price:</strong> Rs. ${order.price}
+                  </div>
+                  <div class="detail-item">
+                    <strong>Order Date:</strong> ${formatDate(order.createdAt)}
+                  </div>
+                  <div class="detail-item">
+                    <strong>Delivery Date:</strong> ${formatDate(order.updatedAt)}
+                  </div>
+                </div>
+
+                <div class="detail-item">
+                  <span class="status-badge">✓ DELIVERED</span>
+                </div>
+
+                <div class="info-box">
+                  <p style="margin: 5px 0;"><strong>👤 Purchased from:</strong> ${farmerName}</p>
+                  ${hasFarmerInfo && order.farmerId.mobile ? 
+                    `<p style="margin: 5px 0;"><strong>Farmer Contact:</strong> ${order.farmerId.mobile}</p>` 
+                    : ''}
+                </div>
+
+                ${hasDeliverymanInfo ? `
+                  <div class="delivery-box">
+                    <p style="margin: 5px 0;"><strong>🚚 Delivered by:</strong> ${deliverymanName}</p>
+                    ${order.deliverymanId.mobile ? 
+                      `<p style="margin: 5px 0;"><strong>Deliveryman Contact:</strong> ${order.deliverymanId.mobile}</p>` 
+                      : ''}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+
+          <div class="footer">
+            <p>This is an automatically generated report</p>
+            <p>AgriHub - Connecting Farmers and Sellers</p>
+          </div>
+
+          <div class="no-print" style="text-align: center; margin: 30px 0;">
+            <button onclick="window.print()" style="
+              padding: 12px 30px;
+              font-size: 16px;
+              background-color: #4caf50;
+              color: white;
+              border: none;
+              border-radius: 5px;
+              cursor: pointer;
+              margin-right: 10px;
+            ">Print PDF</button>
+            <button onclick="window.close()" style="
+              padding: 12px 30px;
+              font-size: 16px;
+              background-color: #666;
+              color: white;
+              border: none;
+              border-radius: 5px;
+              cursor: pointer;
+            ">Close</button>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    showToast("PDF preview opened. Click Print to save as PDF", "success");
+    setShowExportMenu(false);
+  };
 
   const handleImageError = (id, type) => {
     setImageErrors(prev => ({ ...prev, [`${type}-${id}`]: true }));
@@ -344,10 +491,8 @@ function RegSellerPage() {
   const sellerOrdersToDisplay = showAllSellerOrders ? sellerOrders : sellerOrders.slice(0, 4);
 
   return (
-    <div>
-      <NavbarRegistered />
-      <div className="nothing"></div>
-
+    <div style={{ fontFamily: 'Arial, sans-serif' }}>
+      {/* Toast Notifications */}
       <div style={styles.toastContainer}>
         {toasts.map(toast => (
           <div 
@@ -378,11 +523,12 @@ function RegSellerPage() {
         ))}
       </div>
 
-      <div className="crop-container">
+      {/* Banner */}
+      <div style={{ marginBottom: '30px' }}>
         <img 
           src="https://www.atoallinks.com/wp-content/uploads/2020/07/Agriculture-Product-Buying-and-Selling-App-Development.jpg"
           alt="seller-banner" 
-          className="crop-image"
+          style={{ width: '100%', height: '300px', objectFit: 'cover' }}
           onError={e => { 
             e.target.onerror = null; 
             e.target.src = "https://via.placeholder.com/1200x400?text=Seller+Banner"; 
@@ -390,15 +536,12 @@ function RegSellerPage() {
         />
       </div>
 
-      <div className="type-writer-container">
-        <TypeWriter 
-          text="Welcome Sellers!" 
-          loop={false} 
-          className="writer" 
-          textStyle={{ fontFamily: "Gill Sans", fontSize: "60px" }} 
-        />
+      {/* Welcome Message */}
+      <div style={{ textAlign: 'center', fontSize: '48px', fontFamily: 'Gill Sans', margin: '30px 0', color: '#333' }}>
+        Welcome Sellers!
       </div>
 
+      {/* Wallet Button */}
       <div style={{ textAlign: 'center', margin: '30px 0' }}>
         <a 
           href="/seller/wallet" 
@@ -432,15 +575,9 @@ function RegSellerPage() {
         </a>
       </div>
 
-      <div className="categories-container">
-        <div className="categories-div">
-          <RegCategories/>
-        </div>
-      </div>
-      
-      <div className="history-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
+      {/* History Button */}
+      <div style={{ textAlign: 'center', margin: '40px 0' }}>
         <button 
-          className="history-button"
           onClick={() => setShowHistory(!showHistory)}
           style={{
             padding: '12px 30px',
@@ -463,8 +600,9 @@ function RegSellerPage() {
         </button>
       </div>
 
+      {/* History Section */}
       {showHistory && (
-        <div className="history-section" style={{
+        <div style={{
           margin: '20px auto',
           maxWidth: '1200px',
           padding: '20px',
@@ -476,23 +614,114 @@ function RegSellerPage() {
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            marginBottom: '20px'
+            marginBottom: '20px',
+            flexWrap: 'wrap',
+            gap: '15px'
           }}>
             <h2 style={{ margin: 0, color: '#333' }}>
               <FontAwesomeIcon icon={faHistory} /> Purchase History
             </h2>
-            <button 
-              onClick={() => setShowHistory(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '24px',
-                cursor: 'pointer',
-                color: '#666'
-              }}
-            >
-              <FontAwesomeIcon icon={faTimes} />
-            </button>
+            
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              {/* Export Dropdown */}
+              <div style={{ position: 'relative' }}>
+                <button 
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  style={{
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
+                >
+                  <FontAwesomeIcon icon={faDownload} />
+                  Export History
+                </button>
+                
+                {showExportMenu && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '5px',
+                    backgroundColor: 'white',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                    zIndex: 1000,
+                    minWidth: '180px'
+                  }}>
+                    <button
+                      onClick={exportToPDF}
+                      style={{
+                        width: '100%',
+                        padding: '12px 15px',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        fontSize: '14px',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      <FontAwesomeIcon icon={faFilePdf} style={{ color: '#dc3545' }} />
+                      Export as PDF
+                    </button>
+                    
+                    <div style={{ height: '1px', backgroundColor: '#eee', margin: '0 10px' }} />
+                    
+                    <button
+                      onClick={exportToCSV}
+                      style={{
+                        width: '100%',
+                        padding: '12px 15px',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        fontSize: '14px',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      <FontAwesomeIcon icon={faFileCsv} style={{ color: '#28a745' }} />
+                      Export as CSV
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={() => setShowHistory(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
           </div>
 
           {purchasedItems.length === 0 ? (
@@ -500,7 +729,7 @@ function RegSellerPage() {
               No purchase history yet. Your delivered orders will appear here.
             </p>
           ) : (
-            <div className="history-list">
+            <div>
               {purchasedItems.map((order) => {
                 const hasDeliverymanInfo = order.deliverymanId && typeof order.deliverymanId === 'object';
                 const deliverymanName = hasDeliverymanInfo 
@@ -514,8 +743,7 @@ function RegSellerPage() {
 
                 return (
                   <div 
-                    key={order._id} 
-                    className="history-item"
+                    key={order._id}
                     style={{
                       backgroundColor: 'white',
                       borderRadius: '8px',
@@ -595,14 +823,18 @@ function RegSellerPage() {
           )}
         </div>
       )}
-      
-      <div className="nothing2"></div>
-      <div className="topic"><p>Your Orders</p></div>
 
-      <div className="orders-wrapper">
-        <div className="orders-container">
+      {/* Current Orders Section */}
+      <div style={{ margin: '40px auto', maxWidth: '1200px', padding: '20px' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>Your Orders</h2>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: '20px'
+        }}>
           {sellerOrdersToDisplay.length === 0 ? (
-            <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+            <p style={{ textAlign: 'center', padding: '20px', color: '#666', gridColumn: '1 / -1' }}>
               You don't have any orders yet.
             </p>
           ) : (
@@ -622,24 +854,43 @@ function RegSellerPage() {
               const isAcceptedByDeliveryman = order.acceptedByDeliveryman;
 
               return (
-                <div key={order._id || index} className="order-item">
+                <div 
+                  key={order._id || index}
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    transition: 'transform 0.2s',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                >
                   <img 
                     src={displayImage} 
                     alt={order.item || "Product"} 
-                    className="order-image"
+                    style={{
+                      width: '100%',
+                      height: '200px',
+                      objectFit: 'cover',
+                      borderRadius: '5px',
+                      marginBottom: '10px'
+                    }}
                     onError={(e) => {
                       handleImageError(order._id || index, "order");
                       e.target.onerror = null;
                       e.target.src = fallbackProductImage;
                     }}
                   />
-                  <p><strong>{order.item || "Unknown Item"}</strong></p>
-                  {order.quantity && <p>Quantity: {order.quantity}</p>}
-                  {order.price && <p>Price: Rs.{order.price}</p>}
-                  {order.postedDate && <p>Posted: {order.postedDate}</p>}
-                  {order.expireDate && <p>Expires: {order.expireDate}</p>}
-                  <p>
-                    Status: <b style={{ color: getStatusColor(order.status) }}>
+                  <p style={{ fontWeight: 'bold', fontSize: '16px', margin: '5px 0' }}>
+                    {order.item || "Unknown Item"}
+                  </p>
+                  {order.quantity && <p style={{ margin: '5px 0' }}>Quantity: {order.quantity}</p>}
+                  {order.price && <p style={{ margin: '5px 0' }}>Price: Rs.{order.price}</p>}
+                  <p style={{ margin: '5px 0' }}>
+                    Status: <b style={{ 
+                      color: order.status === 'approved' ? 'green' : order.status === 'disapproved' ? 'red' : 'orange' 
+                    }}>
                       {order.status?.toUpperCase() || "PENDING"}
                     </b>
                   </p>
@@ -647,68 +898,57 @@ function RegSellerPage() {
                   {order.status === "approved" && (
                     <>
                       {isDelivered && (
-                        <div className="delivery-info" style={{
+                        <div style={{
                           backgroundColor: '#d4edda',
                           padding: '15px',
                           borderRadius: '8px',
                           marginTop: '10px',
                           border: '2px solid #28a745'
                         }}>
-                          <p className="deliveryman-info" style={{ color: '#155724', fontWeight: 'bold', marginBottom: '10px' }}>
+                          <p style={{ color: '#155724', fontWeight: 'bold', marginBottom: '10px', fontSize: '14px' }}>
                             <FontAwesomeIcon icon={faCheckCircle} style={{ marginRight: '8px' }} />
                             ORDER DELIVERED
                           </p>
                           
                           {hasDeliverymanInfo && (
                             <>
-                              <p className="deliveryman-detail" style={{ marginBottom: '5px' }}>
+                              <p style={{ marginBottom: '5px', fontSize: '13px' }}>
                                 <FontAwesomeIcon icon={faTruck} /> Delivered by: <strong>{deliverymanName}</strong>
                               </p>
                               
                               {order.deliverymanId.mobile && (
-                                <p className="deliveryman-detail" style={{ marginBottom: '5px' }}>
+                                <p style={{ marginBottom: '5px', fontSize: '13px' }}>
                                   Contact: {order.deliverymanId.mobile}
                                 </p>
                               )}
                             </>
                           )}
-                          
-                          {getDeliveryStatusBadge(order.deliveryStatus)}
                         </div>
                       )}
                       
                       {!isDelivered && isInTransit && isAcceptedByDeliveryman && (
-                        <div className="delivery-info" style={{
+                        <div style={{
                           backgroundColor: '#fff3cd',
                           padding: '15px',
                           borderRadius: '8px',
                           marginTop: '10px',
                           border: '2px solid #ffc107'
                         }}>
-                          <p className="deliveryman-info" style={{ color: '#856404', fontWeight: 'bold', marginBottom: '10px' }}>
+                          <p style={{ color: '#856404', fontWeight: 'bold', marginBottom: '10px', fontSize: '14px' }}>
                             <FontAwesomeIcon icon={faTruck} style={{ marginRight: '8px' }} />
-                            IN TRANSIT - ACCEPTED BY DELIVERYMAN
+                            IN TRANSIT
                           </p>
                           
-                          <p className="deliveryman-info">
+                          <p style={{ fontSize: '13px', marginBottom: '5px' }}>
                             <FontAwesomeIcon icon={faTruck} /> 
                             Deliveryman: <strong>{deliverymanName}</strong>
                           </p>
                           
-                          {hasDeliverymanInfo && (
-                            <>
-                              {order.deliverymanId.mobile && (
-                                <p className="deliveryman-detail">Mobile: {order.deliverymanId.mobile}</p>
-                              )}
-                              {order.deliverymanId.email && (
-                                <p className="deliveryman-detail">Email: {order.deliverymanId.email}</p>
-                              )}
-                            </>
+                          {hasDeliverymanInfo && order.deliverymanId.mobile && (
+                            <p style={{ fontSize: '13px' }}>Mobile: {order.deliverymanId.mobile}</p>
                           )}
                           
-                          {getDeliveryStatusBadge(order.deliveryStatus)}
-                          
-                          <p style={{ color: "#856404", fontSize: "14px", marginTop: "10px", fontStyle: 'italic' }}>
+                          <p style={{ color: "#856404", fontSize: "13px", marginTop: "10px", fontStyle: 'italic' }}>
                             ✓ Your order is on the way!
                           </p>
                         </div>
@@ -722,8 +962,8 @@ function RegSellerPage() {
                           marginTop: '10px',
                           border: '1px solid #007bff'
                         }}>
-                          <p style={{ color: '#004085', fontSize: '14px', margin: 0 }}>
-                            <FontAwesomeIcon icon={faInfoCircle} /> Waiting for deliveryman to accept...
+                          <p style={{ color: '#004085', fontSize: '13px', margin: 0 }}>
+                            <FontAwesomeIcon icon={faInfoCircle} /> Waiting for deliveryman...
                           </p>
                         </div>
                       )}
@@ -731,8 +971,16 @@ function RegSellerPage() {
                   )}
                   
                   {order.status === "disapproved" && (
-                    <div className="order-status-message-disapproved">
-                      <p>✗ Order Disapproved by Farmer</p>
+                    <div style={{
+                      backgroundColor: '#f8d7da',
+                      padding: '10px',
+                      borderRadius: '5px',
+                      marginTop: '10px',
+                      border: '1px solid #dc3545'
+                    }}>
+                      <p style={{ color: '#721c24', fontSize: '13px', margin: 0 }}>
+                        ✗ Order Disapproved by Farmer
+                      </p>
                     </div>
                   )}
                 </div>
@@ -742,17 +990,31 @@ function RegSellerPage() {
         </div>
         
         {sellerOrders.length > 4 && (
-          <button
-            className="view-all-button1"
-            onClick={() => setShowAllSellerOrders(!showAllSellerOrders)}
-          >
-            {showAllSellerOrders ? "Show Less" : `View All (${sellerOrders.length})`}
-            <FontAwesomeIcon icon={faChevronRight} className="arrow-icon" />
-          </button>
+          <div style={{ textAlign: 'center', marginTop: '30px' }}>
+            <button
+              onClick={() => setShowAllSellerOrders(!showAllSellerOrders)}
+              style={{
+                padding: '12px 30px',
+                fontSize: '16px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '10px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
+            >
+              {showAllSellerOrders ? "Show Less" : `View All (${sellerOrders.length})`}
+              <FontAwesomeIcon icon={faChevronRight} />
+            </button>
+          </div>
         )}
       </div>
-
-      <FooterNew />
     </div>
   );
 }
