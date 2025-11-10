@@ -7,37 +7,33 @@ import { useNavigate } from "react-router-dom";
 
 function GovernmentPage() {
   const navigate = useNavigate();
-  // Initialize loggedIn from localStorage in case the admin is already logged in
   const [loggedIn, setLoggedIn] = useState(localStorage.getItem("govLoggedIn") === "true");
-  // Login states
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
-  // Schemes states
   const [schemes, setSchemes] = useState([]);
   const [newScheme, setNewScheme] = useState("");
   const [editIndex, setEditIndex] = useState(null);
   const [editScheme, setEditScheme] = useState("");
 
-  // Delivery men states
   const [deliveryMen, setDeliveryMen] = useState([]);
   const [showDeliveryMen, setShowDeliveryMen] = useState(false);
   const [salaryInputs, setSalaryInputs] = useState({});
 
-  // Applicants states
   const [applicants, setApplicants] = useState([]);
   const [showApplicantsFor, setShowApplicantsFor] = useState(null);
 
-  // Delivery history states
   const [selectedDeliverymanId, setSelectedDeliverymanId] = useState(null);
   const [deliveryHistory, setDeliveryHistory] = useState([]);
   const [monthlyStats, setMonthlyStats] = useState({});
   const [showHistory, setShowHistory] = useState(false);
 
+  // New state for export menu
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
   const BASE_URL = "https://agrihub-2.onrender.com";
 
-  // Helper function to get the correct image URL
   const getImageUrl = (imagePath) => {
     if (!imagePath) {
       return 'https://via.placeholder.com/150?text=No+Image';
@@ -48,13 +44,467 @@ function GovernmentPage() {
     return `${BASE_URL}${imagePath}`;
   };
 
-  // BLOCK browser back/forward navigation while this component is mounted.
-  // We push a history state and re-push when popstate occurs. This effectively
-  // prevents the user from leaving the page with the browser Back/Forward
-  // buttons while GovernmentPage is mounted.
+  // NEW: Export to CSV function
+  const exportToCSV = async () => {
+    try {
+      // Fetch all data if not already loaded
+      if (!showDeliveryMen) {
+        await fetchDeliveryMen();
+      }
+
+      // Fetch all applicants for all schemes
+      const allApplicantsData = {};
+      for (const scheme of schemes) {
+        try {
+          const res = await axios.get(`${BASE_URL}/schemes/${scheme._id}/applicants`);
+          allApplicantsData[scheme.name] = res.data;
+        } catch (err) {
+          allApplicantsData[scheme.name] = [];
+        }
+      }
+
+      // Fetch delivery history for all deliverymen
+      const allDeliveryHistory = {};
+      for (const dm of deliveryMen) {
+        try {
+          const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${dm._id}`);
+          const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
+
+          let farmerOrders = [];
+          try {
+            const farmerOrdersRes = await axios.get(`${BASE_URL}/farmerorder/deliveryman/${dm._id}`);
+            farmerOrders = Array.isArray(farmerOrdersRes.data) ? farmerOrdersRes.data : [];
+          } catch (err) {
+            farmerOrders = [];
+          }
+
+          const allOrders = [...sellerOrders, ...farmerOrders].filter(
+            order => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
+          );
+
+          allDeliveryHistory[`${dm.fname} ${dm.lname}`] = allOrders;
+        } catch (err) {
+          allDeliveryHistory[`${dm.fname} ${dm.lname}`] = [];
+        }
+      }
+
+      // Build CSV content
+      let csvContent = "Government AgriHub Complete Report\n\n";
+      
+      // Section 1: Schemes
+      csvContent += "=== GOVERNMENT SCHEMES ===\n";
+      csvContent += "Scheme Name\n";
+      schemes.forEach(scheme => {
+        csvContent += `"${scheme.name}"\n`;
+      });
+      csvContent += `\nTotal Schemes: ${schemes.length}\n\n`;
+
+      // Section 2: Applicants by Scheme
+      csvContent += "=== SCHEME APPLICANTS ===\n";
+      for (const [schemeName, applicantsList] of Object.entries(allApplicantsData)) {
+        csvContent += `\nScheme: "${schemeName}"\n`;
+        csvContent += "Username,Role\n";
+        applicantsList.forEach(app => {
+          csvContent += `"${app.username}","${app.role}"\n`;
+        });
+        csvContent += `Total Applicants: ${applicantsList.length}\n`;
+      }
+      csvContent += "\n";
+
+      // Section 3: Delivery Men and Salaries
+      csvContent += "=== DELIVERY MEN ===\n";
+      csvContent += "Name,Email,District,Current Salary (Rs.)\n";
+      deliveryMen.forEach(dm => {
+        const salary = dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set";
+        csvContent += `"${dm.fname} ${dm.lname}","${dm.email}","${dm.district}",${salary}\n`;
+      });
+      csvContent += `\nTotal Delivery Men: ${deliveryMen.length}\n\n`;
+
+      // Section 4: Delivery History by Deliveryman
+      csvContent += "=== DELIVERY HISTORY ===\n";
+      for (const [dmName, orders] of Object.entries(allDeliveryHistory)) {
+        csvContent += `\nDeliveryman: "${dmName}"\n`;
+        csvContent += "Item,Quantity,Price (Rs.),Delivery Date,From (Farmer),To (Seller),District,Status\n";
+        orders.forEach(order => {
+          const hasFarmerInfo = order.farmerId && typeof order.farmerId === 'object';
+          const farmerName = hasFarmerInfo 
+            ? `${order.farmerId.fname || ''} ${order.farmerId.lname || ''}`.trim() 
+            : 'Unknown';
+          
+          const hasSellerInfo = order.sellerId && typeof order.sellerId === 'object';
+          const sellerName = hasSellerInfo 
+            ? `${order.sellerId.fname || ''} ${order.sellerId.lname || ''}`.trim() 
+            : 'Unknown';
+
+          csvContent += `"${order.item}","${order.quantity} kg",${order.price},"${formatDate(order.updatedAt || order.createdAt)}","${farmerName}","${sellerName}","${order.district || 'N/A'}","DELIVERED"\n`;
+        });
+        csvContent += `Total Deliveries: ${orders.length}\n`;
+      }
+
+      // Create and download CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute("href", url);
+      link.setAttribute("download", `government_report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      alert("✅ Government report exported as CSV");
+      setShowExportMenu(false);
+    } catch (err) {
+      console.error("Error exporting CSV:", err);
+      alert("Failed to export CSV. Please try again.");
+    }
+  };
+
+  // NEW: Export to PDF function
+  const exportToPDF = async () => {
+    try {
+      // Fetch all data if not already loaded
+      if (!showDeliveryMen) {
+        await fetchDeliveryMen();
+      }
+
+      // Fetch all applicants for all schemes
+      const allApplicantsData = {};
+      for (const scheme of schemes) {
+        try {
+          const res = await axios.get(`${BASE_URL}/schemes/${scheme._id}/applicants`);
+          allApplicantsData[scheme.name] = res.data;
+        } catch (err) {
+          allApplicantsData[scheme.name] = [];
+        }
+      }
+
+      // Fetch delivery history for all deliverymen
+      const allDeliveryHistory = {};
+      for (const dm of deliveryMen) {
+        try {
+          const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${dm._id}`);
+          const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
+
+          let farmerOrders = [];
+          try {
+            const farmerOrdersRes = await axios.get(`${BASE_URL}/farmerorder/deliveryman/${dm._id}`);
+            farmerOrders = Array.isArray(farmerOrdersRes.data) ? farmerOrdersRes.data : [];
+          } catch (err) {
+            farmerOrders = [];
+          }
+
+          const allOrders = [...sellerOrders, ...farmerOrders].filter(
+            order => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
+          );
+
+          allDeliveryHistory[dm._id] = { name: `${dm.fname} ${dm.lname}`, orders: allOrders };
+        } catch (err) {
+          allDeliveryHistory[dm._id] = { name: `${dm.fname} ${dm.lname}`, orders: [] };
+        }
+      }
+
+      // Create PDF preview window
+      const printWindow = window.open('', '_blank');
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Government AgriHub Report</title>
+            <style>
+              @media print {
+                body { margin: 0; padding: 20px; }
+                .no-print { display: none; }
+                .page-break { page-break-before: always; }
+              }
+              body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 30px;
+                border-bottom: 3px solid #4CAF50;
+                padding-bottom: 20px;
+              }
+              .header h1 {
+                margin: 0;
+                color: #4CAF50;
+                font-size: 32px;
+              }
+              .header p {
+                margin: 5px 0;
+                color: #666;
+                font-size: 14px;
+              }
+              .section {
+                margin: 30px 0;
+                padding: 20px;
+                background-color: #f9f9f9;
+                border-radius: 8px;
+                page-break-inside: avoid;
+              }
+              .section h2 {
+                margin-top: 0;
+                color: #4CAF50;
+                border-bottom: 2px solid #4CAF50;
+                padding-bottom: 10px;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 15px 0;
+                background-color: white;
+              }
+              th, td {
+                border: 1px solid #ddd;
+                padding: 12px;
+                text-align: left;
+              }
+              th {
+                background-color: #4CAF50;
+                color: white;
+                font-weight: bold;
+              }
+              tr:nth-child(even) {
+                background-color: #f2f2f2;
+              }
+              .summary-box {
+                background-color: #e8f5e9;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 10px 0;
+                border-left: 4px solid #4CAF50;
+              }
+              .delivery-item {
+                margin: 15px 0;
+                padding: 15px;
+                background-color: white;
+                border-radius: 5px;
+                border: 1px solid #ddd;
+              }
+              .footer {
+                margin-top: 40px;
+                text-align: center;
+                font-size: 12px;
+                color: #666;
+                border-top: 1px solid #ddd;
+                padding-top: 20px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>🏛️ Government AgriHub Complete Report</h1>
+              <p>Generated on: ${new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}</p>
+            </div>
+
+            <!-- Section 1: Government Schemes -->
+            <div class="section">
+              <h2>📋 Government Schemes</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Scheme Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${schemes.map((scheme, index) => `
+                    <tr>
+                      <td>${index + 1}</td>
+                      <td>${scheme.name}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              <div class="summary-box">
+                <strong>Total Schemes:</strong> ${schemes.length}
+              </div>
+            </div>
+
+            <!-- Section 2: Scheme Applicants -->
+            <div class="section page-break">
+              <h2>👥 Scheme Applicants</h2>
+              ${Object.entries(allApplicantsData).map(([schemeName, applicantsList]) => `
+                <div style="margin: 20px 0;">
+                  <h3 style="color: #333; margin-bottom: 10px;">Scheme: ${schemeName}</h3>
+                  ${applicantsList.length > 0 ? `
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Username</th>
+                          <th>Role</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${applicantsList.map((app, idx) => `
+                          <tr>
+                            <td>${idx + 1}</td>
+                            <td>${app.username}</td>
+                            <td>${app.role}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                    <div class="summary-box">
+                      <strong>Total Applicants:</strong> ${applicantsList.length}
+                    </div>
+                  ` : `
+                    <p style="color: #666; font-style: italic;">No applicants yet for this scheme.</p>
+                  `}
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- Section 3: Delivery Men and Salaries -->
+            <div class="section page-break">
+              <h2>🚚 Delivery Men & Salaries</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>District</th>
+                    <th>Current Salary (Rs.)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${deliveryMen.map((dm, index) => `
+                    <tr>
+                      <td>${index + 1}</td>
+                      <td>${dm.fname} ${dm.lname}</td>
+                      <td>${dm.email}</td>
+                      <td>${dm.district}</td>
+                      <td>${dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              <div class="summary-box">
+                <strong>Total Delivery Men:</strong> ${deliveryMen.length}
+              </div>
+            </div>
+
+            <!-- Section 4: Delivery History -->
+            <div class="section page-break">
+              <h2>📦 Delivery History by Deliveryman</h2>
+              ${Object.entries(allDeliveryHistory).map(([dmId, data]) => {
+                const dm = deliveryMen.find(d => d._id === dmId);
+                return `
+                  <div style="margin: 30px 0;">
+                    <h3 style="color: #333; background-color: #e8f5e9; padding: 10px; border-radius: 5px;">
+                      Deliveryman: ${data.name}
+                    </h3>
+                    ${data.orders.length > 0 ? `
+                      ${data.orders.map((order, idx) => {
+                        const hasFarmerInfo = order.farmerId && typeof order.farmerId === 'object';
+                        const farmerName = hasFarmerInfo 
+                          ? `${order.farmerId.fname || ''} ${order.farmerId.lname || ''}`.trim() 
+                          : 'Unknown Farmer';
+                        
+                        const hasSellerInfo = order.sellerId && typeof order.sellerId === 'object';
+                        const sellerName = hasSellerInfo 
+                          ? `${order.sellerId.fname || ''} ${order.sellerId.lname || ''}`.trim() 
+                          : 'Unknown Seller';
+
+                        return `
+                          <div class="delivery-item">
+                            <h4 style="margin: 0 0 10px 0;">Delivery #${idx + 1}: ${order.item}</h4>
+                            <table>
+                              <tr>
+                                <td><strong>Quantity:</strong></td>
+                                <td>${order.quantity} kg</td>
+                                <td><strong>Price:</strong></td>
+                                <td>Rs.${order.price}</td>
+                              </tr>
+                              <tr>
+                                <td><strong>Status:</strong></td>
+                                <td style="color: green; font-weight: bold;">✓ DELIVERED</td>
+                                <td><strong>Delivery Date:</strong></td>
+                                <td>${formatDate(order.updatedAt || order.createdAt)}</td>
+                              </tr>
+                              <tr>
+                                <td><strong>From (Farmer):</strong></td>
+                                <td>${farmerName}</td>
+                                <td><strong>To (Seller):</strong></td>
+                                <td>${sellerName}</td>
+                              </tr>
+                              ${order.district ? `
+                              <tr>
+                                <td><strong>District:</strong></td>
+                                <td colspan="3">${order.district}</td>
+                              </tr>
+                              ` : ''}
+                            </table>
+                          </div>
+                        `;
+                      }).join('')}
+                      <div class="summary-box">
+                        <strong>Total Deliveries by ${data.name}:</strong> ${data.orders.length}
+                      </div>
+                    ` : `
+                      <p style="color: #666; font-style: italic;">No delivery history found for this deliveryman.</p>
+                    `}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+
+            <div class="footer">
+              <p>This is an automatically generated government report</p>
+              <p>AgriHub - Government Agricultural Management System</p>
+            </div>
+
+            <div class="no-print" style="text-align: center; margin: 30px 0;">
+              <button onclick="window.print()" style="
+                padding: 12px 30px;
+                font-size: 16px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                margin-right: 10px;
+              ">Print PDF</button>
+              <button onclick="window.close()" style="
+                padding: 12px 30px;
+                font-size: 16px;
+                background-color: #666;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+              ">Close</button>
+            </div>
+          </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      alert("✅ PDF preview opened. Click Print to save as PDF");
+      setShowExportMenu(false);
+    } catch (err) {
+      console.error("Error exporting PDF:", err);
+      alert("Failed to export PDF. Please try again.");
+    }
+  };
+
   useEffect(() => {
     const preventNavigation = () => {
-      // Re-push same URL, preventing navigation
       try {
         window.history.pushState(null, "", window.location.href);
       } catch (err) {
@@ -62,7 +512,6 @@ function GovernmentPage() {
       }
     };
 
-    // Push initial state
     try {
       window.history.pushState(null, "", window.location.href);
     } catch (err) {
@@ -78,9 +527,8 @@ function GovernmentPage() {
     return () => {
       window.removeEventListener("popstate", onPopState);
     };
-  }, []); // run once for the component lifecycle
+  }, []);
 
-  // Fetch schemes on mount but only if logged in
   useEffect(() => {
     if (loggedIn) {
       fetchSchemes();
@@ -89,7 +537,6 @@ function GovernmentPage() {
     }
   }, [loggedIn]);
 
-  // Fetch schemes from backend
   const fetchSchemes = async () => {
     try {
       const res = await axios.get(`${BASE_URL}/schemes`);
@@ -100,7 +547,6 @@ function GovernmentPage() {
     }
   };
 
-  // Fetch delivery men from backend
   const fetchDeliveryMen = async () => {
     try {
       const res = await axios.get(`${BASE_URL}/deliverymen`);
@@ -111,7 +557,6 @@ function GovernmentPage() {
     }
   };
 
-  // Fetch delivery history for a specific deliveryman
   const fetchDeliveryHistory = async (deliverymanId) => {
     try {
       const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
@@ -145,7 +590,6 @@ function GovernmentPage() {
     }
   };
 
-  // Calculate monthly statistics
   const calculateMonthlyStats = (orders) => {
     const stats = {};
     orders.forEach(order => {
@@ -157,7 +601,6 @@ function GovernmentPage() {
     setMonthlyStats(stats);
   };
 
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return "Date not available";
     const date = new Date(dateString);
@@ -170,7 +613,6 @@ function GovernmentPage() {
     });
   };
 
-  // Add new scheme
   const handleAddScheme = async () => {
     if (!newScheme.trim()) {
       alert("Please enter a scheme name");
@@ -186,7 +628,6 @@ function GovernmentPage() {
     }
   };
 
-  // Edit scheme handlers
   const handleEditScheme = (index) => {
     setEditIndex(index);
     setEditScheme(schemes[index].name);
@@ -210,7 +651,6 @@ function GovernmentPage() {
     }
   };
 
-  // Delete scheme handler
   const handleDeleteScheme = async (index) => {
     const scheme = schemes[index];
     try {
@@ -222,12 +662,10 @@ function GovernmentPage() {
     }
   };
 
-  // Handle salary input change
   const handleSalaryChange = (id, value) => {
     setSalaryInputs((prev) => ({ ...prev, [id]: value }));
   };
 
-  // Provide salary to delivery man
   const provideSalary = async (id) => {
     if (!salaryInputs[id]) {
       alert("Please enter a salary amount");
@@ -248,7 +686,6 @@ function GovernmentPage() {
     }
   };
 
-  // Fetch applicants for a scheme
   const fetchApplicants = async (schemeId) => {
     try {
       const res = await axios.get(`${BASE_URL}/schemes/${schemeId}/applicants`);
@@ -260,12 +697,11 @@ function GovernmentPage() {
     }
   };
 
-  // Handle login submit
   const handleLogin = (e) => {
     e.preventDefault();
     if (username === "admin" && password === "admin123") {
       setLoggedIn(true);
-      localStorage.setItem("govLoggedIn", "true"); // persist for Navbar logic
+      localStorage.setItem("govLoggedIn", "true");
       setLoginError("");
       setUsername("");
       setPassword("");
@@ -274,7 +710,6 @@ function GovernmentPage() {
     }
   };
 
-  // Logout handler (floating logout inside this page)
   const handleLogout = () => {
     setLoggedIn(false);
     localStorage.removeItem("govLoggedIn");
@@ -307,28 +742,104 @@ function GovernmentPage() {
         Back to Home Page
       </button>
 
-      {/* Navbar: it will hide Government / Login / Register while on this page */}
       <Navbar />
 
-      {/* Floating logout inside this page (removed from Navbar as requested) */}
       {loggedIn && (
-        <button
-          onClick={handleLogout}
-          style={{
-            position: "fixed",
-            bottom: "20px",
-            right: "20px",
-            padding: "10px 20px",
-            backgroundColor: "#c00",
-            color: "#fff",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-            zIndex: 9999,
-          }}
-        >
-          Logout
-        </button>
+        <>
+          <button
+            onClick={handleLogout}
+            style={{
+              position: "fixed",
+              bottom: "20px",
+              right: "20px",
+              padding: "10px 20px",
+              backgroundColor: "#c00",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              zIndex: 9999,
+            }}
+          >
+            Logout
+          </button>
+
+          {/* NEW: Export Button */}
+          <div style={{ position: "fixed", bottom: "70px", right: "20px", zIndex: 9999 }}>
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#4CAF50",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📥 Export Report
+            </button>
+            
+            {showExportMenu && (
+              <div style={{
+                position: "absolute",
+                bottom: "100%",
+                right: 0,
+                marginBottom: "5px",
+                backgroundColor: "white",
+                border: "1px solid #ddd",
+                borderRadius: "5px",
+                boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+                minWidth: "180px"
+              }}>
+                <button
+                  onClick={exportToPDF}
+                  style={{
+                    width: "100%",
+                    padding: "12px 15px",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontSize: "14px",
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                >
+                  📄 Export as PDF
+                </button>
+                
+                <div style={{ height: '1px', backgroundColor: '#eee', margin: '0 10px' }} />
+                
+                <button
+                  onClick={exportToCSV}
+                  style={{
+                    width: "100%",
+                    padding: "12px 15px",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontSize: "14px",
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                >
+                  📊 Export as CSV
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {!loggedIn ? (
@@ -473,7 +984,6 @@ function GovernmentPage() {
             </tbody>
           </table>
 
-          {/* Applicants section */}
           {showApplicantsFor && (
             <div className="applicants-section" style={{ marginTop: "20px" }}>
               <h3>Applicants:</h3>
@@ -572,7 +1082,6 @@ function GovernmentPage() {
             </table>
           )}
 
-          {/* Delivery History Section */}
           {showHistory && (
             <div style={{
               margin: "30px auto",
@@ -606,7 +1115,6 @@ function GovernmentPage() {
                 </button>
               </div>
 
-              {/* Monthly Statistics */}
               <div style={{
                 backgroundColor: "white",
                 padding: "20px",
@@ -634,7 +1142,6 @@ function GovernmentPage() {
                 )}
               </div>
 
-              {/* Detailed Delivery History */}
               <div>
                 <h3 style={{ color: "#333" }}>Detailed Delivery History ({deliveryHistory.length} total deliveries)</h3>
                 {deliveryHistory.length === 0 ? (
@@ -704,7 +1211,6 @@ function GovernmentPage() {
                               )}
                             </div>
 
-                            {/* Delivery Route */}
                             <div style={{
                               padding: "15px",
                               backgroundColor: "#e8f5e9",
