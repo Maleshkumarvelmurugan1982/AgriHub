@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
+import "./RegSellerPage.css";
+import NavbarRegistered from "../../NavbarRegistered/NavbarRegistered";
+import FooterNew from "../../Footer/FooterNew";
+import RegCategories from "../RegCatoegories/RegCategories";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
   faChevronRight, 
   faCheckCircle, 
@@ -15,27 +20,10 @@ import {
   faFileCsv,
   faDownload
 } from "@fortawesome/free-solid-svg-icons";
-
-// Mock FontAwesomeIcon component for demonstration
-const FontAwesomeIcon = ({ icon, style, className }) => (
-  <span style={style} className={className}>
-    {icon === faCheckCircle && '✓'}
-    {icon === faTimesCircle && '✗'}
-    {icon === faTruck && '🚚'}
-    {icon === faHistory && '📜'}
-    {icon === faTimes && '✕'}
-    {icon === faUser && '👤'}
-    {icon === faWallet && '💰'}
-    {icon === faFilePdf && '📄'}
-    {icon === faFileCsv && '📊'}
-    {icon === faDownload && '⬇'}
-    {icon === faInfoCircle && 'ℹ'}
-    {icon === faChevronRight && '›'}
-  </span>
-);
+import TypeWriter from "../../AutoWritingText/TypeWriter";
 
 function RegSellerPage() {
-  const [sellerId, setSellerId] = useState("mock-seller-123");
+  const [sellerId, setSellerId] = useState("");
   const [sellerOrders, setSellerOrders] = useState([]);
   const [imageErrors, setImageErrors] = useState({});
   const [toasts, setToasts] = useState([]);
@@ -102,69 +90,34 @@ function RegSellerPage() {
     },
   };
 
-  // Mock data for demonstration
+  // Inject CSS to hide Government / Login / Register links while this page is mounted.
   useEffect(() => {
-    const mockOrders = [
-      {
-        _id: "1",
-        item: "Fresh Tomatoes",
-        quantity: "50 kg",
-        price: 2500,
-        status: "approved",
-        deliveryStatus: "delivered",
-        productImage: "https://via.placeholder.com/300x200?text=Tomatoes",
-        createdAt: "2025-10-15T10:30:00Z",
-        updatedAt: "2025-10-20T14:45:00Z",
-        farmerId: {
-          fname: "Rajesh",
-          lname: "Kumar",
-          mobile: "9876543210"
-        },
-        deliverymanId: {
-          fname: "Amit",
-          lname: "Sharma",
-          mobile: "9123456789"
-        }
-      },
-      {
-        _id: "2",
-        item: "Organic Potatoes",
-        quantity: "100 kg",
-        price: 3000,
-        status: "approved",
-        deliveryStatus: "delivered",
-        productImage: "https://via.placeholder.com/300x200?text=Potatoes",
-        createdAt: "2025-10-10T08:15:00Z",
-        updatedAt: "2025-10-18T16:20:00Z",
-        farmerId: {
-          fname: "Priya",
-          lname: "Patel",
-          mobile: "9988776655"
-        },
-        deliverymanId: {
-          fname: "Suresh",
-          lname: "Singh",
-          mobile: "9111222333"
-        }
-      },
-      {
-        _id: "3",
-        item: "Fresh Carrots",
-        quantity: "30 kg",
-        price: 1500,
-        status: "approved",
-        deliveryStatus: "in-transit",
-        productImage: "https://via.placeholder.com/300x200?text=Carrots",
-        createdAt: "2025-11-01T09:00:00Z",
-        acceptedByDeliveryman: true,
-        deliverymanId: {
-          fname: "Ramesh",
-          lname: "Verma",
-          mobile: "9444555666"
-        }
+    const styleId = 'hide-auth-links-regseller';
+    if (document.getElementById(styleId)) return;
+    const css = `
+      /* target common navbar link patterns: specific hrefs and common classes */
+      .navbar a[href="/GovernmentPage"],
+      .navbar a[href="/login"],
+      .navbar a[href="/register"],
+      .navbar .login,
+      .navbar .register,
+      .navbar .gov-link,
+      a.gov-link,
+      a.nav-gov,
+      a[href="/GovernmentPage"] .badge,
+      .navbar .badge.gov {
+        display: none !important;
       }
-    ];
-    setSellerOrders(mockOrders);
+    `;
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = css;
+    document.head.appendChild(styleEl);
+
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) el.parentNode.removeChild(el);
+    };
   }, []);
 
   const getImageUrl = (imagePath) => {
@@ -182,6 +135,37 @@ function RegSellerPage() {
   };
 
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case "approved": return "green";
+      case "disapproved": return "red";
+      default: return "orange";
+    }
+  };
+
+  const getDeliveryStatusBadge = (deliveryStatus) => {
+    if (deliveryStatus === "delivered" || deliveryStatus === "approved") {
+      return (
+        <div className="delivery-status-badge delivered">
+          <FontAwesomeIcon icon={faCheckCircle} /> Delivered
+        </div>
+      );
+    } else if (deliveryStatus === "not-delivered") {
+      return (
+        <div className="delivery-status-badge not-delivered">
+          <FontAwesomeIcon icon={faTimesCircle} /> Not Delivered
+        </div>
+      );
+    } else if (deliveryStatus === "in-transit") {
+      return (
+        <div className="delivery-status-badge in-transit">
+          <FontAwesomeIcon icon={faTruck} /> In Transit
+        </div>
+      );
+    }
+    return null;
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "Date not available";
@@ -484,6 +468,153 @@ function RegSellerPage() {
     setShowExportMenu(false);
   };
 
+  useEffect(() => {
+    const fetchSellerData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No token found");
+          showToast("Please log in to view your orders", "error");
+          return;
+        }
+
+        const res = await fetch(`${BACKEND_URL}/seller/userdata`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+
+        const data = await res.json();
+        if (data.status === "ok") {
+          setSellerId(data.data._id);
+          console.log("Seller ID:", data.data._id);
+        } else {
+          console.error("Failed to fetch seller data:", data);
+          showToast("Failed to load user data", "error");
+        }
+      } catch (err) {
+        console.error("Error fetching seller data:", err);
+        showToast("Error loading user data", "error");
+      }
+    };
+
+    fetchSellerData();
+  }, []);
+
+  useEffect(() => {
+    if (!sellerId) return;
+
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = `
+      @keyframes slideIn { 
+        from { transform: translateX(400px); opacity:0; } 
+        to { transform: translateX(0); opacity:1; } 
+      }
+      .delivery-status-badge.in-transit {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 8px 12px;
+        border-radius: 5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: bold;
+        margin-top: 10px;
+        border: 2px solid #ffc107;
+      }
+    `;
+    document.head.appendChild(styleSheet);
+
+    const fetchData = async () => {
+      try {
+        const sellerRes = await fetch(`${BACKEND_URL}/sellerorder/seller/${sellerId}`);
+        
+        if (!sellerRes.ok) {
+          throw new Error(`HTTP error! status: ${sellerRes.status}`);
+        }
+        
+        const sellerData = await sellerRes.json();
+        console.log("Seller Orders Response:", sellerData);
+        
+        let orders = [];
+        if (Array.isArray(sellerData)) {
+          orders = sellerData;
+        } else if (sellerData.data && Array.isArray(sellerData.data)) {
+          orders = sellerData.data;
+        } else if (sellerData.message) {
+          console.error("Backend error:", sellerData.message);
+          orders = [];
+        }
+
+        orders.forEach(order => {
+          if (order.status && !notifiedOrdersRef.current.has(order._id) && 
+              (order.status === "approved" || order.status === "disapproved")) {
+            showToast(
+              `Your order for ${order.item} has been ${order.status}!`, 
+              order.status === "approved" ? "success" : "error"
+            );
+            notifiedOrdersRef.current.add(order._id);
+          }
+        });
+
+        for (const order of orders) {
+          // Notification for "in-transit" status (when deliveryman accepts)
+          if (order.acceptedByDeliveryman && order.deliveryStatus === "in-transit" && 
+              !notifiedOrdersRef.current.has(`in-transit-${order._id}`)) {
+            try {
+              const name = typeof order.deliverymanId === 'object' 
+                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
+                : "Deliveryman";
+              
+              showToast(`Your order for ${order.item} is now in transit! Accepted by ${name}`, "success");
+            } catch (err) {
+              showToast(`Your order for ${order.item} is now in transit!`, "success");
+            }
+            notifiedOrdersRef.current.add(`in-transit-${order._id}`);
+          }
+
+          // Existing notification for delivery acceptance (backward compatibility)
+          if (order.acceptedByDeliveryman && order.deliverymanId && 
+              !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
+            try {
+              const name = typeof order.deliverymanId === 'object' 
+                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
+                : "Deliveryman";
+              
+              showToast(`Your order for ${order.item} has been accepted by ${name}!`, "success");
+            } catch (err) {
+              showToast(`Your order for ${order.item} has been accepted by a deliveryman!`, "success");
+            }
+            notifiedOrdersRef.current.add(`delivery-${order._id}`);
+          }
+
+          // Delivered notification
+          if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
+              !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
+            showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
+            notifiedOrdersRef.current.add(`delivered-${order._id}`);
+          }
+        }
+
+        setSellerOrders(orders);
+
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        showToast("Error fetching data", "error");
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    
+    return () => { 
+      clearInterval(interval); 
+      if (document.head.contains(styleSheet)) {
+        document.head.removeChild(styleSheet); 
+      }
+    };
+  }, [sellerId]);
+
   const handleImageError = (id, type) => {
     setImageErrors(prev => ({ ...prev, [`${type}-${id}`]: true }));
   };
@@ -491,8 +622,10 @@ function RegSellerPage() {
   const sellerOrdersToDisplay = showAllSellerOrders ? sellerOrders : sellerOrders.slice(0, 4);
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif' }}>
-      {/* Toast Notifications */}
+    <div>
+      <NavbarRegistered />
+      <div className="nothing"></div>
+
       <div style={styles.toastContainer}>
         {toasts.map(toast => (
           <div 
@@ -523,12 +656,11 @@ function RegSellerPage() {
         ))}
       </div>
 
-      {/* Banner */}
-      <div style={{ marginBottom: '30px' }}>
+      <div className="crop-container">
         <img 
           src="https://www.atoallinks.com/wp-content/uploads/2020/07/Agriculture-Product-Buying-and-Selling-App-Development.jpg"
           alt="seller-banner" 
-          style={{ width: '100%', height: '300px', objectFit: 'cover' }}
+          className="crop-image"
           onError={e => { 
             e.target.onerror = null; 
             e.target.src = "https://via.placeholder.com/1200x400?text=Seller+Banner"; 
@@ -536,12 +668,15 @@ function RegSellerPage() {
         />
       </div>
 
-      {/* Welcome Message */}
-      <div style={{ textAlign: 'center', fontSize: '48px', fontFamily: 'Gill Sans', margin: '30px 0', color: '#333' }}>
-        Welcome Sellers!
+      <div className="type-writer-container">
+        <TypeWriter 
+          text="Welcome Sellers!" 
+          loop={false} 
+          className="writer" 
+          textStyle={{ fontFamily: "Gill Sans", fontSize: "60px" }} 
+        />
       </div>
 
-      {/* Wallet Button */}
       <div style={{ textAlign: 'center', margin: '30px 0' }}>
         <a 
           href="/seller/wallet" 
@@ -575,9 +710,15 @@ function RegSellerPage() {
         </a>
       </div>
 
-      {/* History Button */}
-      <div style={{ textAlign: 'center', margin: '40px 0' }}>
+      <div className="categories-container">
+        <div className="categories-div">
+          <RegCategories/>
+        </div>
+      </div>
+      
+      <div className="history-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
         <button 
+          className="history-button"
           onClick={() => setShowHistory(!showHistory)}
           style={{
             padding: '12px 30px',
@@ -600,9 +741,8 @@ function RegSellerPage() {
         </button>
       </div>
 
-      {/* History Section */}
       {showHistory && (
-        <div style={{
+        <div className="history-section" style={{
           margin: '20px auto',
           maxWidth: '1200px',
           padding: '20px',
@@ -729,7 +869,7 @@ function RegSellerPage() {
               No purchase history yet. Your delivered orders will appear here.
             </p>
           ) : (
-            <div>
+            <div className="history-list">
               {purchasedItems.map((order) => {
                 const hasDeliverymanInfo = order.deliverymanId && typeof order.deliverymanId === 'object';
                 const deliverymanName = hasDeliverymanInfo 
@@ -743,7 +883,8 @@ function RegSellerPage() {
 
                 return (
                   <div 
-                    key={order._id}
+                    key={order._id} 
+                    className="history-item"
                     style={{
                       backgroundColor: 'white',
                       borderRadius: '8px',
@@ -823,18 +964,14 @@ function RegSellerPage() {
           )}
         </div>
       )}
+      
+      <div className="nothing2"></div>
+      <div className="topic"><p>Your Orders</p></div>
 
-      {/* Current Orders Section */}
-      <div style={{ margin: '40px auto', maxWidth: '1200px', padding: '20px' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>Your Orders</h2>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '20px'
-        }}>
+      <div className="orders-wrapper">
+        <div className="orders-container">
           {sellerOrdersToDisplay.length === 0 ? (
-            <p style={{ textAlign: 'center', padding: '20px', color: '#666', gridColumn: '1 / -1' }}>
+            <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
               You don't have any orders yet.
             </p>
           ) : (
@@ -854,43 +991,24 @@ function RegSellerPage() {
               const isAcceptedByDeliveryman = order.acceptedByDeliveryman;
 
               return (
-                <div 
-                  key={order._id || index}
-                  style={{
-                    backgroundColor: 'white',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    transition: 'transform 0.2s',
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                >
+                <div key={order._id || index} className="order-item">
                   <img 
                     src={displayImage} 
                     alt={order.item || "Product"} 
-                    style={{
-                      width: '100%',
-                      height: '200px',
-                      objectFit: 'cover',
-                      borderRadius: '5px',
-                      marginBottom: '10px'
-                    }}
+                    className="order-image"
                     onError={(e) => {
                       handleImageError(order._id || index, "order");
                       e.target.onerror = null;
                       e.target.src = fallbackProductImage;
                     }}
                   />
-                  <p style={{ fontWeight: 'bold', fontSize: '16px', margin: '5px 0' }}>
-                    {order.item || "Unknown Item"}
-                  </p>
-                  {order.quantity && <p style={{ margin: '5px 0' }}>Quantity: {order.quantity}</p>}
-                  {order.price && <p style={{ margin: '5px 0' }}>Price: Rs.{order.price}</p>}
-                  <p style={{ margin: '5px 0' }}>
-                    Status: <b style={{ 
-                      color: order.status === 'approved' ? 'green' : order.status === 'disapproved' ? 'red' : 'orange' 
-                    }}>
+                  <p><strong>{order.item || "Unknown Item"}</strong></p>
+                  {order.quantity && <p>Quantity: {order.quantity}</p>}
+                  {order.price && <p>Price: Rs.{order.price}</p>}
+                  {order.postedDate && <p>Posted: {order.postedDate}</p>}
+                  {order.expireDate && <p>Expires: {order.expireDate}</p>}
+                  <p>
+                    Status: <b style={{ color: getStatusColor(order.status) }}>
                       {order.status?.toUpperCase() || "PENDING"}
                     </b>
                   </p>
@@ -898,57 +1016,68 @@ function RegSellerPage() {
                   {order.status === "approved" && (
                     <>
                       {isDelivered && (
-                        <div style={{
+                        <div className="delivery-info" style={{
                           backgroundColor: '#d4edda',
                           padding: '15px',
                           borderRadius: '8px',
                           marginTop: '10px',
                           border: '2px solid #28a745'
                         }}>
-                          <p style={{ color: '#155724', fontWeight: 'bold', marginBottom: '10px', fontSize: '14px' }}>
+                          <p className="deliveryman-info" style={{ color: '#155724', fontWeight: 'bold', marginBottom: '10px' }}>
                             <FontAwesomeIcon icon={faCheckCircle} style={{ marginRight: '8px' }} />
                             ORDER DELIVERED
                           </p>
                           
                           {hasDeliverymanInfo && (
                             <>
-                              <p style={{ marginBottom: '5px', fontSize: '13px' }}>
+                              <p className="deliveryman-detail" style={{ marginBottom: '5px' }}>
                                 <FontAwesomeIcon icon={faTruck} /> Delivered by: <strong>{deliverymanName}</strong>
                               </p>
                               
                               {order.deliverymanId.mobile && (
-                                <p style={{ marginBottom: '5px', fontSize: '13px' }}>
+                                <p className="deliveryman-detail" style={{ marginBottom: '5px' }}>
                                   Contact: {order.deliverymanId.mobile}
                                 </p>
                               )}
                             </>
                           )}
+                          
+                          {getDeliveryStatusBadge(order.deliveryStatus)}
                         </div>
                       )}
                       
                       {!isDelivered && isInTransit && isAcceptedByDeliveryman && (
-                        <div style={{
+                        <div className="delivery-info" style={{
                           backgroundColor: '#fff3cd',
                           padding: '15px',
                           borderRadius: '8px',
                           marginTop: '10px',
                           border: '2px solid #ffc107'
                         }}>
-                          <p style={{ color: '#856404', fontWeight: 'bold', marginBottom: '10px', fontSize: '14px' }}>
+                          <p className="deliveryman-info" style={{ color: '#856404', fontWeight: 'bold', marginBottom: '10px' }}>
                             <FontAwesomeIcon icon={faTruck} style={{ marginRight: '8px' }} />
-                            IN TRANSIT
+                            IN TRANSIT - ACCEPTED BY DELIVERYMAN
                           </p>
                           
-                          <p style={{ fontSize: '13px', marginBottom: '5px' }}>
+                          <p className="deliveryman-info">
                             <FontAwesomeIcon icon={faTruck} /> 
                             Deliveryman: <strong>{deliverymanName}</strong>
                           </p>
                           
-                          {hasDeliverymanInfo && order.deliverymanId.mobile && (
-                            <p style={{ fontSize: '13px' }}>Mobile: {order.deliverymanId.mobile}</p>
+                          {hasDeliverymanInfo && (
+                            <>
+                              {order.deliverymanId.mobile && (
+                                <p className="deliveryman-detail">Mobile: {order.deliverymanId.mobile}</p>
+                              )}
+                              {order.deliverymanId.email && (
+                                <p className="deliveryman-detail">Email: {order.deliverymanId.email}</p>
+                              )}
+                            </>
                           )}
                           
-                          <p style={{ color: "#856404", fontSize: "13px", marginTop: "10px", fontStyle: 'italic' }}>
+                          {getDeliveryStatusBadge(order.deliveryStatus)}
+                          
+                          <p style={{ color: "#856404", fontSize: "14px", marginTop: "10px", fontStyle: 'italic' }}>
                             ✓ Your order is on the way!
                           </p>
                         </div>
@@ -962,8 +1091,8 @@ function RegSellerPage() {
                           marginTop: '10px',
                           border: '1px solid #007bff'
                         }}>
-                          <p style={{ color: '#004085', fontSize: '13px', margin: 0 }}>
-                            <FontAwesomeIcon icon={faInfoCircle} /> Waiting for deliveryman...
+                          <p style={{ color: '#004085', fontSize: '14px', margin: 0 }}>
+                            <FontAwesomeIcon icon={faInfoCircle} /> Waiting for deliveryman to accept...
                           </p>
                         </div>
                       )}
@@ -971,16 +1100,8 @@ function RegSellerPage() {
                   )}
                   
                   {order.status === "disapproved" && (
-                    <div style={{
-                      backgroundColor: '#f8d7da',
-                      padding: '10px',
-                      borderRadius: '5px',
-                      marginTop: '10px',
-                      border: '1px solid #dc3545'
-                    }}>
-                      <p style={{ color: '#721c24', fontSize: '13px', margin: 0 }}>
-                        ✗ Order Disapproved by Farmer
-                      </p>
+                    <div className="order-status-message-disapproved">
+                      <p>✗ Order Disapproved by Farmer</p>
                     </div>
                   )}
                 </div>
@@ -990,31 +1111,17 @@ function RegSellerPage() {
         </div>
         
         {sellerOrders.length > 4 && (
-          <div style={{ textAlign: 'center', marginTop: '30px' }}>
-            <button
-              onClick={() => setShowAllSellerOrders(!showAllSellerOrders)}
-              style={{
-                padding: '12px 30px',
-                fontSize: '16px',
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '10px',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
-            >
-              {showAllSellerOrders ? "Show Less" : `View All (${sellerOrders.length})`}
-              <FontAwesomeIcon icon={faChevronRight} />
-            </button>
-          </div>
+          <button
+            className="view-all-button1"
+            onClick={() => setShowAllSellerOrders(!showAllSellerOrders)}
+          >
+            {showAllSellerOrders ? "Show Less" : `View All (${sellerOrders.length})`}
+            <FontAwesomeIcon icon={faChevronRight} className="arrow-icon" />
+          </button>
         )}
       </div>
+
+      <FooterNew />
     </div>
   );
 }
