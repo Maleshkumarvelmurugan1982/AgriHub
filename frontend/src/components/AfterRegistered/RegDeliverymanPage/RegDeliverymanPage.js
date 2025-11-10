@@ -63,6 +63,37 @@ function RegDeliverymanPage() {
     });
   };
 
+  // NEW FUNCTION: Fetch and Display Salary
+  const fetchAndDisplaySalary = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Please log in again.");
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/deliveryman/userdata`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+
+      const data = await res.json();
+      if (data.status === "ok" && data.data) {
+        const currentSalary = data.data.salary ?? 0;
+        setSalary(currentSalary);
+        setShowSalary(true); // This will open the existing salary modal
+        console.log("✅ Salary fetched successfully:", currentSalary);
+      } else {
+        alert("Failed to fetch salary data");
+        console.error("Failed to fetch salary:", data);
+      }
+    } catch (err) {
+      console.error("❌ Error fetching salary:", err);
+      alert(`Failed to fetch salary: ${err.message}`);
+    }
+  };
+
   // Get delivery history (all delivered orders)
   const getDeliveryHistory = () => {
     const sellerDeliveries = mySellerOrders.filter(order => 
@@ -716,6 +747,32 @@ function RegDeliverymanPage() {
           </div>
         </div>
       )}
+
+      {/* NEW: View Salary Button */}
+      <div style={{ textAlign: 'center', margin: '20px 0' }}>
+        <button 
+          onClick={fetchAndDisplaySalary}
+          style={{
+            padding: '12px 30px',
+            fontSize: '16px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '10px',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}
+          onMouseOver={(e) => e.target.style.backgroundColor = '#45a049'}
+          onMouseOut={(e) => e.target.style.backgroundColor = '#4CAF50'}
+        >
+          <FontAwesomeIcon icon={faMoneyBillWave} />
+          View My Salary
+        </button>
+      </div>
 
       {/* History Button */}
       <div className="history-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
