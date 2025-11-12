@@ -18,7 +18,17 @@ import {
   faBoxOpen,
   faFilePdf,
   faFileCsv,
-  faDownload
+  faDownload,
+  faSearch,
+  faFilter,
+  faSort,
+  faTrash,
+  faMoon,
+  faSun,
+  faChevronLeft,
+  faCalendar,
+  faBox,
+  faCheck
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
@@ -30,6 +40,17 @@ function RegSellerPage() {
   const [showAllSellerOrders, setShowAllSellerOrders] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  
+  // New states for search, filter, sort
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [sortBy, setSortBy] = useState("date-desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  const ordersPerPage = 8;
   const notifiedOrdersRef = useRef(new Set());
 
   const BACKEND_URL = "https://agrihub-2.onrender.com";
@@ -52,7 +73,7 @@ function RegSellerPage() {
       padding: '15px 20px', 
       borderRadius: '8px', 
       boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
-      backgroundColor: '#fff', 
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff', 
       animation: 'slideIn 0.3s ease-out', 
       minWidth: '300px', 
       maxWidth: '400px' 
@@ -70,7 +91,7 @@ function RegSellerPage() {
     toastMessage: { 
       flex: 1, 
       fontSize: '14px', 
-      color: '#333', 
+      color: darkMode ? '#fff' : '#333', 
       lineHeight: '1.5' 
     },
     toastClose: { 
@@ -90,12 +111,19 @@ function RegSellerPage() {
     },
   };
 
-  // Inject CSS to hide Government / Login / Register links while this page is mounted.
+  // Dark mode effect
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, [darkMode]);
+
   useEffect(() => {
     const styleId = 'hide-auth-links-regseller';
     if (document.getElementById(styleId)) return;
     const css = `
-      /* target common navbar link patterns: specific hrefs and common classes */
       .navbar a[href="/GovernmentPage"],
       .navbar a[href="/login"],
       .navbar a[href="/register"],
@@ -107,6 +135,43 @@ function RegSellerPage() {
       a[href="/GovernmentPage"] .badge,
       .navbar .badge.gov {
         display: none !important;
+      }
+      
+      body.dark-mode {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+      }
+      
+      body.dark-mode .orders-container,
+      body.dark-mode .order-item {
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+        border-color: #404040;
+      }
+      
+      body.dark-mode .history-section {
+        background-color: #2d2d2d !important;
+      }
+      
+      body.dark-mode .history-item {
+        background-color: #383838 !important;
+        color: #e0e0e0 !important;
+      }
+      
+      body.dark-mode .topic p {
+        color: #e0e0e0;
+      }
+      
+      body.dark-mode input,
+      body.dark-mode select {
+        background-color: #383838;
+        color: #e0e0e0;
+        border-color: #505050;
+      }
+      
+      body.dark-mode .modal-content {
+        background-color: #2d2d2d;
+        color: #e0e0e0;
       }
     `;
     const styleEl = document.createElement('style');
@@ -194,7 +259,233 @@ function RegSellerPage() {
 
   const purchasedItems = getPurchasedItems();
 
-  // Export to CSV
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/sellerorder/${orderId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        setSellerOrders(prev => prev.filter(order => order._id !== orderId));
+        showToast("Order cancelled successfully", "success");
+      } else {
+        showToast("Failed to cancel order", "error");
+      }
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      showToast("Error cancelling order", "error");
+    }
+  };
+
+  const getFilteredAndSortedOrders = () => {
+    let filtered = [...sellerOrders];
+
+    if (searchTerm) {
+      filtered = filtered.filter(order => 
+        order.item?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order._id?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (filterStatus !== "all") {
+      filtered = filtered.filter(order => {
+        if (filterStatus === "pending") return !order.status || order.status === "pending";
+        if (filterStatus === "approved") return order.status === "approved";
+        if (filterStatus === "disapproved") return order.status === "disapproved";
+        if (filterStatus === "delivered") return order.deliveryStatus === "delivered" || order.deliveryStatus === "approved";
+        if (filterStatus === "in-transit") return order.deliveryStatus === "in-transit";
+        return true;
+      });
+    }
+
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "date-desc":
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        case "date-asc":
+          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        case "price-desc":
+          return (b.price || 0) - (a.price || 0);
+        case "price-asc":
+          return (a.price || 0) - (b.price || 0);
+        case "name-asc":
+          return (a.item || "").localeCompare(b.item || "");
+        case "name-desc":
+          return (b.item || "").localeCompare(a.item || "");
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredOrders = getFilteredAndSortedOrders();
+  
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+  const indexOfLastOrder = currentPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+
+  const paginate = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const OrderTrackingModal = ({ order, onClose }) => {
+    if (!order) return null;
+
+    const getTimelineSteps = () => {
+      const steps = [
+        {
+          label: "Order Placed",
+          completed: true,
+          date: order.createdAt,
+          icon: faShoppingCart
+        },
+        {
+          label: "Order Approved",
+          completed: order.status === "approved" || order.deliveryStatus === "delivered" || order.deliveryStatus === "in-transit",
+          date: order.status === "approved" ? order.updatedAt : null,
+          icon: faCheckCircle
+        },
+        {
+          label: "In Transit",
+          completed: order.deliveryStatus === "in-transit" || order.deliveryStatus === "delivered",
+          date: order.deliveryStatus === "in-transit" ? order.updatedAt : null,
+          icon: faTruck
+        },
+        {
+          label: "Delivered",
+          completed: order.deliveryStatus === "delivered" || order.deliveryStatus === "approved",
+          date: order.deliveryStatus === "delivered" ? order.updatedAt : null,
+          icon: faBox
+        }
+      ];
+
+      return steps;
+    };
+
+    const timelineSteps = getTimelineSteps();
+
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10000
+      }}>
+        <div className="modal-content" style={{
+          backgroundColor: darkMode ? '#2d2d2d' : 'white',
+          padding: '30px',
+          borderRadius: '15px',
+          maxWidth: '600px',
+          width: '90%',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          position: 'relative'
+        }}>
+          <button onClick={onClose} style={{
+            position: 'absolute',
+            top: '15px',
+            right: '15px',
+            background: 'none',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer',
+            color: darkMode ? '#e0e0e0' : '#333'
+          }}>
+            <FontAwesomeIcon icon={faTimes} />
+          </button>
+
+          <h2 style={{ marginBottom: '20px', color: darkMode ? '#e0e0e0' : '#333' }}>
+            <FontAwesomeIcon icon={faTruck} /> Order Tracking
+          </h2>
+
+          <div style={{
+            backgroundColor: darkMode ? '#383838' : '#f5f5f5',
+            padding: '15px',
+            borderRadius: '8px',
+            marginBottom: '30px'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', color: darkMode ? '#e0e0e0' : '#333' }}>{order.item}</h3>
+            <p style={{ margin: '5px 0', color: darkMode ? '#b0b0b0' : '#666' }}>Order ID: {order._id}</p>
+            <p style={{ margin: '5px 0', color: darkMode ? '#b0b0b0' : '#666' }}>Quantity: {order.quantity}</p>
+            <p style={{ margin: '5px 0', color: darkMode ? '#b0b0b0' : '#666' }}>Price: Rs.{order.price}</p>
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            {timelineSteps.map((step, index) => (
+              <div key={index} style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                marginBottom: '30px',
+                position: 'relative'
+              }}>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '50%',
+                  backgroundColor: step.completed ? '#4caf50' : darkMode ? '#505050' : '#ddd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '20px',
+                  flexShrink: 0,
+                  zIndex: 2,
+                  position: 'relative'
+                }}>
+                  <FontAwesomeIcon icon={step.icon} />
+                </div>
+
+                {index < timelineSteps.length - 1 && (
+                  <div style={{
+                    position: 'absolute',
+                    left: '25px',
+                    top: '50px',
+                    width: '2px',
+                    height: '30px',
+                    backgroundColor: step.completed ? '#4caf50' : darkMode ? '#505050' : '#ddd',
+                    zIndex: 1
+                  }} />
+                )}
+
+                <div style={{ marginLeft: '20px', flex: 1 }}>
+                  <h4 style={{ 
+                    margin: '0 0 5px 0', 
+                    color: step.completed ? '#4caf50' : darkMode ? '#808080' : '#999' 
+                  }}>
+                    {step.label}
+                    {step.completed && <FontAwesomeIcon icon={faCheck} style={{ marginLeft: '10px', fontSize: '14px' }} />}
+                  </h4>
+                  {step.date && (
+                    <p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#b0b0b0' : '#666' }}>
+                      {formatDate(step.date)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const exportToCSV = () => {
     if (purchasedItems.length === 0) {
       showToast("No purchase history to export", "error");
@@ -260,14 +551,12 @@ function RegSellerPage() {
     setShowExportMenu(false);
   };
 
-  // Export to PDF using browser print
   const exportToPDF = () => {
     if (purchasedItems.length === 0) {
       showToast("No purchase history to export", "error");
       return;
     }
 
-    // Create a new window with print-friendly content
     const printWindow = window.open('', '_blank');
     
     const htmlContent = `
@@ -558,7 +847,6 @@ function RegSellerPage() {
         });
 
         for (const order of orders) {
-          // Notification for "in-transit" status (when deliveryman accepts)
           if (order.acceptedByDeliveryman && order.deliveryStatus === "in-transit" && 
               !notifiedOrdersRef.current.has(`in-transit-${order._id}`)) {
             try {
@@ -573,7 +861,6 @@ function RegSellerPage() {
             notifiedOrdersRef.current.add(`in-transit-${order._id}`);
           }
 
-          // Existing notification for delivery acceptance (backward compatibility)
           if (order.acceptedByDeliveryman && order.deliverymanId && 
               !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
             try {
@@ -588,7 +875,6 @@ function RegSellerPage() {
             notifiedOrdersRef.current.add(`delivery-${order._id}`);
           }
 
-          // Delivered notification
           if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
               !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
             showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
@@ -619,12 +905,45 @@ function RegSellerPage() {
     setImageErrors(prev => ({ ...prev, [`${type}-${id}`]: true }));
   };
 
-  const sellerOrdersToDisplay = showAllSellerOrders ? sellerOrders : sellerOrders.slice(0, 4);
-
   return (
     <div>
       <NavbarRegistered />
       <div className="nothing"></div>
+
+      <div style={{
+        position: 'fixed',
+        top: '100px',
+        left: '20px',
+        zIndex: 9999
+      }}>
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          style={{
+            padding: '12px',
+            backgroundColor: darkMode ? '#ffd700' : '#333',
+            color: darkMode ? '#333' : '#fff',
+            border: 'none',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            width: '50px',
+            height: '50px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          <FontAwesomeIcon icon={darkMode ? faSun : faMoon} />
+        </button>
+      </div>
 
       <div style={styles.toastContainer}>
         {toasts.map(toast => (
@@ -746,7 +1065,7 @@ function RegSellerPage() {
           margin: '20px auto',
           maxWidth: '1200px',
           padding: '20px',
-          backgroundColor: '#f8f9fa',
+          backgroundColor: darkMode ? '#2d2d2d' : '#f8f9fa',
           borderRadius: '10px',
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
         }}>
@@ -758,12 +1077,11 @@ function RegSellerPage() {
             flexWrap: 'wrap',
             gap: '15px'
           }}>
-            <h2 style={{ margin: 0, color: '#333' }}>
+            <h2 style={{ margin: 0, color: darkMode ? '#e0e0e0' : '#333' }}>
               <FontAwesomeIcon icon={faHistory} /> Purchase History
             </h2>
             
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              {/* Export Dropdown */}
               <div style={{ position: 'relative' }}>
                 <button 
                   onClick={() => setShowExportMenu(!showExportMenu)}
@@ -793,8 +1111,8 @@ function RegSellerPage() {
                     top: '100%',
                     right: 0,
                     marginTop: '5px',
-                    backgroundColor: 'white',
-                    border: '1px solid #ddd',
+                    backgroundColor: darkMode ? '#383838' : 'white',
+                    border: `1px solid ${darkMode ? '#505050' : '#ddd'}`,
                     borderRadius: '5px',
                     boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
                     zIndex: 1000,
@@ -813,16 +1131,17 @@ function RegSellerPage() {
                         alignItems: 'center',
                         gap: '10px',
                         fontSize: '14px',
-                        transition: 'background-color 0.2s'
+                        transition: 'background-color 0.2s',
+                        color: darkMode ? '#e0e0e0' : '#333'
                       }}
-                      onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                      onMouseOver={(e) => e.target.style.backgroundColor = darkMode ? '#2d2d2d' : '#f5f5f5'}
                       onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
                     >
                       <FontAwesomeIcon icon={faFilePdf} style={{ color: '#dc3545' }} />
                       Export as PDF
                     </button>
                     
-                    <div style={{ height: '1px', backgroundColor: '#eee', margin: '0 10px' }} />
+                    <div style={{ height: '1px', backgroundColor: darkMode ? '#505050' : '#eee', margin: '0 10px' }} />
                     
                     <button
                       onClick={exportToCSV}
@@ -837,9 +1156,10 @@ function RegSellerPage() {
                         alignItems: 'center',
                         gap: '10px',
                         fontSize: '14px',
-                        transition: 'background-color 0.2s'
+                        transition: 'background-color 0.2s',
+                        color: darkMode ? '#e0e0e0' : '#333'
                       }}
-                      onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                      onMouseOver={(e) => e.target.style.backgroundColor = darkMode ? '#2d2d2d' : '#f5f5f5'}
                       onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
                     >
                       <FontAwesomeIcon icon={faFileCsv} style={{ color: '#28a745' }} />
@@ -856,7 +1176,7 @@ function RegSellerPage() {
                   border: 'none',
                   fontSize: '24px',
                   cursor: 'pointer',
-                  color: '#666'
+                  color: darkMode ? '#b0b0b0' : '#666'
                 }}
               >
                 <FontAwesomeIcon icon={faTimes} />
@@ -865,7 +1185,7 @@ function RegSellerPage() {
           </div>
 
           {purchasedItems.length === 0 ? (
-            <p style={{ textAlign: 'center', fontSize: '18px', color: '#666', padding: '40px' }}>
+            <p style={{ textAlign: 'center', fontSize: '18px', color: darkMode ? '#b0b0b0' : '#666', padding: '40px' }}>
               No purchase history yet. Your delivered orders will appear here.
             </p>
           ) : (
@@ -886,7 +1206,7 @@ function RegSellerPage() {
                     key={order._id} 
                     className="history-item"
                     style={{
-                      backgroundColor: 'white',
+                      backgroundColor: darkMode ? '#383838' : 'white',
                       borderRadius: '8px',
                       padding: '20px',
                       marginBottom: '15px',
@@ -911,27 +1231,27 @@ function RegSellerPage() {
                       }} 
                     />
                     <div>
-                      <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>{order.item}</h3>
+                      <h3 style={{ margin: '0 0 10px 0', color: darkMode ? '#e0e0e0' : '#333' }}>{order.item}</h3>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        <p><strong>Quantity:</strong> {order.quantity}</p>
-                        <p><strong>Price:</strong> Rs.{order.price}</p>
-                        <p><strong>Status:</strong> <span style={{ color: 'green' }}>✓ DELIVERED</span></p>
-                        <p><strong>Date:</strong> {formatDate(order.updatedAt || order.createdAt)}</p>
+                        <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}><strong>Quantity:</strong> {order.quantity}</p>
+                        <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}><strong>Price:</strong> Rs.{order.price}</p>
+                        <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}><strong>Status:</strong> <span style={{ color: 'green' }}>✓ DELIVERED</span></p>
+                        <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}><strong>Date:</strong> {formatDate(order.updatedAt || order.createdAt)}</p>
                       </div>
                       
                       <div style={{ 
                         marginTop: '10px', 
                         padding: '10px', 
-                        backgroundColor: '#fff3cd', 
+                        backgroundColor: darkMode ? '#4a3800' : '#fff3cd', 
                         borderRadius: '5px',
                         borderLeft: '4px solid #ffc107'
                       }}>
-                        <p style={{ margin: '5px 0', fontSize: '14px' }}>
+                        <p style={{ margin: '5px 0', fontSize: '14px', color: darkMode ? '#e0e0e0' : '#333' }}>
                           <FontAwesomeIcon icon={faUser} /> 
                           <strong> Purchased from:</strong> {farmerName}
                         </p>
                         {hasFarmerInfo && order.farmerId.mobile && (
-                          <p style={{ margin: '5px 0', fontSize: '14px' }}>
+                          <p style={{ margin: '5px 0', fontSize: '14px', color: darkMode ? '#b0b0b0' : '#666' }}>
                             <strong>Farmer Contact:</strong> {order.farmerId.mobile}
                           </p>
                         )}
@@ -941,16 +1261,16 @@ function RegSellerPage() {
                         <div style={{ 
                           marginTop: '10px', 
                           padding: '10px', 
-                          backgroundColor: '#e9f7ef', 
+                          backgroundColor: darkMode ? '#1a3d1a' : '#e9f7ef', 
                           borderRadius: '5px',
                           borderLeft: '4px solid #28a745'
                         }}>
-                          <p style={{ margin: '5px 0', fontSize: '14px' }}>
+                          <p style={{ margin: '5px 0', fontSize: '14px', color: darkMode ? '#e0e0e0' : '#333' }}>
                             <FontAwesomeIcon icon={faTruck} /> 
                             <strong> Delivered by:</strong> {deliverymanName}
                           </p>
                           {order.deliverymanId.mobile && (
-                            <p style={{ margin: '5px 0', fontSize: '14px' }}>
+                            <p style={{ margin: '5px 0', fontSize: '14px', color: darkMode ? '#b0b0b0' : '#666' }}>
                               <strong>Deliveryman Contact:</strong> {order.deliverymanId.mobile}
                             </p>
                           )}
@@ -966,16 +1286,167 @@ function RegSellerPage() {
       )}
       
       <div className="nothing2"></div>
-      <div className="topic"><p>Your Orders</p></div>
+      <div className="topic"><p style={{ color: darkMode ? '#e0e0e0' : '#333' }}>Your Orders</p></div>
+
+      <div style={{
+        maxWidth: '1200px',
+        margin: '0 auto 30px',
+        padding: '20px',
+        backgroundColor: darkMode ? '#2d2d2d' : '#f8f9fa',
+        borderRadius: '10px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '15px',
+          marginBottom: '15px'
+        }}>
+          <div style={{ position: 'relative' }}>
+            <FontAwesomeIcon 
+              icon={faSearch} 
+              style={{ 
+                position: 'absolute', 
+                left: '12px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                color: darkMode ? '#808080' : '#999'
+              }} 
+            />
+            <input
+              type="text"
+              placeholder="Search orders..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 10px 10px 40px',
+                border: `1px solid ${darkMode ? '#505050' : '#ddd'}`,
+                borderRadius: '5px',
+                fontSize: '14px',
+                backgroundColor: darkMode ? '#383838' : 'white',
+                color: darkMode ? '#e0e0e0' : '#333'
+              }}
+            />
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            <FontAwesomeIcon 
+              icon={faFilter} 
+              style={{ 
+                position: 'absolute', 
+                left: '12px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                color: darkMode ? '#808080' : '#999'
+              }} 
+            />
+            <select
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 10px 10px 40px',
+                border: `1px solid ${darkMode ? '#505050' : '#ddd'}`,
+                borderRadius: '5px',
+                fontSize: '14px',
+                backgroundColor: darkMode ? '#383838' : 'white',
+                color: darkMode ? '#e0e0e0' : '#333',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="all">All Orders</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="disapproved">Disapproved</option>
+              <option value="in-transit">In Transit</option>
+              <option value="delivered">Delivered</option>
+            </select>
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            <FontAwesomeIcon 
+              icon={faSort} 
+              style={{ 
+                position: 'absolute', 
+                left: '12px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                color: darkMode ? '#808080' : '#999'
+              }} 
+            />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 10px 10px 40px',
+                border: `1px solid ${darkMode ? '#505050' : '#ddd'}`,
+                borderRadius: '5px',
+                fontSize: '14px',
+                backgroundColor: darkMode ? '#383838' : 'white',
+                color: darkMode ? '#e0e0e0' : '#333',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="name-asc">Name: A to Z</option>
+              <option value="name-desc">Name: Z to A</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          fontSize: '14px',
+          color: darkMode ? '#b0b0b0' : '#666'
+        }}>
+          <span>Showing {currentOrders.length} of {filteredOrders.length} orders</span>
+          {(searchTerm || filterStatus !== "all") && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setFilterStatus("all");
+                setSortBy("date-desc");
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="orders-wrapper">
         <div className="orders-container">
-          {sellerOrdersToDisplay.length === 0 ? (
-            <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-              You don't have any orders yet.
+          {currentOrders.length === 0 ? (
+            <p style={{ textAlign: 'center', padding: '20px', color: darkMode ? '#b0b0b0' : '#666' }}>
+              {searchTerm || filterStatus !== "all" 
+                ? "No orders match your search criteria." 
+                : "You don't have any orders yet."}
             </p>
           ) : (
-            sellerOrdersToDisplay.map((order, index) => {
+            currentOrders.map((order, index) => {
               const imageUrl = getImageUrl(order.productImage);
               const displayImage = imageErrors[`order-${order._id || index}`] 
                 ? fallbackProductImage 
@@ -989,9 +1460,13 @@ function RegSellerPage() {
               const isDelivered = order.deliveryStatus === "delivered" || order.deliveryStatus === "approved";
               const isInTransit = order.deliveryStatus === "in-transit";
               const isAcceptedByDeliveryman = order.acceptedByDeliveryman;
+              const isPending = !order.status || order.status === "pending";
 
               return (
-                <div key={order._id || index} className="order-item">
+                <div key={order._id || index} className="order-item" style={{
+                  backgroundColor: darkMode ? '#2d2d2d' : 'white',
+                  position: 'relative'
+                }}>
                   <img 
                     src={displayImage} 
                     alt={order.item || "Product"} 
@@ -1002,22 +1477,74 @@ function RegSellerPage() {
                       e.target.src = fallbackProductImage;
                     }}
                   />
-                  <p><strong>{order.item || "Unknown Item"}</strong></p>
-                  {order.quantity && <p>Quantity: {order.quantity}</p>}
-                  {order.price && <p>Price: Rs.{order.price}</p>}
-                  {order.postedDate && <p>Posted: {order.postedDate}</p>}
-                  {order.expireDate && <p>Expires: {order.expireDate}</p>}
-                  <p>
+                  <p style={{ color: darkMode ? '#e0e0e0' : '#333' }}><strong>{order.item || "Unknown Item"}</strong></p>
+                  {order.quantity && <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}>Quantity: {order.quantity}</p>}
+                  {order.price && <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}>Price: Rs.{order.price}</p>}
+                  {order.postedDate && <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}>Posted: {order.postedDate}</p>}
+                  {order.expireDate && <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}>Expires: {order.expireDate}</p>}
+                  <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}>
                     Status: <b style={{ color: getStatusColor(order.status) }}>
                       {order.status?.toUpperCase() || "PENDING"}
                     </b>
                   </p>
                   
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '10px', 
+                    marginTop: '10px',
+                    flexWrap: 'wrap'
+                  }}>
+                    {(order.status === "approved" || isInTransit || isDelivered) && (
+                      <button
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setShowTrackingModal(true);
+                        }}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#17a2b8',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faTruck} />
+                        Track Order
+                      </button>
+                    )}
+
+                    {isPending && (
+                      <button
+                        onClick={() => handleDeleteOrder(order._id)}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                        Cancel Order
+                      </button>
+                    )}
+                  </div>
+                  
                   {order.status === "approved" && (
                     <>
                       {isDelivered && (
                         <div className="delivery-info" style={{
-                          backgroundColor: '#d4edda',
+                          backgroundColor: darkMode ? '#1a3d1a' : '#d4edda',
                           padding: '15px',
                           borderRadius: '8px',
                           marginTop: '10px',
@@ -1030,12 +1557,12 @@ function RegSellerPage() {
                           
                           {hasDeliverymanInfo && (
                             <>
-                              <p className="deliveryman-detail" style={{ marginBottom: '5px' }}>
+                              <p className="deliveryman-detail" style={{ marginBottom: '5px', color: darkMode ? '#b0b0b0' : '#333' }}>
                                 <FontAwesomeIcon icon={faTruck} /> Delivered by: <strong>{deliverymanName}</strong>
                               </p>
                               
                               {order.deliverymanId.mobile && (
-                                <p className="deliveryman-detail" style={{ marginBottom: '5px' }}>
+                                <p className="deliveryman-detail" style={{ marginBottom: '5px', color: darkMode ? '#b0b0b0' : '#333' }}>
                                   Contact: {order.deliverymanId.mobile}
                                 </p>
                               )}
@@ -1048,7 +1575,7 @@ function RegSellerPage() {
                       
                       {!isDelivered && isInTransit && isAcceptedByDeliveryman && (
                         <div className="delivery-info" style={{
-                          backgroundColor: '#fff3cd',
+                          backgroundColor: darkMode ? '#4a3800' : '#fff3cd',
                           padding: '15px',
                           borderRadius: '8px',
                           marginTop: '10px',
@@ -1059,7 +1586,7 @@ function RegSellerPage() {
                             IN TRANSIT - ACCEPTED BY DELIVERYMAN
                           </p>
                           
-                          <p className="deliveryman-info">
+                          <p className="deliveryman-info" style={{ color: darkMode ? '#e0e0e0' : '#333' }}>
                             <FontAwesomeIcon icon={faTruck} /> 
                             Deliveryman: <strong>{deliverymanName}</strong>
                           </p>
@@ -1067,10 +1594,10 @@ function RegSellerPage() {
                           {hasDeliverymanInfo && (
                             <>
                               {order.deliverymanId.mobile && (
-                                <p className="deliveryman-detail">Mobile: {order.deliverymanId.mobile}</p>
+                                <p className="deliveryman-detail" style={{ color: darkMode ? '#b0b0b0' : '#666' }}>Mobile: {order.deliverymanId.mobile}</p>
                               )}
                               {order.deliverymanId.email && (
-                                <p className="deliveryman-detail">Email: {order.deliverymanId.email}</p>
+                                <p className="deliveryman-detail" style={{ color: darkMode ? '#b0b0b0' : '#666' }}>Email: {order.deliverymanId.email}</p>
                               )}
                             </>
                           )}
@@ -1085,13 +1612,13 @@ function RegSellerPage() {
                       
                       {!isDelivered && !isInTransit && !isAcceptedByDeliveryman && (
                         <div style={{
-                          backgroundColor: '#e7f3ff',
+                          backgroundColor: darkMode ? '#1a2a3a' : '#e7f3ff',
                           padding: '10px',
                           borderRadius: '5px',
                           marginTop: '10px',
                           border: '1px solid #007bff'
                         }}>
-                          <p style={{ color: '#004085', fontSize: '14px', margin: 0 }}>
+                          <p style={{ color: darkMode ? '#6db3f2' : '#004085', fontSize: '14px', margin: 0 }}>
                             <FontAwesomeIcon icon={faInfoCircle} /> Waiting for deliveryman to accept...
                           </p>
                         </div>
@@ -1110,16 +1637,100 @@ function RegSellerPage() {
           )}
         </div>
         
-        {sellerOrders.length > 4 && (
-          <button
-            className="view-all-button1"
-            onClick={() => setShowAllSellerOrders(!showAllSellerOrders)}
-          >
-            {showAllSellerOrders ? "Show Less" : `View All (${sellerOrders.length})`}
-            <FontAwesomeIcon icon={faChevronRight} className="arrow-icon" />
-          </button>
+        {totalPages > 1 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '10px',
+            marginTop: '30px',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              style={{
+                padding: '10px 15px',
+                backgroundColor: currentPage === 1 ? (darkMode ? '#404040' : '#ccc') : '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <FontAwesomeIcon icon={faChevronLeft} />
+              Previous
+            </button>
+
+            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+              {[...Array(totalPages)].map((_, index) => {
+                const pageNum = index + 1;
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => paginate(pageNum)}
+                      style={{
+                        padding: '10px 15px',
+                        backgroundColor: currentPage === pageNum ? '#28a745' : (darkMode ? '#383838' : '#f8f9fa'),
+                        color: currentPage === pageNum ? 'white' : (darkMode ? '#e0e0e0' : '#333'),
+                        border: `1px solid ${darkMode ? '#505050' : '#ddd'}`,
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        fontWeight: currentPage === pageNum ? 'bold' : 'normal'
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                } else if (
+                  pageNum === currentPage - 2 ||
+                  pageNum === currentPage + 2
+                ) {
+                  return <span key={pageNum} style={{ padding: '10px 5px', color: darkMode ? '#808080' : '#666' }}>...</span>;
+                }
+                return null;
+              })}
+            </div>
+
+            <button
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '10px 15px',
+                backgroundColor: currentPage === totalPages ? (darkMode ? '#404040' : '#ccc') : '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              Next
+              <FontAwesomeIcon icon={faChevronRight} />
+            </button>
+          </div>
         )}
       </div>
+
+      {showTrackingModal && selectedOrder && (
+        <OrderTrackingModal 
+          order={selectedOrder} 
+          onClose={() => {
+            setShowTrackingModal(false);
+            setSelectedOrder(null);
+          }} 
+        />
+      )}
 
       <FooterNew />
     </div>
