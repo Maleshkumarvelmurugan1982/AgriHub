@@ -640,9 +640,7 @@ function RegDeliverymanPage() {
               <FontAwesomeIcon icon={faMoneyBillWave} /> View Salary
             </button>
 
-            <button onClick={() => setShowHistory((s) => !s)} style={{ padding: "10px 14px", background: "#ff9800", color: "white", border: "none", borderRadius: 8, fontWeight: 700 }}>
-              <FontAwesomeIcon icon={faHistory} /> History ({deliveryHistory.length})
-            </button>
+            {/* History button intentionally removed from header and moved to floating area as requested */}
           </div>
         </div>
       </div>
@@ -809,14 +807,29 @@ function RegDeliverymanPage() {
         </div>
       )}
 
-      {/* Floating bottom-right buttons */}
-      <div style={{ position: "fixed", right: 20, bottom: 20, display: "flex", flexDirection: "column", gap: 12, zIndex: 2200 }}>
-        <button onClick={fetchSalaryAndShow} style={{ background: "#16a34a", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700 }}><FontAwesomeIcon icon={faMoneyBillWave} /> View Salary</button>
-        <button onClick={handleLogout} style={{ background: "#ef4444", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700 }}>Logout</button>
+      {/* Floating bottom-right buttons group: History (left), View Salary, Logout (right) */}
+      <div style={{ position: "fixed", right: 20, bottom: 20, display: "flex", gap: 12, alignItems: "center", zIndex: 2200 }}>
+        {/* History button (left-most) */}
+        <button onClick={() => setShowHistory((s) => !s)} aria-label="View Delivery History" title="View Delivery History" style={{ background: "#ff9800", color: "white", padding: "12px 14px", borderRadius: 999, border: "none", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+          <FontAwesomeIcon icon={faHistory} />
+          <span className="hidden-mobile">History</span>
+          <span style={{ background: "white", color: "#ff9800", padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 800 }}>{deliveryHistory.length}</span>
+        </button>
+
+        {/* View Salary */}
+        <button onClick={fetchSalaryAndShow} style={{ background: "#16a34a", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+          <FontAwesomeIcon icon={faMoneyBillWave} /> <span className="hidden-mobile">View Salary</span>
+        </button>
+
+        {/* Logout */}
+        <button onClick={handleLogout} style={{ background: "#ef4444", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+          Logout
+        </button>
       </div>
 
       <style>{`
         .delivery-dark { background: #0f1724 !important; color: #e6eef8 !important; }
+        @media (max-width: 640px) { .hidden-mobile { display: none; } }
       `}</style>
     </div>
   );
