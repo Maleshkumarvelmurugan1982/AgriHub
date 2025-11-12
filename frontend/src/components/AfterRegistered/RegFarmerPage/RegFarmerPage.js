@@ -6,6 +6,7 @@ import RegCategories from "../../AfterRegistered/RegCatoegories/RegCategories";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronRight,
+  faChevronLeft,
   faThumbsUp,
   faThumbsDown,
   faTruck,
@@ -23,7 +24,13 @@ import {
   faFilter,
   faSquare,
   faCheckSquare,
-  faFileExport
+  faFileExport,
+  faExclamationTriangle,
+  faExclamationCircle,
+  faBell,
+  faUndo,
+  faBan,
+  faShoppingCart
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
@@ -37,10 +44,17 @@ function FarmerPage() {
   const [showSchemes, setShowSchemes] = useState(false);
   const [showAppliedSchemes, setShowAppliedSchemes] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showAllSellerOrders, setShowAllSellerOrders] = useState(true);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [outOfStockProducts, setOutOfStockProducts] = useState([]);
+  const [showInventoryAlerts, setShowInventoryAlerts] = useState(false);
 
-  // New state for search and filters
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage] = useState(8);
+
+  // Search and filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -49,7 +63,14 @@ function FarmerPage() {
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
 
+  // Undo/Cancel state
+  const [recentActions, setRecentActions] = useState([]);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelOrderId, setCancelOrderId] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+
   const BASE_URL = "https://agrihub-2.onrender.com";
+  const UNDO_TIME_LIMIT = 30000; // 30 seconds
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return 'https://via.placeholder.com/150?text=No+Image';
@@ -136,11 +157,47 @@ function FarmerPage() {
       }
     };
 
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/product/farmer/${farmerId}`);
+        const data = await response.json();
+        const productsData = Array.isArray(data) ? data : (data.data && Array.isArray(data.data) ? data.data : []);
+        setProducts(productsData);
+        
+        // Analyze inventory
+        const lowStock = productsData.filter(p => {
+          const qty = Number(p.quantity) || 0;
+          return qty > 0 && qty <= 10;
+        });
+        const outOfStock = productsData.filter(p => {
+          const qty = Number(p.quantity) || 0;
+          return qty === 0;
+        });
+        
+        setLowStockProducts(lowStock);
+        setOutOfStockProducts(outOfStock);
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        setProducts([]);
+      }
+    };
+
     fetchSellerOrders();
     fetchFarmerOrders();
     fetchDeliveryPosts();
     fetchSchemes();
+    fetchProducts();
   }, [farmerId]);
+
+  // Auto-remove expired undo actions
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setRecentActions(prev => prev.filter(action => now - action.timestamp < UNDO_TIME_LIMIT));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleApplyScheme = async (scheme) => {
     if (!appliedSchemes.find((s) => s._id === scheme._id) && farmerId) {
@@ -280,7 +337,7 @@ function FarmerPage() {
 
       console.log(`✅✅✅ Restoration complete: ${currentQty} + ${restoreQty} = ${restoredQty} kg`);
       
-      return { success: true, restoredQty, newTotal: restoredQty, productName };
+      return { success: true, restoredQty, newTotal: restoredQty, productName, productId };
       
     } catch (restoreErr) {
       console.error("❌❌❌ EXCEPTION in restoreProductQuantity:");
@@ -305,7 +362,8 @@ function FarmerPage() {
         message += `📦 Inventory Update:\n`;
         message += `   Product: ${restoreResult.productName || order.item}\n`;
         message += `   Restored: +${restoreResult.restoredQty} kg\n`;
-        message += `   New Total: ${restoreResult.newTotal} kg`;
+        message += `   New Total: ${restoreResult.newTotal} kg\n\n`;
+        message += `⏱️ You have 30 seconds to undo this action.`;
       } else if (restoreResult && !restoreResult.success) {
         message += `⚠️ Inventory Warning:\n`;
         message += `   Automatic restoration failed\n`;
@@ -328,8 +386,8 @@ function FarmerPage() {
 
       if (newStatus === 'disapproved') {
         const confirmMessage = order.paymentStatus === 'paid' 
-          ? `Are you sure you want to disapprove this order?\n\n⚠️ Actions that will be taken:\n• Seller will be refunded Rs. ${order.price}\n• Payment Method: ${order.paymentMethod || 'wallet'}\n• Product quantity (${order.quantity} kg) will be restored to inventory`
-          : `Are you sure you want to disapprove this order?\n\n⚠️ Product quantity (${order.quantity} kg) will be restored to inventory`;
+          ? `Are you sure you want to disapprove this order?\n\n⚠️ Actions that will be taken:\n• Seller will be refunded Rs. ${order.price}\n• Payment Method: ${order.paymentMethod || 'wallet'}\n• Product quantity (${order.quantity} kg) will be restored to inventory\n\n✨ You can undo this action within 30 seconds.`
+          : `Are you sure you want to disapprove this order?\n\n⚠️ Product quantity (${order.quantity} kg) will be restored to inventory\n\n✨ You can undo this action within 30 seconds.`;
         
         if (!window.confirm(confirmMessage)) {
           return;
@@ -354,6 +412,8 @@ function FarmerPage() {
       const result = await res.json();
 
       if (result.status === 'ok') {
+        const previousOrder = { ...order };
+        
         setSellerOrders(prev =>
           prev.map(o => o._id === orderId ? result.order : o)
         );
@@ -361,6 +421,20 @@ function FarmerPage() {
         let restoreResult = null;
         if (newStatus === 'disapproved') {
           restoreResult = await restoreProductQuantity(order, result);
+          
+          // Add to recent actions for undo
+          if (restoreResult && restoreResult.success) {
+            const action = {
+              id: Date.now(),
+              type: 'disapprove',
+              orderId: orderId,
+              order: previousOrder,
+              newOrder: result.order,
+              restoreResult: restoreResult,
+              timestamp: Date.now()
+            };
+            setRecentActions(prev => [...prev, action]);
+          }
         }
 
         showSuccessMessage(newStatus, result, order, restoreResult);
@@ -368,6 +442,115 @@ function FarmerPage() {
     } catch (err) {
       console.error("Error updating order:", err);
       alert("Error updating order: " + err.message);
+    }
+  };
+
+  const handleUndoAction = async (action) => {
+    try {
+      if (!window.confirm(`Are you sure you want to undo the disapproval of order #${action.order.orderNumber || action.orderId}?`)) {
+        return;
+      }
+
+      // Restore order status
+      const res = await fetch(`${BASE_URL}/sellerorder/update-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          orderId: action.orderId, 
+          status: action.order.status || 'pending',
+          farmerId: farmerId 
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to undo action");
+      }
+
+      // Reverse quantity restoration
+      if (action.restoreResult && action.restoreResult.productId) {
+        const productId = action.restoreResult.productId;
+        const quantityToRemove = action.restoreResult.restoredQty;
+        
+        const getProd = await fetch(`${BASE_URL}/product/${productId}`);
+        if (getProd.ok) {
+          const productData = await getProd.json();
+          const currentQty = Number(productData.quantity) || 0;
+          const newQty = currentQty - quantityToRemove;
+          
+          await fetch(`${BASE_URL}/product/${productId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ quantity: newQty })
+          });
+        }
+      }
+
+      const result = await res.json();
+      setSellerOrders(prev =>
+        prev.map(o => o._id === action.orderId ? result.order : o)
+      );
+
+      // Remove action from recent actions
+      setRecentActions(prev => prev.filter(a => a.id !== action.id));
+
+      alert(`✅ Undo successful! Order restored to previous status.`);
+    } catch (err) {
+      console.error("Error undoing action:", err);
+      alert("Error undoing action: " + err.message);
+    }
+  };
+
+  const handleCancelOrder = (orderId) => {
+    setCancelOrderId(orderId);
+    setShowCancelModal(true);
+  };
+
+  const submitCancelOrder = async () => {
+    if (!cancelReason.trim()) {
+      alert("Please provide a reason for cancellation");
+      return;
+    }
+
+    try {
+      const order = sellerOrders.find(o => o._id === cancelOrderId);
+      if (!order) {
+        alert("Order not found");
+        return;
+      }
+
+      // Cancel = Disapprove with reason
+      const res = await fetch(`${BASE_URL}/sellerorder/update-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          orderId: cancelOrderId, 
+          status: 'cancelled',
+          farmerId: farmerId,
+          cancellationReason: cancelReason
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to cancel order");
+      }
+
+      const result = await res.json();
+      
+      setSellerOrders(prev =>
+        prev.map(o => o._id === cancelOrderId ? { ...result.order, status: 'disapproved', cancellationReason: cancelReason } : o)
+      );
+
+      // Restore quantity
+      await restoreProductQuantity(order, result);
+
+      setShowCancelModal(false);
+      setCancelOrderId(null);
+      setCancelReason("");
+      
+      alert(`✅ Order cancelled successfully!\n\nReason: ${cancelReason}\n\n📦 Inventory has been restored.`);
+    } catch (err) {
+      console.error("Error cancelling order:", err);
+      alert("Error cancelling order: " + err.message);
     }
   };
 
@@ -541,23 +724,19 @@ function FarmerPage() {
   // Filter and search logic
   const getFilteredOrders = () => {
     return sellerOrders.filter(order => {
-      // Search filter
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
         order.item?.toLowerCase().includes(searchLower) ||
         order.orderNumber?.toLowerCase().includes(searchLower) ||
         getSellerInfo(order).name.toLowerCase().includes(searchLower);
 
-      // Status filter
       const matchesStatus = statusFilter === 'all' || 
         (statusFilter === 'pending' && (!order.status || order.status === 'pending')) ||
         order.status?.toLowerCase() === statusFilter;
 
-      // Payment filter
       const matchesPayment = paymentFilter === 'all' || 
         order.paymentStatus?.toLowerCase() === paymentFilter;
 
-      // Date range filter
       let matchesDate = true;
       if (dateRange.start || dateRange.end) {
         const orderDate = new Date(order.createdAt || order.updatedAt);
@@ -576,6 +755,17 @@ function FarmerPage() {
   };
 
   const filteredOrders = getFilteredOrders();
+
+  // Pagination logic
+  const indexOfLastOrder = currentPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+
+  const paginate = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const calculateStatistics = (orders, period) => {
     const now = new Date();
@@ -694,111 +884,26 @@ function FarmerPage() {
       <head>
         <title>Sales Report - ${period.charAt(0).toUpperCase() + period.slice(1)}</title>
         <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 40px;
-            color: #333;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 3px solid #007bff;
-            padding-bottom: 20px;
-          }
-          h1 {
-            color: #007bff;
-            margin: 0;
-            font-size: 28px;
-          }
-          .meta {
-            color: #666;
-            font-size: 12px;
-            margin-top: 10px;
-          }
-          .section {
-            margin: 30px 0;
-            page-break-inside: avoid;
-          }
-          h2 {
-            color: #333;
-            border-bottom: 2px solid #28a745;
-            padding-bottom: 10px;
-            font-size: 20px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            page-break-inside: avoid;
-          }
-          th {
-            background-color: #007bff;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-          }
-          td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #ddd;
-          }
-          tr:nth-child(even) {
-            background-color: #f8f9fa;
-          }
-          tr:hover {
-            background-color: #e9ecef;
-          }
-          .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin: 20px 0;
-          }
-          .summary-card {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #007bff;
-          }
-          .summary-card h3 {
-            margin: 0 0 10px 0;
-            color: #666;
-            font-size: 14px;
-          }
-          .summary-card .value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #007bff;
-          }
-          .product-table th {
-            background-color: #28a745;
-          }
-          .payment-table th {
-            background-color: #ffc107;
-            color: #333;
-          }
-          .order-table th {
-            background-color: #dc3545;
-          }
-          .footer {
-            text-align: center;
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 2px solid #ddd;
-            color: #666;
-            font-size: 12px;
-          }
-          @media print {
-            body {
-              padding: 20px;
-            }
-            .section {
-              page-break-inside: avoid;
-            }
-            table {
-              page-break-inside: avoid;
-            }
-          }
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #007bff; padding-bottom: 20px; }
+          h1 { color: #007bff; margin: 0; font-size: 28px; }
+          .meta { color: #666; font-size: 12px; margin-top: 10px; }
+          .section { margin: 30px 0; page-break-inside: avoid; }
+          h2 { color: #333; border-bottom: 2px solid #28a745; padding-bottom: 10px; font-size: 20px; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; page-break-inside: avoid; }
+          th { background-color: #007bff; color: white; padding: 12px; text-align: left; font-weight: 600; }
+          td { padding: 10px 12px; border-bottom: 1px solid #ddd; }
+          tr:nth-child(even) { background-color: #f8f9fa; }
+          tr:hover { background-color: #e9ecef; }
+          .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
+          .summary-card { background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff; }
+          .summary-card h3 { margin: 0 0 10px 0; color: #666; font-size: 14px; }
+          .summary-card .value { font-size: 24px; font-weight: bold; color: #007bff; }
+          .product-table th { background-color: #28a745; }
+          .payment-table th { background-color: #ffc107; color: #333; }
+          .order-table th { background-color: #dc3545; }
+          .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #ddd; color: #666; font-size: 12px; }
+          @media print { body { padding: 20px; } .section { page-break-inside: avoid; } table { page-break-inside: avoid; } }
         </style>
       </head>
       <body>
@@ -809,118 +914,49 @@ function FarmerPage() {
             <p>Period: ${stats.startDate.toLocaleDateString()} to ${stats.endDate.toLocaleDateString()}</p>
           </div>
         </div>
-
         <div class="section">
           <h2>Summary</h2>
           <div class="summary-grid">
-            <div class="summary-card">
-              <h3>Total Orders</h3>
-              <div class="value">${stats.totalOrders}</div>
-            </div>
-            <div class="summary-card">
-              <h3>Total Revenue</h3>
-              <div class="value">Rs. ${stats.totalRevenue.toFixed(2)}</div>
-            </div>
-            <div class="summary-card">
-              <h3>Total Quantity Sold</h3>
-              <div class="value">${stats.totalQuantity.toFixed(2)} kg</div>
-            </div>
-            <div class="summary-card">
-              <h3>Average Order Value</h3>
-              <div class="value">Rs. ${stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : 0}</div>
-            </div>
+            <div class="summary-card"><h3>Total Orders</h3><div class="value">${stats.totalOrders}</div></div>
+            <div class="summary-card"><h3>Total Revenue</h3><div class="value">Rs. ${stats.totalRevenue.toFixed(2)}</div></div>
+            <div class="summary-card"><h3>Total Quantity Sold</h3><div class="value">${stats.totalQuantity.toFixed(2)} kg</div></div>
+            <div class="summary-card"><h3>Average Order Value</h3><div class="value">Rs. ${stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : 0}</div></div>
           </div>
         </div>
-
         <div class="section">
           <h2>Product Breakdown</h2>
           <table class="product-table">
-            <thead>
-              <tr>
-                <th>Product Name</th>
-                <th>Quantity Sold</th>
-                <th>Revenue</th>
-                <th>Orders</th>
-                <th>Avg Price/kg</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Product Name</th><th>Quantity Sold</th><th>Revenue</th><th>Orders</th><th>Avg Price/kg</th></tr></thead>
             <tbody>
               ${Object.entries(stats.productStats).map(([product, data]) => `
-                <tr>
-                  <td>${product}</td>
-                  <td>${data.quantity.toFixed(2)} kg</td>
-                  <td>Rs. ${data.revenue.toFixed(2)}</td>
-                  <td>${data.orders}</td>
-                  <td>Rs. ${(data.revenue / data.quantity).toFixed(2)}</td>
-                </tr>
+                <tr><td>${product}</td><td>${data.quantity.toFixed(2)} kg</td><td>Rs. ${data.revenue.toFixed(2)}</td><td>${data.orders}</td><td>Rs. ${(data.revenue / data.quantity).toFixed(2)}</td></tr>
               `).join('')}
             </tbody>
           </table>
         </div>
-
         <div class="section">
           <h2>Payment Method Breakdown</h2>
           <table class="payment-table">
-            <thead>
-              <tr>
-                <th>Payment Method</th>
-                <th>Number of Transactions</th>
-                <th>Total Amount</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Payment Method</th><th>Number of Transactions</th><th>Total Amount</th></tr></thead>
             <tbody>
-              <tr>
-                <td>Wallet</td>
-                <td>${stats.paymentStats.wallet.count}</td>
-                <td>Rs. ${stats.paymentStats.wallet.amount.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td>Card</td>
-                <td>${stats.paymentStats.card.count}</td>
-                <td>Rs. ${stats.paymentStats.card.amount.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td>Other</td>
-                <td>${stats.paymentStats.other.count}</td>
-                <td>Rs. ${stats.paymentStats.other.amount.toFixed(2)}</td>
-              </tr>
+              <tr><td>Wallet</td><td>${stats.paymentStats.wallet.count}</td><td>Rs. ${stats.paymentStats.wallet.amount.toFixed(2)}</td></tr>
+              <tr><td>Card</td><td>${stats.paymentStats.card.count}</td><td>Rs. ${stats.paymentStats.card.amount.toFixed(2)}</td></tr>
+              <tr><td>Other</td><td>${stats.paymentStats.other.count}</td><td>Rs. ${stats.paymentStats.other.amount.toFixed(2)}</td></tr>
             </tbody>
           </table>
         </div>
-
         <div class="section">
           <h2>Recent Orders (Latest 20)</h2>
           <table class="order-table">
-            <thead>
-              <tr>
-                <th>Order #</th>
-                <th>Date</th>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Price</th>
-                <th>Payment</th>
-                <th>Seller</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Order #</th><th>Date</th><th>Product</th><th>Quantity</th><th>Price</th><th>Payment</th><th>Seller</th></tr></thead>
             <tbody>
               ${stats.orders.slice(0, 20).map(order => {
                 const sellerInfo = getSellerInfo(order);
-                return `
-                  <tr>
-                    <td>${order.orderNumber || order._id.substring(0, 8)}</td>
-                    <td>${new Date(order.updatedAt || order.createdAt).toLocaleDateString()}</td>
-                    <td>${order.item}</td>
-                    <td>${order.quantity} kg</td>
-                    <td>Rs. ${order.price}</td>
-                    <td>${order.paymentStatus || 'N/A'}</td>
-                    <td>${sellerInfo.name}</td>
-                  </tr>
-                `;
+                return `<tr><td>${order.orderNumber || order._id.substring(0, 8)}</td><td>${new Date(order.updatedAt || order.createdAt).toLocaleDateString()}</td><td>${order.item}</td><td>${order.quantity} kg</td><td>Rs. ${order.price}</td><td>${order.paymentStatus || 'N/A'}</td><td>${sellerInfo.name}</td></tr>`;
               }).join('')}
             </tbody>
           </table>
         </div>
-
         <div class="footer">
           <p>This is an automatically generated sales report</p>
           <p>© AgriHub - Farm Management System</p>
@@ -978,12 +1014,20 @@ function FarmerPage() {
     return { name: "Unknown Seller", place: "" };
   };
 
-  const sellerOrdersToDisplay = showAllSellerOrders ? filteredOrders : filteredOrders.slice(0, 4);
   const resetFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
     setPaymentFilter("all");
     setDateRange({ start: "", end: "" });
+    setCurrentPage(1);
+  };
+
+  const getReorderSuggestion = (product) => {
+    const currentQty = Number(product.quantity) || 0;
+    if (currentQty === 0) return "Immediate reorder needed";
+    if (currentQty <= 5) return "Reorder 50 kg soon";
+    if (currentQty <= 10) return "Consider reordering 30 kg";
+    return null;
   };
 
   return (
@@ -1009,6 +1053,194 @@ function FarmerPage() {
           />
         </div>
       </div>
+
+      {/* Inventory Alerts */}
+      {(lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
+        <div style={{
+          maxWidth: '1200px',
+          margin: '20px auto',
+          padding: '15px 20px',
+          backgroundColor: '#fff3cd',
+          border: '2px solid #ffc107',
+          borderRadius: '10px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 2px 8px rgba(255,193,7,0.3)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <FontAwesomeIcon icon={faBell} style={{ fontSize: '24px', color: '#ff6b6b', animation: 'pulse 2s infinite' }} />
+            <div>
+              <strong style={{ fontSize: '16px', color: '#333' }}>Inventory Alerts</strong>
+              <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#666' }}>
+                {outOfStockProducts.length > 0 && <span style={{ color: '#dc3545', fontWeight: '600' }}>{outOfStockProducts.length} out of stock</span>}
+                {outOfStockProducts.length > 0 && lowStockProducts.length > 0 && <span> • </span>}
+                {lowStockProducts.length > 0 && <span style={{ color: '#ffc107', fontWeight: '600' }}>{lowStockProducts.length} low stock</span>}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowInventoryAlerts(!showInventoryAlerts)}
+            style={{
+              padding: '8px 20px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '14px'
+            }}
+          >
+            {showInventoryAlerts ? 'Hide Details' : 'View Details'}
+          </button>
+        </div>
+      )}
+
+      {/* Inventory Alerts Details */}
+      {showInventoryAlerts && (
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto 20px',
+          padding: '20px',
+          backgroundColor: 'white',
+          borderRadius: '10px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        }}>
+          {outOfStockProducts.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{ color: '#dc3545', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FontAwesomeIcon icon={faExclamationCircle} /> Out of Stock ({outOfStockProducts.length})
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px' }}>
+                {outOfStockProducts.map(product => (
+                  <div key={product._id} style={{
+                    padding: '15px',
+                    backgroundColor: '#fff5f5',
+                    border: '2px solid #dc3545',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                      <strong style={{ color: '#333', fontSize: '16px' }}>{product.productName}</strong>
+                      <FontAwesomeIcon icon={faExclamationCircle} style={{ color: '#dc3545', fontSize: '20px' }} />
+                    </div>
+                    <p style={{ margin: '5px 0', fontSize: '14px', color: '#666' }}>
+                      <strong>Current:</strong> 0 kg
+                    </p>
+                    <p style={{ margin: '5px 0', fontSize: '14px', color: '#666' }}>
+                      <strong>Price:</strong> Rs. {product.price}/kg
+                    </p>
+                    <div style={{
+                      marginTop: '10px',
+                      padding: '8px',
+                      backgroundColor: '#dc3545',
+                      color: 'white',
+                      borderRadius: '5px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      textAlign: 'center'
+                    }}>
+                      <FontAwesomeIcon icon={faShoppingCart} /> {getReorderSuggestion(product)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {lowStockProducts.length > 0 && (
+            <div>
+              <h3 style={{ color: '#ffc107', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FontAwesomeIcon icon={faExclamationTriangle} /> Low Stock ({lowStockProducts.length})
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px' }}>
+                {lowStockProducts.map(product => (
+                  <div key={product._id} style={{
+                    padding: '15px',
+                    backgroundColor: '#fffbf0',
+                    border: '2px solid #ffc107',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                      <strong style={{ color: '#333', fontSize: '16px' }}>{product.productName}</strong>
+                      <FontAwesomeIcon icon={faExclamationTriangle} style={{ color: '#ffc107', fontSize: '20px' }} />
+                    </div>
+                    <p style={{ margin: '5px 0', fontSize: '14px', color: '#666' }}>
+                      <strong>Current:</strong> {product.quantity} kg
+                    </p>
+                    <p style={{ margin: '5px 0', fontSize: '14px', color: '#666' }}>
+                      <strong>Price:</strong> Rs. {product.price}/kg
+                    </p>
+                    <div style={{
+                      marginTop: '10px',
+                      padding: '8px',
+                      backgroundColor: '#ffc107',
+                      color: '#333',
+                      borderRadius: '5px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      textAlign: 'center'
+                    }}>
+                      <FontAwesomeIcon icon={faShoppingCart} /> {getReorderSuggestion(product)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Undo Actions Bar */}
+      {recentActions.length > 0 && (
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto 20px',
+          padding: '15px 20px',
+          backgroundColor: '#e7f3ff',
+          border: '2px solid #007bff',
+          borderRadius: '10px',
+          boxShadow: '0 2px 8px rgba(0,123,255,0.2)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <strong style={{ fontSize: '16px', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FontAwesomeIcon icon={faUndo} /> Recent Actions (Undo available for 30s)
+              </strong>
+              <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#666' }}>
+                You can undo {recentActions.length} recent disapproval(s)
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {recentActions.map(action => {
+                const timeLeft = Math.max(0, Math.floor((UNDO_TIME_LIMIT - (Date.now() - action.timestamp)) / 1000));
+                return (
+                  <button
+                    key={action.id}
+                    onClick={() => handleUndoAction(action)}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faUndo} />
+                    Undo Order #{action.order.orderNumber || action.orderId.substring(0, 6)} ({timeLeft}s)
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="categories-container">
         <div className="categories-div">
@@ -1732,7 +1964,7 @@ function FarmerPage() {
           marginBottom: '20px'
         }}>
           <span style={{ fontSize: '16px', fontWeight: '600', color: '#333' }}>
-            Showing {filteredOrders.length} of {sellerOrders.length} orders
+            Showing {currentOrders.length} of {filteredOrders.length} orders (Page {currentPage} of {totalPages})
           </span>
           {selectedOrders.length > 0 && (
             <span style={{ fontSize: '14px', color: '#007bff', fontWeight: '600' }}>
@@ -1840,9 +2072,94 @@ function FarmerPage() {
         )}
       </div>
 
+      {/* Cancel Order Modal */}
+      {showCancelModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '10px',
+            padding: '30px',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+          }}>
+            <h2 style={{ margin: '0 0 20px 0', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <FontAwesomeIcon icon={faBan} style={{ color: '#dc3545' }} />
+              Cancel Order
+            </h2>
+            <p style={{ marginBottom: '20px', color: '#666' }}>
+              Please provide a reason for cancelling this order:
+            </p>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Enter cancellation reason..."
+              style={{
+                width: '100%',
+                minHeight: '120px',
+                padding: '12px',
+                fontSize: '14px',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                resize: 'vertical',
+                fontFamily: 'Arial, sans-serif',
+                marginBottom: '20px'
+              }}
+            />
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelOrderId(null);
+                  setCancelReason("");
+                }}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={submitCancelOrder}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                <FontAwesomeIcon icon={faBan} /> Confirm Cancellation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="orders-wrapper">
         <div className="orders-container">
-          {sellerOrdersToDisplay.length === 0 ? (
+          {currentOrders.length === 0 ? (
             <p style={{
               textAlign: 'center',
               fontSize: '18px',
@@ -1854,7 +2171,7 @@ function FarmerPage() {
                 : "No orders match your search criteria."}
             </p>
           ) : (
-            sellerOrdersToDisplay.map((order) => {
+            currentOrders.map((order) => {
               const hasDeliverymanInfo = order.deliverymanId && typeof order.deliverymanId === 'object';
               const deliverymanName = hasDeliverymanInfo 
                 ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
@@ -1962,7 +2279,8 @@ function FarmerPage() {
                           padding: '8px 16px',
                           borderRadius: '5px',
                           cursor: 'pointer',
-                          marginRight: '10px'
+                          marginRight: '10px',
+                          marginBottom: '5px'
                         }}
                       >
                         <FontAwesomeIcon icon={faThumbsUp}/> Approve
@@ -1975,10 +2293,27 @@ function FarmerPage() {
                           border: 'none',
                           padding: '8px 16px',
                           borderRadius: '5px',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          marginBottom: '5px'
                         }}
                       >
                         <FontAwesomeIcon icon={faThumbsDown}/> Disapprove
+                      </button>
+                      <button 
+                        onClick={() => handleCancelOrder(order._id)}
+                        style={{
+                          backgroundColor: '#ffc107',
+                          color: '#333',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          marginLeft: '10px',
+                          marginBottom: '5px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faBan}/> Cancel
                       </button>
                     </div>
                   )}
@@ -1992,6 +2327,11 @@ function FarmerPage() {
                   {order.status === "disapproved" && (
                     <div className="order-status-message-disapproved">
                       <p>✗ Order Disapproved</p>
+                      {order.cancellationReason && (
+                        <p style={{ fontSize: '12px', marginTop: '5px', fontStyle: 'italic' }}>
+                          Reason: {order.cancellationReason}
+                        </p>
+                      )}
                       {order.paymentStatus === 'refunded' && (
                         <p style={{ fontSize: '12px', marginTop: '5px' }}>
                           💰 Refund processed
@@ -2007,14 +2347,98 @@ function FarmerPage() {
             })
           )}
         </div>
-        {filteredOrders.length > 4 && (
-          <button 
-            className="view-all-button1" 
-            onClick={() => setShowAllSellerOrders(prev => !prev)}
-          >
-            {showAllSellerOrders ? "Show Less" : `View All (${filteredOrders.length})`} 
-            <FontAwesomeIcon icon={faChevronRight}/>
-          </button>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '10px',
+            margin: '30px 0',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              style={{
+                padding: '10px 20px',
+                fontSize: '16px',
+                backgroundColor: currentPage === 1 ? '#e9ecef' : '#007bff',
+                color: currentPage === 1 ? '#6c757d' : 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: '600',
+                transition: 'all 0.3s'
+              }}
+            >
+              <FontAwesomeIcon icon={faChevronLeft} /> Previous
+            </button>
+
+            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+              {[...Array(totalPages)].map((_, index) => {
+                const pageNum = index + 1;
+                // Show first page, last page, current page, and pages around current
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => paginate(pageNum)}
+                      style={{
+                        padding: '10px 15px',
+                        fontSize: '16px',
+                        backgroundColor: currentPage === pageNum ? '#007bff' : 'white',
+                        color: currentPage === pageNum ? 'white' : '#007bff',
+                        border: '2px solid #007bff',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        minWidth: '45px',
+                        transition: 'all 0.3s'
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                } else if (
+                  pageNum === currentPage - 2 ||
+                  pageNum === currentPage + 2
+                ) {
+                  return <span key={pageNum} style={{ padding: '10px 5px', color: '#666' }}>...</span>;
+                }
+                return null;
+              })}
+            </div>
+
+            <button
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '10px 20px',
+                fontSize: '16px',
+                backgroundColor: currentPage === totalPages ? '#e9ecef' : '#007bff',
+                color: currentPage === totalPages ? '#6c757d' : 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: '600',
+                transition: 'all 0.3s'
+              }}
+            >
+              Next <FontAwesomeIcon icon={faChevronRight} />
+            </button>
+          </div>
         )}
       </div>
 
