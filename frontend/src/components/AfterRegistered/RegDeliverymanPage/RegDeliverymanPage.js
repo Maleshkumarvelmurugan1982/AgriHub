@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import "./RegDeliverymanPage.css";
-import NavbarRegistered from "../../NavbarRegistered/NavbarRegistered";
-import FooterNew from "../../Footer/FooterNew";
-import RegCategories from "../RegCatoegories/RegCategories";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronRight,
@@ -17,23 +13,19 @@ import {
   faUser,
   faShoppingCart
 } from "@fortawesome/free-solid-svg-icons";
-import TypeWriter from "../../AutoWritingText/TypeWriter";
 
 function RegDeliverymanPage() {
   const [deliverymanId, setDeliverymanId] = useState("");
   const [availableSellerOrders, setAvailableSellerOrders] = useState([]);
-  const [availableFarmerOrders, setAvailableFarmerOrders] = useState([]);
   const [mySellerOrders, setMySellerOrders] = useState([]);
-  const [myFarmerOrders, setMyFarmerOrders] = useState([]);
   const [salary, setSalary] = useState(0);
   const [showSalary, setShowSalary] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [acceptingOrder, setAcceptingOrder] = useState(null); // Track which order is being accepted
+  const [acceptingOrder, setAcceptingOrder] = useState(null);
 
   const BASE_URL = "https://agrihub-2.onrender.com";
 
-  // Helper function to get the correct image URL
   const getImageUrl = (imagePath) => {
     if (!imagePath) {
       return 'https://via.placeholder.com/150?text=No+Image';
@@ -58,16 +50,12 @@ function RegDeliverymanPage() {
     });
   };
 
-  // Get delivery history (all delivered orders)
   const getDeliveryHistory = () => {
     const sellerDeliveries = mySellerOrders.filter(order => 
       order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
     );
-    const farmerDeliveries = myFarmerOrders.filter(order => 
-      order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
-    );
     
-    return [...sellerDeliveries, ...farmerDeliveries].sort((a, b) => {
+    return sellerDeliveries.sort((a, b) => {
       const dateA = new Date(a.updatedAt || a.createdAt || 0);
       const dateB = new Date(b.updatedAt || b.createdAt || 0);
       return dateB - dateA;
@@ -125,20 +113,6 @@ function RegDeliverymanPage() {
           : [];
         setAvailableSellerOrders(availableSellerData);
 
-        // Fetch available farmer orders
-        try {
-          const availableFarmerResponse = await axios.get(
-            `${BASE_URL}/farmerorder/deliveryman/available`
-          );
-          const availableFarmerData = Array.isArray(availableFarmerResponse.data) 
-            ? availableFarmerResponse.data 
-            : [];
-          setAvailableFarmerOrders(availableFarmerData);
-        } catch (err) {
-          console.warn("No farmer orders available:", err.message);
-          setAvailableFarmerOrders([]);
-        }
-
         // Fetch my seller orders
         const mySellerResponse = await axios.get(
           `${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`
@@ -147,20 +121,6 @@ function RegDeliverymanPage() {
           ? mySellerResponse.data 
           : [];
         setMySellerOrders(mySellerData);
-
-        // Fetch my farmer orders
-        try {
-          const myFarmerResponse = await axios.get(
-            `${BASE_URL}/farmerorder/deliveryman/${deliverymanId}`
-          );
-          const myFarmerData = Array.isArray(myFarmerResponse.data) 
-            ? myFarmerResponse.data 
-            : [];
-          setMyFarmerOrders(myFarmerData);
-        } catch (err) {
-          console.warn("No farmer orders assigned:", err.message);
-          setMyFarmerOrders([]);
-        }
 
         // Fetch salary
         try {
@@ -190,8 +150,7 @@ function RegDeliverymanPage() {
     
   }, [deliverymanId]);
 
-  const handleAcceptDelivery = async (orderId, type) => {
-    // Validation checks
+  const handleAcceptDelivery = async (orderId) => {
     if (!deliverymanId) {
       alert("❌ Please log in to accept orders");
       return;
@@ -209,58 +168,38 @@ function RegDeliverymanPage() {
 
     try {
       setAcceptingOrder(orderId);
-      console.log(`📦 Accepting ${type} order:`, orderId);
+      console.log(`📦 Accepting seller order:`, orderId);
       console.log(`👤 Deliveryman ID:`, deliverymanId);
 
-      let response;
-      const endpoint = type === "seller" 
-        ? `${BASE_URL}/sellerorder/${orderId}/accept`
-        : `${BASE_URL}/farmerorder/${orderId}/accept`;
-
+      const endpoint = `${BASE_URL}/sellerorder/${orderId}/accept`;
       console.log(`🔗 API Endpoint:`, endpoint);
 
-      response = await axios.put(
+      const response = await axios.put(
         endpoint,
         { deliverymanId },
         {
           headers: {
             'Content-Type': 'application/json',
           },
-          timeout: 10000 // 10 second timeout
+          timeout: 10000
         }
       );
 
       console.log("✅ Accept response:", response.data);
 
       // Update local state immediately
-      if (type === "seller") {
-        const acceptedOrder = availableSellerOrders.find(o => o._id === orderId);
-        if (acceptedOrder) {
-          const updatedOrder = { 
-            ...acceptedOrder, 
-            deliverymanId: deliverymanId,
-            acceptedByDeliveryman: true, 
-            deliveryStatus: response.data.deliveryStatus || "in-transit"
-          };
-          
-          setMySellerOrders(prev => [...prev, updatedOrder]);
-          setAvailableSellerOrders(prev => prev.filter(o => o._id !== orderId));
-          console.log("✅ Seller order moved to 'My Orders'");
-        }
-      } else {
-        const acceptedOrder = availableFarmerOrders.find(o => o._id === orderId);
-        if (acceptedOrder) {
-          const updatedOrder = { 
-            ...acceptedOrder, 
-            deliverymanId: deliverymanId,
-            acceptedByDeliveryman: true, 
-            deliveryStatus: response.data.deliveryStatus || "in-transit"
-          };
-          
-          setMyFarmerOrders(prev => [...prev, updatedOrder]);
-          setAvailableFarmerOrders(prev => prev.filter(o => o._id !== orderId));
-          console.log("✅ Farmer order moved to 'My Orders'");
-        }
+      const acceptedOrder = availableSellerOrders.find(o => o._id === orderId);
+      if (acceptedOrder) {
+        const updatedOrder = { 
+          ...acceptedOrder, 
+          deliverymanId: deliverymanId,
+          acceptedByDeliveryman: true, 
+          deliveryStatus: response.data.deliveryStatus || "in-transit"
+        };
+        
+        setMySellerOrders(prev => [...prev, updatedOrder]);
+        setAvailableSellerOrders(prev => prev.filter(o => o._id !== orderId));
+        console.log("✅ Seller order moved to 'My Orders'");
       }
       
       alert("✅ Order accepted successfully!");
@@ -271,16 +210,13 @@ function RegDeliverymanPage() {
       let errorMessage = "Failed to accept order. ";
       
       if (err.response) {
-        // Server responded with error
         console.error("Error response data:", err.response.data);
         console.error("Error response status:", err.response.status);
         errorMessage += err.response.data.message || err.response.data.error || `Status: ${err.response.status}`;
       } else if (err.request) {
-        // Request made but no response
         console.error("No response received:", err.request);
         errorMessage += "No response from server. Please check your connection.";
       } else {
-        // Error in request setup
         console.error("Error message:", err.message);
         errorMessage += err.message;
       }
@@ -291,18 +227,16 @@ function RegDeliverymanPage() {
     }
   };
 
-  const handleDeliveryStatus = async (orderId, type, status) => {
+  const handleDeliveryStatus = async (orderId, status) => {
     if (!orderId || !status) {
       alert("❌ Invalid order or status");
       return;
     }
 
     try {
-      const url = type === "seller" 
-        ? `${BASE_URL}/sellerorder/${orderId}/status`
-        : `${BASE_URL}/farmerorder/${orderId}/status`;
+      const url = `${BASE_URL}/sellerorder/${orderId}/status`;
       
-      console.log(`📦 Updating status for ${type} order ${orderId} to ${status}`);
+      console.log(`📦 Updating status for order ${orderId} to ${status}`);
 
       const response = await axios.put(url, { status }, {
         headers: {
@@ -314,19 +248,11 @@ function RegDeliverymanPage() {
       console.log("✅ Status update response:", response.data);
 
       // Update local state
-      if (type === "seller") {
-        setMySellerOrders(prev =>
-          prev.map(order =>
-            order._id === orderId ? { ...order, deliveryStatus: status } : order
-          )
-        );
-      } else {
-        setMyFarmerOrders(prev =>
-          prev.map(order =>
-            order._id === orderId ? { ...order, deliveryStatus: status } : order
-          )
-        );
-      }
+      setMySellerOrders(prev =>
+        prev.map(order =>
+          order._id === orderId ? { ...order, deliveryStatus: status } : order
+        )
+      );
 
       alert(`✅ Order status updated to "${status}" successfully!`);
       
@@ -348,20 +274,16 @@ function RegDeliverymanPage() {
 
   if (loading) {
     return (
-      <div>
-        <NavbarRegistered />
-        <p style={{ textAlign: "center", marginTop: "50px", fontSize: "18px" }}>
-          Loading deliveryman data...
-        </p>
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <p style={{ fontSize: "18px" }}>Loading deliveryman data...</p>
       </div>
     );
   }
 
   if (!deliverymanId) {
     return (
-      <div>
-        <NavbarRegistered />
-        <p style={{ textAlign: "center", marginTop: "50px", fontSize: "18px", color: "red" }}>
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <p style={{ fontSize: "18px", color: "red" }}>
           Please log in to access the deliveryman dashboard.
         </p>
       </div>
@@ -369,21 +291,32 @@ function RegDeliverymanPage() {
   }
 
   const renderDeliveryStatusBadge = (status) => {
+    const badgeStyle = {
+      padding: '8px 16px',
+      borderRadius: '20px',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      margin: '10px 0'
+    };
+
     if (status === "delivered") {
       return (
-        <div className="status-badge delivered-badge">
+        <div style={{ ...badgeStyle, backgroundColor: '#4caf50', color: 'white' }}>
           <FontAwesomeIcon icon={faCheckCircle} /> Delivered
         </div>
       );
     } else if (status === "not-delivered") {
       return (
-        <div className="status-badge not-delivered-badge">
+        <div style={{ ...badgeStyle, backgroundColor: '#f44336', color: 'white' }}>
           <FontAwesomeIcon icon={faTimesCircle} /> Not Delivered
         </div>
       );
     } else if (status === "in-transit") {
       return (
-        <div className="status-badge in-transit-badge">
+        <div style={{ ...badgeStyle, backgroundColor: '#ff9800', color: 'white' }}>
           <FontAwesomeIcon icon={faTruck} /> In Transit
         </div>
       );
@@ -391,36 +324,62 @@ function RegDeliverymanPage() {
     return null;
   };
 
-  const renderAvailableOrders = (orders, type) => {
+  const renderAvailableOrders = (orders) => {
     if (orders.length === 0) {
       return <p style={{ textAlign: "center", padding: "20px" }}>No available orders to accept</p>;
     }
 
     return (
-      <div className="orders-container">
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '20px',
+        padding: '20px'
+      }}>
         {orders.map((order) => (
-          <div key={order._id} className="order-item">
+          <div key={order._id} style={{
+            border: '1px solid #ddd',
+            borderRadius: '10px',
+            padding: '20px',
+            backgroundColor: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            transition: 'transform 0.2s',
+            ':hover': { transform: 'translateY(-5px)' }
+          }}>
             <img
               src={getImageUrl(order.productImage)}
               alt={order.item}
-              className="order-image"
+              style={{
+                width: '100%',
+                height: '200px',
+                objectFit: 'cover',
+                borderRadius: '8px',
+                marginBottom: '15px'
+              }}
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = 'https://via.placeholder.com/150?text=No+Image';
               }}
             />
-            <p><strong>{order.item}</strong></p>
-            <p>Quantity: {order.quantity} kg</p>
-            <p>Price: Rs.{order.price}</p>
-            {order.district && <p>District: {order.district}</p>}
+            <p style={{ fontSize: '18px', fontWeight: 'bold', margin: '10px 0' }}>{order.item}</p>
+            <p style={{ margin: '5px 0' }}>Quantity: {order.quantity} kg</p>
+            <p style={{ margin: '5px 0' }}>Price: Rs.{order.price}</p>
+            {order.district && <p style={{ margin: '5px 0' }}>District: {order.district}</p>}
             
             <button
-              className="cart-button"
-              onClick={() => handleAcceptDelivery(order._id, type)}
+              onClick={() => handleAcceptDelivery(order._id)}
               disabled={acceptingOrder === order._id}
               style={{
-                opacity: acceptingOrder === order._id ? 0.6 : 1,
-                cursor: acceptingOrder === order._id ? 'not-allowed' : 'pointer'
+                width: '100%',
+                padding: '12px',
+                marginTop: '15px',
+                backgroundColor: acceptingOrder === order._id ? '#ccc' : '#4caf50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                fontSize: '16px',
+                cursor: acceptingOrder === order._id ? 'not-allowed' : 'pointer',
+                transition: 'background-color 0.3s'
               }}
             >
               <FontAwesomeIcon icon={faTruck} /> 
@@ -432,42 +391,75 @@ function RegDeliverymanPage() {
     );
   };
 
-  const renderMyOrders = (orders, type) => {
+  const renderMyOrders = (orders) => {
     if (orders.length === 0) {
       return <p style={{ textAlign: "center", padding: "20px" }}>You haven't accepted any orders yet</p>;
     }
 
     return (
-      <div className="orders-container">
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '20px',
+        padding: '20px'
+      }}>
         {orders.map((order) => (
-          <div key={order._id} className="order-item">
+          <div key={order._id} style={{
+            border: '1px solid #ddd',
+            borderRadius: '10px',
+            padding: '20px',
+            backgroundColor: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}>
             <img
               src={getImageUrl(order.productImage)}
               alt={order.item}
-              className="order-image"
+              style={{
+                width: '100%',
+                height: '200px',
+                objectFit: 'cover',
+                borderRadius: '8px',
+                marginBottom: '15px'
+              }}
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = 'https://via.placeholder.com/150?text=No+Image';
               }}
             />
-            <p><strong>{order.item}</strong></p>
-            <p>Quantity: {order.quantity} kg</p>
-            <p>Price: Rs.{order.price}</p>
-            {order.district && <p>District: {order.district}</p>}
+            <p style={{ fontSize: '18px', fontWeight: 'bold', margin: '10px 0' }}>{order.item}</p>
+            <p style={{ margin: '5px 0' }}>Quantity: {order.quantity} kg</p>
+            <p style={{ margin: '5px 0' }}>Price: Rs.{order.price}</p>
+            {order.district && <p style={{ margin: '5px 0' }}>District: {order.district}</p>}
 
             {renderDeliveryStatusBadge(order.deliveryStatus)}
 
             {(order.deliveryStatus === "in-transit" || order.deliveryStatus === "approved") && (
-              <div className="delivery-status-buttons">
+              <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <button
-                  className="delivered-button"
-                  onClick={() => handleDeliveryStatus(order._id, type, "delivered")}
+                  onClick={() => handleDeliveryStatus(order._id, "delivered")}
+                  style={{
+                    padding: '10px',
+                    backgroundColor: '#4caf50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
                 >
                   <FontAwesomeIcon icon={faCheckCircle} /> Mark as Delivered
                 </button>
                 <button
-                  className="not-delivered-button"
-                  onClick={() => handleDeliveryStatus(order._id, type, "not-delivered")}
+                  onClick={() => handleDeliveryStatus(order._id, "not-delivered")}
+                  style={{
+                    padding: '10px',
+                    backgroundColor: '#f44336',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
                 >
                   <FontAwesomeIcon icon={faTimesCircle} /> Mark as Not Delivered
                 </button>
@@ -480,53 +472,63 @@ function RegDeliverymanPage() {
   };
 
   return (
-    <div>
-      <NavbarRegistered />
-      <div className="nothing"></div>
-
-      <div className="crop-container">
-        <img
-          src="https://images.unsplash.com/photo-1581094288337-3346a1c19138"
-          alt="delivery-banner"
-          className="crop-image"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = 'https://via.placeholder.com/1200x400?text=Delivery+Banner';
-          }}
-        />
-      </div>
-
-      <div className="type-writer-container">
-        <TypeWriter
-          text="Welcome Delivery Partners!"
-          loop={false}
-          className="writer"
-          textStyle={{ fontFamily: "Gill Sans", fontSize: "60px" }}
-        />
-      </div>
-
-      <div className="categories-container">
-        <div className="categories-div">
-          <RegCategories />
-        </div>
+    <div style={{ fontFamily: 'Arial, sans-serif', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      <div style={{ 
+        padding: '40px 20px',
+        textAlign: 'center',
+        backgroundColor: 'white',
+        borderBottom: '2px solid #e0e0e0'
+      }}>
+        <h1 style={{ fontSize: '48px', color: '#333', margin: 0 }}>
+          Welcome Delivery Partners!
+        </h1>
       </div>
 
       {showSalary && (
-        <div className="salary-modal">
-          <div className="salary-content">
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '40px',
+            borderRadius: '10px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            maxWidth: '400px'
+          }}>
             <h2>Your Salary Provided by Government</h2>
-            <p>Your salary is: <strong>Rs.{salary}</strong></p>
-            <button onClick={() => setShowSalary(false)} className="close-button">
+            <p style={{ fontSize: '24px', color: '#4caf50', fontWeight: 'bold' }}>
+              Rs.{salary}
+            </p>
+            <button 
+              onClick={() => setShowSalary(false)}
+              style={{
+                padding: '10px 30px',
+                backgroundColor: '#2196f3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                marginTop: '20px'
+              }}
+            >
               Close
             </button>
           </div>
         </div>
       )}
 
-      {/* History Button */}
-      <div className="history-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
+      <div style={{ textAlign: 'center', margin: '30px 0' }}>
         <button 
-          className="history-button"
           onClick={() => setShowHistory(!showHistory)}
           style={{
             padding: '12px 30px',
@@ -538,24 +540,20 @@ function RegDeliverymanPage() {
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '10px',
-            transition: 'all 0.3s ease'
+            gap: '10px'
           }}
-          onMouseOver={(e) => e.target.style.backgroundColor = '#f57c00'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#ff9800'}
         >
           <FontAwesomeIcon icon={faHistory} />
           {showHistory ? 'Hide History' : `View Delivery History (${deliveryHistory.length})`}
         </button>
       </div>
 
-      {/* Delivery History Section */}
       {showHistory && (
-        <div className="history-section" style={{
+        <div style={{
           margin: '20px auto',
           maxWidth: '1200px',
           padding: '20px',
-          backgroundColor: '#f8f9fa',
+          backgroundColor: 'white',
           borderRadius: '10px',
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
         }}>
@@ -587,7 +585,7 @@ function RegDeliverymanPage() {
               No delivery history yet. Your completed deliveries will appear here.
             </p>
           ) : (
-            <div className="history-list">
+            <div>
               {deliveryHistory.map((order) => {
                 const hasFarmerInfo = order.farmerId && typeof order.farmerId === 'object';
                 const farmerName = hasFarmerInfo 
@@ -601,10 +599,9 @@ function RegDeliverymanPage() {
 
                 return (
                   <div 
-                    key={order._id} 
-                    className="history-item"
+                    key={order._id}
                     style={{
-                      backgroundColor: 'white',
+                      backgroundColor: '#f9f9f9',
                       borderRadius: '8px',
                       padding: '20px',
                       marginBottom: '15px',
@@ -637,7 +634,6 @@ function RegDeliverymanPage() {
                         <p><strong>Date:</strong> {formatDate(order.updatedAt || order.createdAt)}</p>
                       </div>
                       
-                      {/* Delivery Route Information */}
                       <div style={{ 
                         marginTop: '10px', 
                         padding: '15px', 
@@ -697,27 +693,33 @@ function RegDeliverymanPage() {
         </div>
       )}
 
-      <div className="nothing2"></div>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ 
+          padding: '20px',
+          backgroundColor: 'white',
+          margin: '20px',
+          borderRadius: '10px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '20px' }}>
+            Available Seller Orders to Accept
+          </h2>
+          {renderAvailableOrders(availableSellerOrders)}
+        </div>
 
-      {/* Available Seller Orders */}
-      <div className="topic">
-        <p>Available Seller Orders to Accept</p>
+        <div style={{ 
+          padding: '20px',
+          backgroundColor: 'white',
+          margin: '20px',
+          borderRadius: '10px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '20px' }}>
+            My Accepted Seller Orders
+          </h2>
+          {renderMyOrders(mySellerOrders)}
+        </div>
       </div>
-      <div className="orders-wrapper">
-        {renderAvailableOrders(availableSellerOrders, "seller")}
-      </div>
-
-      <div className="nothing2"></div>
-
-      {/* My Seller Orders */}
-      <div className="topic">
-        <p>My Accepted Seller Orders</p>
-      </div>
-      <div className="orders-wrapper">
-        {renderMyOrders(mySellerOrders, "seller")}
-      </div>
-
-      <FooterNew />
     </div>
   );
 }
