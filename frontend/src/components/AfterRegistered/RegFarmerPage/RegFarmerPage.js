@@ -1024,10 +1024,83 @@ function FarmerPage() {
 
   const getReorderSuggestion = (product) => {
     const currentQty = Number(product.quantity) || 0;
-    if (currentQty === 0) return "Immediate reorder needed";
-    if (currentQty <= 5) return "Reorder 50 kg soon";
-    if (currentQty <= 10) return "Consider reordering 30 kg";
+    if (currentQty === 0) return { text: "Immediate reorder needed", amount: 50 };
+    if (currentQty <= 5) return { text: "Reorder 50 kg soon", amount: 50 };
+    if (currentQty <= 10) return { text: "Consider reordering 30 kg", amount: 30 };
     return null;
+  };
+
+  const handleReorder = async (product) => {
+    const suggestion = getReorderSuggestion(product);
+    if (!suggestion) return;
+
+    const confirmMessage = `Do you want to reorder ${suggestion.amount} kg of ${product.productName}?\n\nCurrent Stock: ${product.quantity} kg\nAfter Reorder: ${Number(product.quantity) + suggestion.amount} kg\nPrice: Rs. ${product.price}/kg\nTotal Cost: Rs. ${product.price * suggestion.amount}`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const currentQty = Number(product.quantity) || 0;
+      const newQty = currentQty + suggestion.amount;
+
+      console.log(`🛒 Reordering ${suggestion.amount} kg for product ${product.productName}`);
+      console.log(`📊 Current: ${currentQty} kg → New: ${newQty} kg`);
+
+      const response = await fetch(`${BASE_URL}/product/${product._id}`, {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ quantity: newQty })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update product: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("✅ Reorder successful:", result);
+
+      // Update local state
+      setProducts(prev => 
+        prev.map(p => p._id === product._id ? { ...p, quantity: newQty } : p)
+      );
+
+      // Refresh inventory alerts
+      const updatedProducts = products.map(p => 
+        p._id === product._id ? { ...p, quantity: newQty } : p
+      );
+      
+      const lowStock = updatedProducts.filter(p => {
+        const qty = Number(p.quantity) || 0;
+        return qty > 0 && qty <= 10;
+      });
+      const outOfStock = updatedProducts.filter(p => {
+        const qty = Number(p.quantity) || 0;
+        return qty === 0;
+      });
+      
+      setLowStockProducts(lowStock);
+      setOutOfStockProducts(outOfStock);
+
+      alert(`✅ Reorder Successful!\n\n📦 Product: ${product.productName}\n➕ Added: ${suggestion.amount} kg\n📊 New Stock: ${newQty} kg\n💰 Cost: Rs. ${product.price * suggestion.amount}`);
+
+      // Trigger a custom event for other components
+      window.dispatchEvent(new CustomEvent("productReordered", {
+        detail: { 
+          productId: product._id, 
+          addedQuantity: suggestion.amount,
+          newQuantity: newQty,
+          cost: product.price * suggestion.amount
+        }
+      }));
+
+    } catch (error) {
+      console.error("❌ Reorder failed:", error);
+      alert(`❌ Failed to reorder product.\n\nError: ${error.message}\n\nPlease try again or update inventory manually.`);
+    }
   };
 
   return (
@@ -1138,9 +1211,21 @@ function FarmerPage() {
                       borderRadius: '5px',
                       fontSize: '12px',
                       fontWeight: '600',
-                      textAlign: 'center'
-                    }}>
-                      <FontAwesomeIcon icon={faShoppingCart} /> {getReorderSuggestion(product)}
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onClick={() => handleReorder(product)}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = '#c82333';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = '#dc3545';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    >
+                      <FontAwesomeIcon icon={faShoppingCart} /> {getReorderSuggestion(product)?.text || 'Reorder'}
                     </div>
                   </div>
                 ))}
@@ -1179,9 +1264,21 @@ function FarmerPage() {
                       borderRadius: '5px',
                       fontSize: '12px',
                       fontWeight: '600',
-                      textAlign: 'center'
-                    }}>
-                      <FontAwesomeIcon icon={faShoppingCart} /> {getReorderSuggestion(product)}
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onClick={() => handleReorder(product)}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = '#e0a800';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = '#ffc107';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    >
+                      <FontAwesomeIcon icon={faShoppingCart} /> {getReorderSuggestion(product)?.text || 'Reorder'}
                     </div>
                   </div>
                 ))}
