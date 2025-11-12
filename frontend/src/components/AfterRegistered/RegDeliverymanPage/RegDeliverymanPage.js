@@ -29,6 +29,7 @@ function RegDeliverymanPage() {
   const [showSalary, setShowSalary] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [acceptingOrder, setAcceptingOrder] = useState(null); // Track which order is being accepted
 
   const BASE_URL = "https://agrihub-2.onrender.com";
 
@@ -38,12 +39,10 @@ function RegDeliverymanPage() {
       return 'https://via.placeholder.com/150?text=No+Image';
     }
     
-    // If it's already a full URL (starts with http:// or https://), return as is
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
     
-    // If it's a relative path, prepend BASE_URL
     return `${BASE_URL}${imagePath}`;
   };
 
@@ -83,6 +82,7 @@ function RegDeliverymanPage() {
         const token = localStorage.getItem("token");
         if (!token) {
           console.error("No token found - deliveryman not logged in");
+          alert("Please log in to continue");
           return;
         }
 
@@ -93,14 +93,16 @@ function RegDeliverymanPage() {
         });
 
         const data = await res.json();
-        if (data.status === "ok" && data.data) {
+        if (data.status === "ok" && data.data && data.data._id) {
           setDeliverymanId(data.data._id);
           console.log("✅ Logged-in Deliveryman ID:", data.data._id);
         } else {
           console.error("Failed to fetch deliveryman data:", data);
+          alert("Failed to load deliveryman data. Please log in again.");
         }
       } catch (err) {
         console.error("Error fetching deliveryman data:", err);
+        alert("Error loading deliveryman data. Please refresh the page.");
       }
     };
 
@@ -114,52 +116,69 @@ function RegDeliverymanPage() {
       try {
         setLoading(true);
 
-        const availableSellerResponse = await axios.get(`${BASE_URL}/sellerorder/deliveryman/available`);
+        // Fetch available seller orders
+        const availableSellerResponse = await axios.get(
+          `${BASE_URL}/sellerorder/deliveryman/available`
+        );
         const availableSellerData = Array.isArray(availableSellerResponse.data) 
           ? availableSellerResponse.data 
           : [];
         setAvailableSellerOrders(availableSellerData);
 
+        // Fetch available farmer orders
         try {
-          const availableFarmerResponse = await axios.get(`${BASE_URL}/farmerorder/deliveryman/available`);
+          const availableFarmerResponse = await axios.get(
+            `${BASE_URL}/farmerorder/deliveryman/available`
+          );
           const availableFarmerData = Array.isArray(availableFarmerResponse.data) 
             ? availableFarmerResponse.data 
             : [];
           setAvailableFarmerOrders(availableFarmerData);
         } catch (err) {
+          console.warn("No farmer orders available:", err.message);
           setAvailableFarmerOrders([]);
         }
 
-        const mySellerResponse = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
+        // Fetch my seller orders
+        const mySellerResponse = await axios.get(
+          `${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`
+        );
         const mySellerData = Array.isArray(mySellerResponse.data) 
           ? mySellerResponse.data 
           : [];
         setMySellerOrders(mySellerData);
 
+        // Fetch my farmer orders
         try {
-          const myFarmerResponse = await axios.get(`${BASE_URL}/farmerorder/deliveryman/${deliverymanId}`);
+          const myFarmerResponse = await axios.get(
+            `${BASE_URL}/farmerorder/deliveryman/${deliverymanId}`
+          );
           const myFarmerData = Array.isArray(myFarmerResponse.data) 
             ? myFarmerResponse.data 
             : [];
           setMyFarmerOrders(myFarmerData);
         } catch (err) {
+          console.warn("No farmer orders assigned:", err.message);
           setMyFarmerOrders([]);
         }
 
+        // Fetch salary
         try {
           const salaryResponse = await axios.get(`${BASE_URL}/salary/${deliverymanId}`);
           setSalary(salaryResponse.data.salary ?? 0);
         } catch (err) {
+          console.warn("Salary not available:", err.message);
           setSalary(0);
         }
 
       } catch (err) {
         console.error("❌ Error fetching data:", err);
-        setAvailableSellerOrders([]);
-        setAvailableFarmerOrders([]);
-        setMySellerOrders([]);
-        setMyFarmerOrders([]);
-        setSalary(0);
+        if (err.response) {
+          console.error("Error response:", err.response.data);
+          alert(`Error: ${err.response.data.message || 'Failed to load data'}`);
+        } else {
+          alert("Network error. Please check your connection.");
+        }
       } finally {
         setLoading(false);
       }
@@ -172,31 +191,75 @@ function RegDeliverymanPage() {
   }, [deliverymanId]);
 
   const handleAcceptDelivery = async (orderId, type) => {
-    try {
-      if (!deliverymanId) {
-        alert("Please log in to accept orders");
-        return;
-      }
+    // Validation checks
+    if (!deliverymanId) {
+      alert("❌ Please log in to accept orders");
+      return;
+    }
 
+    if (!orderId) {
+      alert("❌ Invalid order ID");
+      return;
+    }
+
+    if (acceptingOrder === orderId) {
+      console.log("Already processing this order");
+      return;
+    }
+
+    try {
+      setAcceptingOrder(orderId);
+      console.log(`📦 Accepting ${type} order:`, orderId);
+      console.log(`👤 Deliveryman ID:`, deliverymanId);
+
+      let response;
+      const endpoint = type === "seller" 
+        ? `${BASE_URL}/sellerorder/${orderId}/accept`
+        : `${BASE_URL}/farmerorder/${orderId}/accept`;
+
+      console.log(`🔗 API Endpoint:`, endpoint);
+
+      response = await axios.put(
+        endpoint,
+        { deliverymanId },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000 // 10 second timeout
+        }
+      );
+
+      console.log("✅ Accept response:", response.data);
+
+      // Update local state immediately
       if (type === "seller") {
-        const response = await axios.put(`${BASE_URL}/sellerorder/${orderId}/accept`, { 
-          deliverymanId 
-        });
-        
         const acceptedOrder = availableSellerOrders.find(o => o._id === orderId);
         if (acceptedOrder) {
-          setMySellerOrders(prev => [...prev, { ...acceptedOrder, acceptedByDeliveryman: true, deliveryStatus: "in-transit" }]);
+          const updatedOrder = { 
+            ...acceptedOrder, 
+            deliverymanId: deliverymanId,
+            acceptedByDeliveryman: true, 
+            deliveryStatus: response.data.deliveryStatus || "in-transit"
+          };
+          
+          setMySellerOrders(prev => [...prev, updatedOrder]);
           setAvailableSellerOrders(prev => prev.filter(o => o._id !== orderId));
+          console.log("✅ Seller order moved to 'My Orders'");
         }
       } else {
-        const response = await axios.put(`${BASE_URL}/farmerorder/${orderId}/accept`, { 
-          deliverymanId 
-        });
-        
         const acceptedOrder = availableFarmerOrders.find(o => o._id === orderId);
         if (acceptedOrder) {
-          setMyFarmerOrders(prev => [...prev, { ...acceptedOrder, acceptedByDeliveryman: true, deliveryStatus: "in-transit" }]);
+          const updatedOrder = { 
+            ...acceptedOrder, 
+            deliverymanId: deliverymanId,
+            acceptedByDeliveryman: true, 
+            deliveryStatus: response.data.deliveryStatus || "in-transit"
+          };
+          
+          setMyFarmerOrders(prev => [...prev, updatedOrder]);
           setAvailableFarmerOrders(prev => prev.filter(o => o._id !== orderId));
+          console.log("✅ Farmer order moved to 'My Orders'");
         }
       }
       
@@ -204,18 +267,53 @@ function RegDeliverymanPage() {
       
     } catch (err) {
       console.error("❌ Error accepting delivery:", err);
-      alert(`Failed to accept order: ${err.response?.data?.message || err.message}`);
+      
+      let errorMessage = "Failed to accept order. ";
+      
+      if (err.response) {
+        // Server responded with error
+        console.error("Error response data:", err.response.data);
+        console.error("Error response status:", err.response.status);
+        errorMessage += err.response.data.message || err.response.data.error || `Status: ${err.response.status}`;
+      } else if (err.request) {
+        // Request made but no response
+        console.error("No response received:", err.request);
+        errorMessage += "No response from server. Please check your connection.";
+      } else {
+        // Error in request setup
+        console.error("Error message:", err.message);
+        errorMessage += err.message;
+      }
+      
+      alert(`❌ ${errorMessage}`);
+    } finally {
+      setAcceptingOrder(null);
     }
   };
 
   const handleDeliveryStatus = async (orderId, type, status) => {
+    if (!orderId || !status) {
+      alert("❌ Invalid order or status");
+      return;
+    }
+
     try {
       const url = type === "seller" 
         ? `${BASE_URL}/sellerorder/${orderId}/status`
         : `${BASE_URL}/farmerorder/${orderId}/status`;
       
-      const response = await axios.put(url, { status });
+      console.log(`📦 Updating status for ${type} order ${orderId} to ${status}`);
 
+      const response = await axios.put(url, { status }, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000
+      });
+
+      console.log("✅ Status update response:", response.data);
+
+      // Update local state
       if (type === "seller") {
         setMySellerOrders(prev =>
           prev.map(order =>
@@ -230,11 +328,21 @@ function RegDeliverymanPage() {
         );
       }
 
-      alert(`✅ Order status updated to ${status} successfully!`);
+      alert(`✅ Order status updated to "${status}" successfully!`);
       
     } catch (err) {
       console.error("❌ Error updating delivery status:", err);
-      alert(`Failed to update: ${err.response?.data?.message || err.message}`);
+      
+      let errorMessage = "Failed to update status. ";
+      if (err.response) {
+        errorMessage += err.response.data.message || err.response.data.error || "Please try again.";
+      } else if (err.request) {
+        errorMessage += "No response from server.";
+      } else {
+        errorMessage += err.message;
+      }
+      
+      alert(`❌ ${errorMessage}`);
     }
   };
 
@@ -242,7 +350,20 @@ function RegDeliverymanPage() {
     return (
       <div>
         <NavbarRegistered />
-        <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>
+        <p style={{ textAlign: "center", marginTop: "50px", fontSize: "18px" }}>
+          Loading deliveryman data...
+        </p>
+      </div>
+    );
+  }
+
+  if (!deliverymanId) {
+    return (
+      <div>
+        <NavbarRegistered />
+        <p style={{ textAlign: "center", marginTop: "50px", fontSize: "18px", color: "red" }}>
+          Please log in to access the deliveryman dashboard.
+        </p>
       </div>
     );
   }
@@ -296,8 +417,14 @@ function RegDeliverymanPage() {
             <button
               className="cart-button"
               onClick={() => handleAcceptDelivery(order._id, type)}
+              disabled={acceptingOrder === order._id}
+              style={{
+                opacity: acceptingOrder === order._id ? 0.6 : 1,
+                cursor: acceptingOrder === order._id ? 'not-allowed' : 'pointer'
+              }}
             >
-              <FontAwesomeIcon icon={faTruck} /> Accept Delivery
+              <FontAwesomeIcon icon={faTruck} /> 
+              {acceptingOrder === order._id ? ' Accepting...' : ' Accept Delivery'}
             </button>
           </div>
         ))}
