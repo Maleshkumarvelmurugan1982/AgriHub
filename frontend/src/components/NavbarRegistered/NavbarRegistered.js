@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./NavbarRegistered.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUser } from "@fortawesome/free-solid-svg-icons";
+import { faUser, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 
 function NavbarRegistered() {
@@ -38,7 +38,6 @@ function NavbarRegistered() {
 
             // If response isn't OK, skip to next route
             if (!res.ok) {
-              // Optionally try to parse json to get error message, but continue for our purposes
               continue;
             }
 
@@ -75,9 +74,12 @@ function NavbarRegistered() {
 
   const handleLogout = () => {
     try {
+      // Remove auth token and any session-specific keys
       localStorage.removeItem("token");
-      localStorage.removeItem("govLoggedIn"); // safe to remove if present
-      // remove any other session keys if needed, e.g. user role, cart, etc.
+      localStorage.removeItem("govLoggedIn");
+      // If you store role or other keys, remove them here:
+      // localStorage.removeItem("userRole");
+      // localStorage.removeItem("userName");
     } catch (e) {
       console.warn("Error clearing storage on logout:", e);
     }
@@ -116,13 +118,26 @@ function NavbarRegistered() {
           {/* Right side: Profile and Logout */}
           <ul className="navbar-nav align-items-center">
             <li className="nav-item">
-              <Link className="profile-btn" to="/profile" title="Profile">
+              <Link className="profile-btn" to="/profile" title="Profile" aria-label="Profile">
                 <FontAwesomeIcon icon={faUser} /> {userName && ` (${userName})`}
               </Link>
             </li>
             <li className="nav-item">
-              <button className="logout-btn" onClick={handleLogout} title="Logout">
-                <span className="logout-icon" aria-hidden="true">⎋</span>
+              <button
+                className="logout-btn"
+                onClick={handleLogout}
+                title="Logout"
+                aria-label="Logout"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <FontAwesomeIcon icon={faRightFromBracket} />
                 <span className="logout-text">Logout</span>
               </button>
             </li>
