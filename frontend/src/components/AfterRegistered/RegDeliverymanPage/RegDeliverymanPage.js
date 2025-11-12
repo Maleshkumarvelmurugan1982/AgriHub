@@ -14,7 +14,6 @@ import {
   faDownload,
   faFileCsv,
   faSearch,
-  faFilter,
   faThLarge,
   faList,
   faChevronLeft,
@@ -22,34 +21,13 @@ import {
   faMoon,
   faSun,
   faClock,
-  faArrowUpLong,
-  faArrowDownLong,
   faEye
 } from "@fortawesome/free-solid-svg-icons";
-
-/**
- * RegDeliverymanPage.jsx
- *
- * - Base code preserved from user's supplied file.
- * - Added requested functions while preserving existing behavior:
- *   1) Logout button (bottom-right) clears token and redirects to /login.
- *   2) "View Salary" button (bottom-right) that uses /user/userdata then /deliveryman/userdata
- *      to fetch and display salary in a modal (same endpoint flow as UserProfile).
- *   3) History export to CSV button in the History view (exports deliveries shown in history).
- *   4) Per-order timeline modal (placed -> accepted -> in-transit -> delivered).
- *   5) Theme toggle (light/dark) persisted to localStorage.
- *   6) Search (by item/district), status & district filtering, sort, pagination and view mode (grid/list).
- *
- * - All original network calls and logic were preserved; new functionality uses the same endpoints.
- * - Distance calculation and static district arrays were NOT re-introduced.
- *
- * Paste this file to replace your existing RegDeliverymanPage.jsx — it is copy/paste ready.
- */
 
 const BASE_URL = "https://agrihub-2.onrender.com";
 
 function RegDeliverymanPage() {
-  // Original states
+  // original states
   const [deliverymanId, setDeliverymanId] = useState("");
   const [availableSellerOrders, setAvailableSellerOrders] = useState([]);
   const [mySellerOrders, setMySellerOrders] = useState([]);
@@ -59,7 +37,7 @@ function RegDeliverymanPage() {
   const [loading, setLoading] = useState(true);
   const [acceptingOrder, setAcceptingOrder] = useState(null);
 
-  // New UI states (added features)
+  // new UI states
   const [darkMode, setDarkMode] = useState(() => {
     try {
       return localStorage.getItem("delivery_dashboard_theme") === "dark";
@@ -73,14 +51,14 @@ function RegDeliverymanPage() {
   const [sortBy, setSortBy] = useState("date-desc");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
+  const [viewMode, setViewMode] = useState("grid");
   const [selectedOrderForTimeline, setSelectedOrderForTimeline] = useState(null);
   const [showTimeline, setShowTimeline] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   const navigate = useNavigate();
 
-  // Persist theme
+  // apply/persist theme
   useEffect(() => {
     try {
       localStorage.setItem("delivery_dashboard_theme", darkMode ? "dark" : "light");
@@ -89,14 +67,12 @@ function RegDeliverymanPage() {
     } catch {}
   }, [darkMode]);
 
-  // Utility: safe image URL resolution
   const getImageUrl = (imagePath) => {
     if (!imagePath) return "https://via.placeholder.com/150?text=No+Image";
     if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) return imagePath;
     return `${BASE_URL}${imagePath}`;
   };
 
-  // Utility: format date
   const formatDate = (dateString) => {
     if (!dateString) return "Date not available";
     const date = new Date(dateString);
@@ -109,37 +85,27 @@ function RegDeliverymanPage() {
     });
   };
 
-  // History: delivered or approved
   const getDeliveryHistory = () => {
-    const delivered = mySellerOrders.filter(
-      (o) => o.deliveryStatus === "delivered" || o.deliveryStatus === "approved"
+    const sellerDeliveries = mySellerOrders.filter(
+      (order) => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
     );
-    return delivered.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+    return sellerDeliveries.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
   };
 
-  // Derived unique districts for filters
   const allDistricts = useMemo(() => {
     const all = [...availableSellerOrders, ...mySellerOrders];
     const setDistricts = new Set(all.map((o) => o.district).filter(Boolean));
     return Array.from(setDistricts).sort();
   }, [availableSellerOrders, mySellerOrders]);
 
-  // Filter/sort helper
   const filterAndSort = (orders) => {
     let filtered = [...orders];
-
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter((o) => (o.item && o.item.toLowerCase().includes(q)) || (o.district && o.district.toLowerCase().includes(q)));
     }
-
-    if (filterStatus !== "all") {
-      filtered = filtered.filter((o) => o.deliveryStatus === filterStatus);
-    }
-
-    if (filterDistrict !== "all") {
-      filtered = filtered.filter((o) => o.district === filterDistrict);
-    }
+    if (filterStatus !== "all") filtered = filtered.filter((o) => o.deliveryStatus === filterStatus);
+    if (filterDistrict !== "all") filtered = filtered.filter((o) => o.district === filterDistrict);
 
     switch (sortBy) {
       case "date-desc":
@@ -166,7 +132,6 @@ function RegDeliverymanPage() {
       default:
         break;
     }
-
     return filtered;
   };
 
@@ -175,7 +140,6 @@ function RegDeliverymanPage() {
     return orders.slice(start, start + itemsPerPage);
   };
 
-  // Initial: fetch deliveryman id (keeps original /deliveryman/userdata call, but also supports /user/userdata flow via View Salary)
   useEffect(() => {
     const fetchDeliverymanData = async () => {
       try {
@@ -194,8 +158,6 @@ function RegDeliverymanPage() {
         const data = await res.json();
         if (data.status === "ok" && data.data && data.data._id) {
           setDeliverymanId(data.data._id);
-        } else {
-          // do not block app if not found here (user can use View Salary which uses /user/userdata)
         }
       } catch (err) {
         console.error("Error fetching deliveryman data:", err);
@@ -207,15 +169,13 @@ function RegDeliverymanPage() {
     fetchDeliverymanData();
   }, []);
 
-  // Fetch orders / salary when deliverymanId available (original behavior preserved)
   useEffect(() => {
     if (!deliverymanId) return;
-
     let mounted = true;
+
     const fetchOrders = async () => {
       try {
         setLoading(true);
-
         const availableSellerResponse = await axios.get(`${BASE_URL}/sellerorder/deliveryman/available`);
         if (mounted) setAvailableSellerOrders(Array.isArray(availableSellerResponse.data) ? availableSellerResponse.data : []);
 
@@ -244,7 +204,7 @@ function RegDeliverymanPage() {
     };
   }, [deliverymanId]);
 
-  // --- Existing functions preserved (accept, update status) ---
+  // preserved actions
   const handleAcceptDelivery = async (orderId) => {
     if (!deliverymanId) {
       alert("Please log in to accept orders");
@@ -298,21 +258,18 @@ function RegDeliverymanPage() {
     }
   };
 
-  // --- New functions requested by user ---
-
-  // 1) Logout (clears token and redirect to /login)
+  // NEW: logout
   const handleLogout = () => {
     try {
       localStorage.removeItem("token");
       localStorage.removeItem("govLoggedIn");
-      // remove other session keys if needed
     } catch (e) {
       console.warn("Error clearing storage:", e);
     }
     navigate("/login", { replace: true });
   };
 
-  // 2) View Salary button function: uses /user/userdata then /deliveryman/userdata (like UserProfile)
+  // NEW: view salary (uses /user/userdata then /deliveryman/userdata like UserProfile)
   const fetchSalaryAndShow = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -321,7 +278,6 @@ function RegDeliverymanPage() {
         return;
       }
 
-      // First fetch user userdata
       const userRes = await fetch(`${BASE_URL}/user/userdata`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -329,8 +285,8 @@ function RegDeliverymanPage() {
         body: JSON.stringify({ token }),
       });
       const userData = await userRes.json();
-
       const role = (userData.data?.role || userData.data?.userRole || "").toString().toLowerCase();
+
       if (role === "deliveryman" || role === "delivery") {
         const dmRes = await fetch(`${BASE_URL}/deliveryman/userdata`, {
           method: "POST",
@@ -353,13 +309,12 @@ function RegDeliverymanPage() {
     }
   };
 
-  // 3) Timeline modal for an order
   const openTimeline = (order) => {
     setSelectedOrderForTimeline(order);
     setShowTimeline(true);
   };
 
-  // 4) Export CSV of delivery history displayed
+  // EXPORT: CSV (unchanged core logic, improved quoting)
   const exportHistoryToCSV = () => {
     const history = getDeliveryHistory();
     if (!history.length) {
@@ -367,29 +322,29 @@ function RegDeliverymanPage() {
       return;
     }
 
-    const headers = ["Item", "Quantity", "Price", "Order Date", "Delivery Date", "From (Farmer)", "Farmer Contact", "To (Seller)", "Seller Contact", "District", "Status", "Salary"];
+    const headers = ["Item", "Quantity", "Price (Rs.)", "Order Date", "Delivery Date", "From (Farmer)", "Farmer Contact", "To (Seller)", "Seller Contact", "District", "Status", "Salary"];
     const rows = [headers.join(",")];
 
     history.forEach((order) => {
       const hasFarmer = order.farmerId && typeof order.farmerId === "object";
-      const farmerName = hasFarmer ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown";
+      const farmerName = hasFarmer ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : (order.farmerName || "Unknown");
       const farmerContact = hasFarmer && order.farmerId.mobile ? order.farmerId.mobile : "N/A";
 
       const hasSeller = order.sellerId && typeof order.sellerId === "object";
-      const sellerName = hasSeller ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown";
+      const sellerName = hasSeller ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : (order.sellerName || "Unknown");
       const sellerContact = hasSeller && order.sellerId.mobile ? order.sellerId.mobile : "N/A";
 
       const row = [
-        `"${order.item || ""}"`,
+        `"${(order.item || "").replace(/"/g, '""')}"`,
         `"${order.quantity || ""}"`,
         order.price ?? "",
         `"${formatDate(order.createdAt)}"`,
         `"${formatDate(order.updatedAt)}"`,
-        `"${farmerName}"`,
-        `"${farmerContact}"`,
-        `"${sellerName}"`,
-        `"${sellerContact}"`,
-        `"${order.district || "N/A"}"`,
+        `"${(farmerName || "").replace(/"/g, '""')}"`,
+        `"${(farmerContact || "").replace(/"/g, '""')}"`,
+        `"${(sellerName || "").replace(/"/g, '""')}"`,
+        `"${(sellerContact || "").replace(/"/g, '""')}"`,
+        `"${(order.district || "N/A").replace(/"/g, '""')}"`,
         `"${order.deliveryStatus || "delivered"}"`,
         `"${salary}"`
       ].join(",");
@@ -410,13 +365,128 @@ function RegDeliverymanPage() {
     alert("✅ Delivery history exported as CSV");
   };
 
-  // --- Render helpers for UI ---
+  // EXPORT: PDF using browser print (open a printable window and call print)
+  const exportHistoryToPDF = () => {
+    const history = getDeliveryHistory();
+    if (!history.length) {
+      alert("No delivery history to export.");
+      return;
+    }
 
+    // Build HTML table for printing
+    const title = `Delivery History - ${new Date().toLocaleDateString()}`;
+    let rowsHtml = "";
+    history.forEach((order) => {
+      const hasFarmer = order.farmerId && typeof order.farmerId === "object";
+      const farmerName = hasFarmer ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : (order.farmerName || "Unknown");
+      const farmerContact = hasFarmer && order.farmerId.mobile ? order.farmerId.mobile : "N/A";
+
+      const hasSeller = order.sellerId && typeof order.sellerId === "object";
+      const sellerName = hasSeller ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : (order.sellerName || "Unknown");
+      const sellerContact = hasSeller && order.sellerId.mobile ? order.sellerId.mobile : "N/A";
+
+      rowsHtml += `<tr>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(order.item || "")}</td>
+        <td style="padding:8px;border:1px solid #ddd;text-align:center">${order.quantity || ""}</td>
+        <td style="padding:8px;border:1px solid #ddd;text-align:right">${order.price ?? ""}</td>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(formatDate(order.createdAt))}</td>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(formatDate(order.updatedAt))}</td>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(farmerName)}</td>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(farmerContact)}</td>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(sellerName)}</td>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(sellerContact)}</td>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(order.district || "N/A")}</td>
+        <td style="padding:8px;border:1px solid #ddd">${escapeHtml(order.deliveryStatus || "delivered")}</td>
+        <td style="padding:8px;border:1px solid #ddd;text-align:right">${salary ?? 0}</td>
+      </tr>`;
+    });
+
+    const html = `
+      <html>
+        <head>
+          <title>${escapeHtml(title)}</title>
+          <style>
+            body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 20px; }
+            h1 { font-size: 20px; margin-bottom: 12px; }
+            table { border-collapse: collapse; width: 100%; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; }
+            th { background: #f3f4f6; font-weight: 700; text-align: left; }
+            @media print {
+              body { margin: 0; }
+              table { page-break-inside: auto; }
+              tr { page-break-inside: avoid; page-break-after: auto; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(title)}</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty (kg)</th>
+                <th>Price (Rs.)</th>
+                <th>Order Date</th>
+                <th>Delivery Date</th>
+                <th>From (Farmer)</th>
+                <th>Farmer Contact</th>
+                <th>To (Seller)</th>
+                <th>Seller Contact</th>
+                <th>District</th>
+                <th>Status</th>
+                <th>Salary (Rs.)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    // Open new window, write the HTML, trigger print
+    const win = window.open("", "_blank", "noopener,noreferrer");
+    if (!win) {
+      alert("Unable to open print window. Please allow popups for this site.");
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+
+    // Wait briefly for content to render, then open print
+    setTimeout(() => {
+      try {
+        win.focus();
+        win.print();
+        // do not close automatically in all browsers; offer to close
+        // win.close();
+      } catch (e) {
+        console.error("Print failed:", e);
+      }
+    }, 500);
+
+    setShowExportMenu(false);
+  };
+
+  // escape HTML to avoid injection
+  const escapeHtml = (str) => {
+    if (!str && str !== 0) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  };
+
+  // UI helpers
   const DeliveryStatusBadge = ({ status }) => {
     const base = {
       display: "inline-flex",
       alignItems: "center",
-      gap: "8px",
+      gap: 8,
       padding: "8px 12px",
       borderRadius: 20,
       color: "white",
@@ -428,79 +498,57 @@ function RegDeliverymanPage() {
     return null;
   };
 
-  // Render order card (grid/list support)
-  const OrderCard = ({ order, isAvailable = false }) => {
-    return (
-      <div style={{
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        overflow: "hidden",
-        background: darkMode ? "#2d3748" : "white",
-        color: darkMode ? "white" : "black",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.06)"
-      }}>
-        <div style={{ position: "relative" }}>
-          <img src={getImageUrl(order.productImage)} alt={order.item} style={{ width: "100%", height: 200, objectFit: "cover" }} onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/400x300?text=No+Image"; }} />
-          {!isAvailable && (
-            <div style={{ position: "absolute", top: 12, right: 12 }}>
-              <DeliveryStatusBadge status={order.deliveryStatus} />
-            </div>
-          )}
-        </div>
-
-        <div style={{ padding: 16 }}>
-          <h3 style={{ margin: "0 0 8px 0", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{order.item}</h3>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-            <div style={{ background: "#e3f2fd", padding: "6px 10px", borderRadius: 8 }}>
-              <strong>{order.quantity} kg</strong>
-            </div>
-            <div style={{ background: "#e8f5e9", padding: "6px 10px", borderRadius: 8 }}>
-              <strong>Rs. {order.price}</strong>
-            </div>
-            {order.district && <div style={{ background: "#fff3e0", padding: "6px 10px", borderRadius: 8 }}>{order.district}</div>}
-          </div>
-          <div style={{ fontSize: 13, color: darkMode ? "#cbd5e1" : "#6c757d", marginBottom: 12 }}>
-            <FontAwesomeIcon icon={faClock} /> {formatDate(order.createdAt)}
-          </div>
-
-          {isAvailable ? (
-            <button onClick={() => handleAcceptDelivery(order._id)} disabled={acceptingOrder === order._id} style={{
-              width: "100%",
-              padding: 12,
-              backgroundColor: acceptingOrder === order._id ? "#9ca3af" : "#20c997",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              cursor: acceptingOrder === order._id ? "not-allowed" : "pointer",
-              fontWeight: 700
-            }}>
-              <FontAwesomeIcon icon={faTruck} /> {acceptingOrder === order._id ? "Accepting..." : "Accept Delivery"}
-            </button>
-          ) : (
-            <>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => openTimeline(order)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: "#007bff", color: "white", fontWeight: 700 }}>
-                  <FontAwesomeIcon icon={faEye} /> View Timeline
-                </button>
-                {(order.deliveryStatus === "in-transit" || order.deliveryStatus === "approved") && (
-                  <>
-                    <button onClick={() => handleDeliveryStatus(order._id, "delivered")} style={{ padding: 10, borderRadius: 8, border: "none", background: "#28a745", color: "white", fontWeight: 700 }}>
-                      <FontAwesomeIcon icon={faCheckCircle} /> Delivered
-                    </button>
-                    <button onClick={() => handleDeliveryStatus(order._id, "not-delivered")} style={{ padding: 10, borderRadius: 8, border: "none", background: "#dc3545", color: "white", fontWeight: 700 }}>
-                      <FontAwesomeIcon icon={faTimesCircle} /> Not Delivered
-                    </button>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+  const OrderCard = ({ order, isAvailable = false }) => (
+    <div style={{
+      border: "1px solid #e2e8f0",
+      borderRadius: 12,
+      overflow: "hidden",
+      background: darkMode ? "#2d3748" : "white",
+      color: darkMode ? "white" : "black",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.06)"
+    }}>
+      <div style={{ position: "relative" }}>
+        <img src={getImageUrl(order.productImage)} alt={order.item} style={{ width: "100%", height: 200, objectFit: "cover" }} onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/400x300?text=No+Image"; }} />
+        {!isAvailable && <div style={{ position: "absolute", top: 12, right: 12 }}><DeliveryStatusBadge status={order.deliveryStatus} /></div>}
       </div>
-    );
-  };
 
-  // Render list/grid of orders with pagination
+      <div style={{ padding: 16 }}>
+        <h3 style={{ margin: "0 0 8px 0", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{order.item}</h3>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+          <div style={{ background: "#e3f2fd", padding: "6px 10px", borderRadius: 8 }}><strong>{order.quantity} kg</strong></div>
+          <div style={{ background: "#e8f5e9", padding: "6px 10px", borderRadius: 8 }}><strong>Rs. {order.price}</strong></div>
+          {order.district && <div style={{ background: "#fff3e0", padding: "6px 10px", borderRadius: 8 }}>{order.district}</div>}
+        </div>
+        <div style={{ fontSize: 13, color: darkMode ? "#cbd5e1" : "#6c757d", marginBottom: 12 }}><FontAwesomeIcon icon={faClock} /> {formatDate(order.createdAt)}</div>
+
+        {isAvailable ? (
+          <button onClick={() => handleAcceptDelivery(order._id)} disabled={acceptingOrder === order._id} style={{
+            width: "100%",
+            padding: 12,
+            backgroundColor: acceptingOrder === order._id ? "#9ca3af" : "#20c997",
+            color: "white",
+            border: "none",
+            borderRadius: 8,
+            cursor: acceptingOrder === order._id ? "not-allowed" : "pointer",
+            fontWeight: 700
+          }}>
+            <FontAwesomeIcon icon={faTruck} /> {acceptingOrder === order._id ? "Accepting..." : "Accept Delivery"}
+          </button>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => openTimeline(order)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: "#007bff", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faEye} /> View Timeline</button>
+            {(order.deliveryStatus === "in-transit" || order.deliveryStatus === "approved") && (
+              <>
+                <button onClick={() => handleDeliveryStatus(order._id, "delivered")} style={{ padding: 10, borderRadius: 8, border: "none", background: "#28a745", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faCheckCircle} /> Delivered</button>
+                <button onClick={() => handleDeliveryStatus(order._id, "not-delivered")} style={{ padding: 10, borderRadius: 8, border: "none", background: "#dc3545", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faTimesCircle} /> Not Delivered</button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const OrdersList = ({ orders, isAvailable }) => {
     const filtered = filterAndSort(orders);
     const paginated = paginate(filtered);
@@ -516,19 +564,12 @@ function RegDeliverymanPage() {
 
     return (
       <>
-        <div style={{ marginBottom: 12, color: "#6c757d" }}>
-          Showing {paginated.length} of {filtered.length} orders
-        </div>
+        <div style={{ marginBottom: 12, color: "#6c757d" }}>Showing {paginated.length} of {filtered.length} orders</div>
 
         <div style={viewMode === "grid" ? { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 } : { display: "flex", flexDirection: "column", gap: 12 }}>
-          {paginated.map((o) => (
-            <div key={o._id} style={viewMode === "grid" ? {} : { border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, background: darkMode ? "#2d3748" : "white" }}>
-              <OrderCard order={o} isAvailable={isAvailable} />
-            </div>
-          ))}
+          {paginated.map((o) => <div key={o._id} style={viewMode === "grid" ? {} : { border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, background: darkMode ? "#2d3748" : "white" }}><OrderCard order={o} isAvailable={isAvailable} /></div>)}
         </div>
 
-        {/* Pagination */}
         <Pagination totalItems={filtered.length} />
       </>
     );
@@ -537,35 +578,18 @@ function RegDeliverymanPage() {
   const Pagination = ({ totalItems }) => {
     const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
     if (totalPages <= 1) return null;
-
     const pages = [];
-    for (let i = 1; i <= totalPages; i++) {
-      pages.push(i);
-    }
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
 
     return (
       <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 24, flexWrap: "wrap" }}>
-        <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: 8, borderRadius: 8, border: "none", background: currentPage === 1 ? "#e9ecef" : "#007bff", color: currentPage === 1 ? "#6c757d" : "white" }}>
-          <FontAwesomeIcon icon={faChevronLeft} />
-        </button>
-
-        {pages.map((p) => (
-          <button key={p} onClick={() => setCurrentPage(p)} style={{ padding: 8, minWidth: 36, borderRadius: 8, border: "none", background: p === currentPage ? "#007bff" : (darkMode ? "#4a5568" : "#e9ecef"), color: p === currentPage ? "white" : (darkMode ? "white" : "black") }}>
-            {p}
-          </button>
-        ))}
-
-        <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: 8, borderRadius: 8, border: "none", background: currentPage === totalPages ? "#e9ecef" : "#007bff", color: currentPage === totalPages ? "#6c757d" : "white" }}>
-          <FontAwesomeIcon icon={faChevronRight} />
-        </button>
+        <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: 8, borderRadius: 8, border: "none", background: currentPage === 1 ? "#e9ecef" : "#007bff", color: currentPage === 1 ? "#6c757d" : "white" }}><FontAwesomeIcon icon={faChevronLeft} /></button>
+        {pages.map((p) => <button key={p} onClick={() => setCurrentPage(p)} style={{ padding: 8, minWidth: 36, borderRadius: 8, border: "none", background: p === currentPage ? "#007bff" : (darkMode ? "#4a5568" : "#e9ecef"), color: p === currentPage ? "white" : (darkMode ? "white" : "black") }}>{p}</button>)}
+        <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: 8, borderRadius: 8, border: "none", background: currentPage === totalPages ? "#e9ecef" : "#007bff", color: currentPage === totalPages ? "#6c757d" : "white" }}><FontAwesomeIcon icon={faChevronRight} /></button>
       </div>
     );
   };
 
-  // Export of history button menu toggle handler
-  const toggleExportMenu = () => setShowExportMenu((s) => !s);
-
-  // --- Render return (UI) ---
   if (loading) {
     return (
       <div>
@@ -623,7 +647,7 @@ function RegDeliverymanPage() {
         </div>
       </div>
 
-      {/* Controls (search, filters, sort, view) */}
+      {/* Controls */}
       <div style={{ maxWidth: 1200, margin: "20px auto", padding: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 12, alignItems: "center" }}>
           <div style={{ display: "flex", gap: 12 }}>
@@ -665,7 +689,7 @@ function RegDeliverymanPage() {
         </div>
       </div>
 
-      {/* Content area */}
+      {/* Content */}
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: 16 }}>
         <section style={{ marginBottom: 32 }}>
           <h2 style={{ margin: "0 0 12px 0", color: darkMode ? "#e6eef8" : "#111827" }}>Available Seller Orders</h2>
@@ -708,7 +732,7 @@ function RegDeliverymanPage() {
         </div>
       )}
 
-      {/* History modal (inline toggled view) */}
+      {/* History modal */}
       {showHistory && (
         <div style={{ position: "fixed", inset: "8% 6% 8% 6%", zIndex: 2050 }}>
           <div style={{ height: "100%", background: darkMode ? "#0b1220" : "white", borderRadius: 12, overflow: "auto", padding: 20, boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
@@ -716,12 +740,13 @@ function RegDeliverymanPage() {
               <h2 style={{ margin: 0 }}><FontAwesomeIcon icon={faHistory} /> Delivery History</h2>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <div style={{ position: "relative" }}>
-                  <button onClick={toggleExportMenu} style={{ padding: 10, borderRadius: 8, border: "none", background: "#28a745", color: "white", fontWeight: 700 }}>
+                  <button onClick={() => setShowExportMenu((s) => !s)} style={{ padding: 10, borderRadius: 8, border: "none", background: "#28a745", color: "white", fontWeight: 700 }}>
                     <FontAwesomeIcon icon={faDownload} /> Export
                   </button>
                   {showExportMenu && (
                     <div style={{ position: "absolute", right: 0, marginTop: 8, width: 220, background: darkMode ? "#1f2937" : "white", boxShadow: "0 6px 18px rgba(0,0,0,0.12)", borderRadius: 8, overflow: "hidden" }}>
                       <button onClick={exportHistoryToCSV} style={{ width: "100%", padding: 12, textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}><FontAwesomeIcon icon={faFileCsv} /> Export as CSV</button>
+                      <button onClick={exportHistoryToPDF} style={{ width: "100%", padding: 12, textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}><FontAwesomeIcon icon={faDownload} /> Print / Save as PDF</button>
                     </div>
                   )}
                 </div>
@@ -740,12 +765,13 @@ function RegDeliverymanPage() {
                     return (
                       <div key={order._id} style={{ background: darkMode ? "#111827" : "#f8fafc", borderRadius: 8, padding: 12 }}>
                         <div style={{ display: "flex", gap: 12 }}>
-                          <img src={getImageUrl(order.productImage)} alt={order.item} style={{ width: 140, height: 100, objectFit: "cover", borderRadius: 8 }} />
+                          <img src={getImageUrl(order.productImage)} alt={order.item} style={{ width: 140, height: 100, objectFit: "cover", borderRadius: 8 }} onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/150?text=No+Image"; }} />
                           <div style={{ flex: 1 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <h4 style={{ margin: 0 }}>{order.item}</h4>
                               <DeliveryStatusBadge status="delivered" />
                             </div>
+
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
                               <div>Quantity: <strong>{order.quantity} kg</strong></div>
                               <div>Price: <strong>Rs.{order.price}</strong></div>
@@ -783,21 +809,14 @@ function RegDeliverymanPage() {
         </div>
       )}
 
-      {/* Floating buttons bottom-right: Salary & Logout */}
+      {/* Floating bottom-right buttons */}
       <div style={{ position: "fixed", right: 20, bottom: 20, display: "flex", flexDirection: "column", gap: 12, zIndex: 2200 }}>
-        <button onClick={fetchSalaryAndShow} style={{ background: "#16a34a", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700 }}>
-          <FontAwesomeIcon icon={faMoneyBillWave} /> View Salary
-        </button>
-        <button onClick={handleLogout} style={{ background: "#ef4444", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700 }}>
-          Logout
-        </button>
+        <button onClick={fetchSalaryAndShow} style={{ background: "#16a34a", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700 }}><FontAwesomeIcon icon={faMoneyBillWave} /> View Salary</button>
+        <button onClick={handleLogout} style={{ background: "#ef4444", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700 }}>Logout</button>
       </div>
 
       <style>{`
         .delivery-dark { background: #0f1724 !important; color: #e6eef8 !important; }
-        @media (max-width: 768px) {
-          /* responsive tweaks */
-        }
       `}</style>
     </div>
   );
