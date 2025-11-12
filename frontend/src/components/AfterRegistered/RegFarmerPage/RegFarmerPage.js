@@ -18,7 +18,12 @@ import {
   faMoneyBillWave,
   faInfoCircle,
   faDownload,
-  faFileDownload
+  faFileDownload,
+  faSearch,
+  faFilter,
+  faSquare,
+  faCheckSquare,
+  faFileExport
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
@@ -34,6 +39,15 @@ function FarmerPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [showAllSellerOrders, setShowAllSellerOrders] = useState(true);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+
+  // New state for search and filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
 
   const BASE_URL = "https://agrihub-2.onrender.com";
 
@@ -357,6 +371,89 @@ function FarmerPage() {
     }
   };
 
+  // Bulk actions
+  const handleBulkAction = async (action) => {
+    if (selectedOrders.length === 0) {
+      alert("Please select at least one order");
+      return;
+    }
+
+    const confirmMessage = action === 'approve' 
+      ? `Are you sure you want to approve ${selectedOrders.length} order(s)?`
+      : `Are you sure you want to disapprove ${selectedOrders.length} order(s)?\n\nThis will refund payments and restore inventory quantities.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const orderId of selectedOrders) {
+      try {
+        await handleOrderStatus(orderId, action === 'approve' ? 'approved' : 'disapproved');
+        successCount++;
+      } catch (err) {
+        failCount++;
+        console.error(`Failed to ${action} order ${orderId}:`, err);
+      }
+    }
+
+    alert(`Bulk action completed!\n✅ Success: ${successCount}\n❌ Failed: ${failCount}`);
+    setSelectedOrders([]);
+    setSelectAll(false);
+  };
+
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedOrders([]);
+    } else {
+      const pendingOrderIds = filteredOrders
+        .filter(order => order.status !== 'approved' && order.status !== 'disapproved')
+        .map(order => order._id);
+      setSelectedOrders(pendingOrderIds);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const exportSelectedOrders = () => {
+    if (selectedOrders.length === 0) {
+      alert("Please select at least one order to export");
+      return;
+    }
+
+    const ordersToExport = sellerOrders.filter(order => selectedOrders.includes(order._id));
+    
+    let csv = `Order Export - ${new Date().toLocaleString()}\n\n`;
+    csv += `Order Number,Date,Product,Quantity (kg),Price (Rs.),Status,Payment Status,Payment Method,Seller\n`;
+    
+    ordersToExport.forEach(order => {
+      const orderDate = new Date(order.createdAt || order.updatedAt).toLocaleDateString();
+      const sellerInfo = getSellerInfo(order);
+      csv += `${order.orderNumber || order._id},${orderDate},${order.item},${order.quantity},${order.price},${order.status || 'pending'},${order.paymentStatus || 'N/A'},${order.paymentMethod || 'N/A'},${sellerInfo.name}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `selected_orders_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    alert(`✅ Exported ${ordersToExport.length} order(s) successfully!`);
+  };
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case "approved": return "green";
@@ -441,7 +538,45 @@ function FarmerPage() {
 
   const soldProducts = getSoldProducts();
 
-  // Statistics calculation functions
+  // Filter and search logic
+  const getFilteredOrders = () => {
+    return sellerOrders.filter(order => {
+      // Search filter
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        order.item?.toLowerCase().includes(searchLower) ||
+        order.orderNumber?.toLowerCase().includes(searchLower) ||
+        getSellerInfo(order).name.toLowerCase().includes(searchLower);
+
+      // Status filter
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'pending' && (!order.status || order.status === 'pending')) ||
+        order.status?.toLowerCase() === statusFilter;
+
+      // Payment filter
+      const matchesPayment = paymentFilter === 'all' || 
+        order.paymentStatus?.toLowerCase() === paymentFilter;
+
+      // Date range filter
+      let matchesDate = true;
+      if (dateRange.start || dateRange.end) {
+        const orderDate = new Date(order.createdAt || order.updatedAt);
+        if (dateRange.start) {
+          matchesDate = matchesDate && orderDate >= new Date(dateRange.start);
+        }
+        if (dateRange.end) {
+          const endDate = new Date(dateRange.end);
+          endDate.setHours(23, 59, 59, 999);
+          matchesDate = matchesDate && orderDate <= endDate;
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesPayment && matchesDate;
+    });
+  };
+
+  const filteredOrders = getFilteredOrders();
+
   const calculateStatistics = (orders, period) => {
     const now = new Date();
     let startDate;
@@ -461,7 +596,6 @@ function FarmerPage() {
     const totalOrders = filteredOrders.length;
     const totalQuantity = filteredOrders.reduce((sum, order) => sum + (Number(order.quantity) || 0), 0);
 
-    // Product breakdown
     const productStats = {};
     filteredOrders.forEach(order => {
       const productName = order.item || 'Unknown';
@@ -477,7 +611,6 @@ function FarmerPage() {
       productStats[productName].orders += 1;
     });
 
-    // Payment method breakdown
     const paymentStats = {
       wallet: { count: 0, amount: 0 },
       card: { count: 0, amount: 0 },
@@ -504,7 +637,6 @@ function FarmerPage() {
     };
   };
 
-  // Download as CSV
   const downloadCSV = (period) => {
     const stats = calculateStatistics(soldProducts, period);
     
@@ -553,11 +685,9 @@ function FarmerPage() {
     document.body.removeChild(link);
   };
 
-  // Download as PDF using HTML to print
   const downloadPDF = (period) => {
     const stats = calculateStatistics(soldProducts, period);
     
-    // Create HTML content for PDF
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -799,17 +929,14 @@ function FarmerPage() {
       </html>
     `;
 
-    // Create a new window and print
     const printWindow = window.open('', '_blank');
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     
-    // Wait for content to load then trigger print dialog
     printWindow.onload = function() {
       printWindow.focus();
       setTimeout(() => {
         printWindow.print();
-        // Close the window after printing (user can cancel)
         printWindow.onafterprint = function() {
           printWindow.close();
         };
@@ -851,7 +978,13 @@ function FarmerPage() {
     return { name: "Unknown Seller", place: "" };
   };
 
-  const sellerOrdersToDisplay = showAllSellerOrders ? sellerOrders : sellerOrders.slice(0, 4);
+  const sellerOrdersToDisplay = showAllSellerOrders ? filteredOrders : filteredOrders.slice(0, 4);
+  const resetFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setPaymentFilter("all");
+    setDateRange({ start: "", end: "" });
+  };
 
   return (
     <div>
@@ -1401,10 +1534,325 @@ function FarmerPage() {
         <p>Seller Orders (Orders to Me)</p>
       </div>
 
+      {/* Search and Filter Section */}
+      <div style={{
+        maxWidth: '1200px',
+        margin: '20px auto',
+        padding: '20px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '10px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
+        {/* Search Bar */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <FontAwesomeIcon 
+                icon={faSearch} 
+                style={{
+                  position: 'absolute',
+                  left: '15px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#666'
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Search by order number, product name, or seller name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 12px 12px 45px',
+                  fontSize: '16px',
+                  border: '2px solid #ddd',
+                  borderRadius: '8px',
+                  outline: 'none',
+                  transition: 'border-color 0.3s'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#007bff'}
+                onBlur={(e) => e.target.style.borderColor = '#ddd'}
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              style={{
+                padding: '12px 24px',
+                fontSize: '16px',
+                backgroundColor: showFilters ? '#007bff' : 'white',
+                color: showFilters ? 'white' : '#007bff',
+                border: '2px solid #007bff',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: '600',
+                transition: 'all 0.3s'
+              }}
+            >
+              <FontAwesomeIcon icon={faFilter} />
+              Filters
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '15px',
+              marginBottom: '15px'
+            }}>
+              {/* Status Filter */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                  Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    fontSize: '14px',
+                    border: '2px solid #ddd',
+                    borderRadius: '6px',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="disapproved">Disapproved</option>
+                </select>
+              </div>
+
+              {/* Payment Status Filter */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                  Payment Status
+                </label>
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    fontSize: '14px',
+                    border: '2px solid #ddd',
+                    borderRadius: '6px',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">All Payments</option>
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending</option>
+                  <option value="refunded">Refunded</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+
+              {/* Date Range Filters */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    fontSize: '14px',
+                    border: '2px solid #ddd',
+                    borderRadius: '6px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    fontSize: '14px',
+                    border: '2px solid #ddd',
+                    borderRadius: '6px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={resetFilters}
+              style={{
+                padding: '8px 20px',
+                fontSize: '14px',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Reset Filters
+            </button>
+          </div>
+        )}
+
+        {/* Results Summary */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '15px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          marginBottom: '20px'
+        }}>
+          <span style={{ fontSize: '16px', fontWeight: '600', color: '#333' }}>
+            Showing {filteredOrders.length} of {sellerOrders.length} orders
+          </span>
+          {selectedOrders.length > 0 && (
+            <span style={{ fontSize: '14px', color: '#007bff', fontWeight: '600' }}>
+              {selectedOrders.length} selected
+            </span>
+          )}
+        </div>
+
+        {/* Bulk Actions Bar */}
+        {filteredOrders.some(order => order.status !== 'approved' && order.status !== 'disapproved') && (
+          <div style={{
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'center',
+            padding: '15px',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={handleSelectAll}
+              style={{
+                padding: '8px 16px',
+                fontSize: '14px',
+                backgroundColor: selectAll ? '#007bff' : 'white',
+                color: selectAll ? 'white' : '#007bff',
+                border: '2px solid #007bff',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: '600'
+              }}
+            >
+              <FontAwesomeIcon icon={selectAll ? faCheckSquare : faSquare} />
+              {selectAll ? 'Deselect All' : 'Select All Pending'}
+            </button>
+
+            {selectedOrders.length > 0 && (
+              <>
+                <button
+                  onClick={() => handleBulkAction('approve')}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: '600'
+                  }}
+                >
+                  <FontAwesomeIcon icon={faThumbsUp} />
+                  Approve Selected ({selectedOrders.length})
+                </button>
+
+                <button
+                  onClick={() => handleBulkAction('disapprove')}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: '600'
+                  }}
+                >
+                  <FontAwesomeIcon icon={faThumbsDown} />
+                  Disapprove Selected ({selectedOrders.length})
+                </button>
+
+                <button
+                  onClick={exportSelectedOrders}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    backgroundColor: '#17a2b8',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: '600'
+                  }}
+                >
+                  <FontAwesomeIcon icon={faFileExport} />
+                  Export Selected
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="orders-wrapper">
         <div className="orders-container">
           {sellerOrdersToDisplay.length === 0 ? (
-            <p>No seller orders found.</p>
+            <p style={{
+              textAlign: 'center',
+              fontSize: '18px',
+              color: '#666',
+              padding: '40px'
+            }}>
+              {sellerOrders.length === 0 
+                ? "No seller orders found." 
+                : "No orders match your search criteria."}
+            </p>
           ) : (
             sellerOrdersToDisplay.map((order) => {
               const hasDeliverymanInfo = order.deliverymanId && typeof order.deliverymanId === 'object';
@@ -1412,9 +1860,43 @@ function FarmerPage() {
                 ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() 
                 : 'Assigned';
               const { name: sellerName, place: sellerPlace } = getSellerInfo(order);
+              const isSelected = selectedOrders.includes(order._id);
+              const canSelect = order.status !== 'approved' && order.status !== 'disapproved';
 
               return (
-                <div key={order._id} className="order-item1">
+                <div key={order._id} className="order-item1" style={{
+                  position: 'relative',
+                  border: isSelected ? '3px solid #007bff' : '1px solid #ddd',
+                  boxShadow: isSelected ? '0 4px 12px rgba(0,123,255,0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                  {canSelect && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '10px',
+                      left: '10px',
+                      zIndex: 10
+                    }}>
+                      <button
+                        onClick={() => handleSelectOrder(order._id)}
+                        style={{
+                          backgroundColor: isSelected ? '#007bff' : 'white',
+                          color: isSelected ? 'white' : '#007bff',
+                          border: '2px solid #007bff',
+                          borderRadius: '4px',
+                          width: '30px',
+                          height: '30px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '16px'
+                        }}
+                      >
+                        <FontAwesomeIcon icon={isSelected ? faCheckSquare : faSquare} />
+                      </button>
+                    </div>
+                  )}
+                  
                   <img 
                     src={getImageUrl(order.productImage)} 
                     alt={order.item} 
@@ -1525,12 +2007,12 @@ function FarmerPage() {
             })
           )}
         </div>
-        {sellerOrders.length > 4 && (
+        {filteredOrders.length > 4 && (
           <button 
             className="view-all-button1" 
             onClick={() => setShowAllSellerOrders(prev => !prev)}
           >
-            {showAllSellerOrders ? "Show Less" : `View All (${sellerOrders.length})`} 
+            {showAllSellerOrders ? "Show Less" : `View All (${filteredOrders.length})`} 
             <FontAwesomeIcon icon={faChevronRight}/>
           </button>
         )}
