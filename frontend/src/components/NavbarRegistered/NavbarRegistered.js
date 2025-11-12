@@ -1,97 +1,62 @@
 import React, { useState, useEffect } from "react";
 import "./NavbarRegistered.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUser, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
+import { faUser } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 
-function NavbarRegistered() {
-  const [userRole, setUserRole] = useState("");
-  const [userName, setUserName] = useState("");
+function Navbar() {
+  const [userRole, setUserRole] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchUserData = async () => {
+    const checkUserRole = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return; // No token, maybe show minimal nav
+        const token = localStorage.getItem('token');
+        if (token) {
+          // Use the requested backend base URL
+          const backendBaseUrl = "https://agrihub-2.onrender.com";
 
-        // Detect environment: local vs deployed
-        const host = window.location.hostname || "";
-        const backendBaseUrl =
-          host === "localhost" || host === "127.0.0.1"
-            ? "http://localhost:8070"
-            : "https://agrihub-2.onrender.com";
-
-        // Try fetching from all user routes (farmer, seller, deliveryman)
-        const routes = ["farmer", "seller", "deliveryman"];
-        let foundUser = null;
-
-        for (const route of routes) {
-          try {
-            const res = await fetch(`${backendBaseUrl}/${route}/userdata`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token }),
-            });
-
-            // If response isn't OK, skip to next route
-            if (!res.ok) {
-              continue;
-            }
-
-            const data = await res.json();
-            if (data && data.status === "ok" && data.data) {
-              foundUser = { role: route, ...data.data };
-              break;
-            }
-          } catch (err) {
-            // ignore and try next route
-            console.warn(`Error fetching ${route} userdata:`, err);
-            continue;
+          const response = await fetch(`${backendBaseUrl}/seller/userdata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+          });
+          
+          const data = await response.json();
+          if (data.status === 'ok' && data.data) {
+            const role =
+              data.data.userType ||
+              data.data.role ||
+              data.data.type ||
+              data.data.accountType ||
+              '';
+            setUserRole(role.toLowerCase());
           }
         }
-
-        if (isMounted && foundUser) {
-          setUserRole(foundUser.role || "");
-          // prefer common name fields
-          setUserName(foundUser.fname || foundUser.name || foundUser.username || "");
-        } else if (!foundUser) {
-          console.warn("User not found in any role");
-        }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        console.error('Error fetching user role:', error);
       }
     };
 
-    fetchUserData();
-
-    return () => {
-      isMounted = false;
-    };
+    checkUserRole();
   }, []);
 
   const handleLogout = () => {
     try {
-      // Remove auth token and any session-specific keys
-      localStorage.removeItem("token");
-      localStorage.removeItem("govLoggedIn");
-      // If you store role or other keys, remove them here:
-      // localStorage.removeItem("userRole");
-      // localStorage.removeItem("userName");
+      localStorage.removeItem('token');
+      localStorage.removeItem('govLoggedIn');
+      // remove other session keys if present
     } catch (e) {
-      console.warn("Error clearing storage on logout:", e);
+      console.warn('Error clearing storage on logout:', e);
     }
-    // Redirect to the login page after logout
-    navigate("/login", { replace: true });
+    // redirect to login page
+    navigate('/login', { replace: true });
   };
 
   return (
     <nav className="navbar navbar-expand-lg navbar-light fixed-top">
       <div className="container-fluid">
-        {/* keep brand/logo */}
-        <Link className="navbar-brand" to="/homepage-registeredusers" aria-label="Homepage">
+        <Link className="navbar-brand" to="/homepage-registeredusers">
           <img
             src={process.env.PUBLIC_URL + "/Navbar/icon.png"}
             alt="CropXchange Logo"
@@ -112,33 +77,55 @@ function NavbarRegistered() {
         </button>
 
         <div className="collapse navbar-collapse" id="navbarSupportedContent">
-          {/* Left side intentionally empty (Home / Menu / About removed) */}
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0"></ul>
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+            <li className="home">
+              <Link className="nav-link active" aria-current="page" to="/">
+                Home
+              </Link>
+            </li>
+            <li className="menu dropdown">
+              <a
+                className="nav-link dropdown-toggle"
+                href="/homepage-registeredusers"
+                id="navbarDropdown"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Menu
+              </a>
+              <ul className="dropdown-menu" aria-labelledby="navbarDropdown">
+                <li><Link className="dropdown-item" to="/regfarmer">Farmer</Link></li>
+                <li><Link className="dropdown-item" to="/regseller">Seller</Link></li>
+                <li><Link className="dropdown-item" to="/deliveryman">Deliveryman</Link></li>
+              </ul>
+            </li>
+            <li className="about">
+              <Link className="nav-link" to="/about">About</Link>
+            </li>
+          </ul>
 
-          {/* Right side: Profile and Logout */}
-          <ul className="navbar-nav align-items-center">
+          <ul className="navbar-nav">
             <li className="nav-item">
-              <Link className="profile-btn" to="/profile" title="Profile" aria-label="Profile">
-                <FontAwesomeIcon icon={faUser} /> {userName && ` (${userName})`}
+              <Link className="profile-btn" to="/profile" aria-label="Profile">
+                <FontAwesomeIcon icon={faUser} />
               </Link>
             </li>
             <li className="nav-item">
               <button
-                className="logout-btn"
+                className="login logout-btn"
                 onClick={handleLogout}
-                title="Logout"
                 aria-label="Logout"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  padding: 0,
+                  marginLeft: '12px'
                 }}
               >
-                <FontAwesomeIcon icon={faRightFromBracket} />
-                <span className="logout-text">Logout</span>
+                Logout
               </button>
             </li>
           </ul>
@@ -148,4 +135,4 @@ function NavbarRegistered() {
   );
 }
 
-export default NavbarRegistered;
+export default Navbar;
