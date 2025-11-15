@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -21,8 +21,10 @@ import {
   faMoon,
   faSun,
   faClock,
-  faEye
+  faEye,
+  faStar as faStarSolid
 } from "@fortawesome/free-solid-svg-icons";
+import { faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
 
 const BASE_URL = "https://agrihub-2.onrender.com";
 
@@ -56,6 +58,20 @@ function RegDeliverymanPage() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
+  // NEW features (frontend-only)
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("fav_orders") || "[]");
+      return new Set(Array.isArray(raw) ? raw : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const [toasts, setToasts] = useState([]);
+  const [highValueOnly, setHighValueOnly] = useState(false);
+  const [highValueThreshold, setHighValueThreshold] = useState(5000);
+  const searchInputRef = useRef(null);
+
   const navigate = useNavigate();
 
   // apply/persist theme
@@ -67,6 +83,18 @@ function RegDeliverymanPage() {
     } catch {}
   }, [darkMode]);
 
+  // Toast helpers
+  const showToast = (message, type = "info", timeout = 4000) => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t, { id, message, type }]);
+    if (timeout > 0) {
+      setTimeout(() => {
+        setToasts((t) => t.filter((x) => x.id !== id));
+      }, timeout);
+    }
+  };
+  const removeToast = (id) => setToasts((t) => t.filter((x) => x.id !== id));
+
   const getImageUrl = (imagePath) => {
     if (!imagePath) return "https://via.placeholder.com/150?text=No+Image";
     if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) return imagePath;
@@ -76,6 +104,7 @@ function RegDeliverymanPage() {
   const formatDate = (dateString) => {
     if (!dateString) return "Date not available";
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Date not available";
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -92,20 +121,28 @@ function RegDeliverymanPage() {
     return sellerDeliveries.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
   };
 
+  // derive all districts from session cache + fetched data
   const allDistricts = useMemo(() => {
     const all = [...availableSellerOrders, ...mySellerOrders];
     const setDistricts = new Set(all.map((o) => o.district).filter(Boolean));
     return Array.from(setDistricts).sort();
   }, [availableSellerOrders, mySellerOrders]);
 
+  // Client-side filter & sorting with new highValueOnly toggle and favorites filter in UI
   const filterAndSort = (orders) => {
     let filtered = [...orders];
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
-      filtered = filtered.filter((o) => (o.item && o.item.toLowerCase().includes(q)) || (o.district && o.district.toLowerCase().includes(q)));
+      filtered = filtered.filter(
+        (o) =>
+          (o.item && o.item.toLowerCase().includes(q)) ||
+          (o.district && o.district.toLowerCase().includes(q)) ||
+          (o.sellerName && o.sellerName.toLowerCase().includes(q))
+      );
     }
     if (filterStatus !== "all") filtered = filtered.filter((o) => o.deliveryStatus === filterStatus);
     if (filterDistrict !== "all") filtered = filtered.filter((o) => o.district === filterDistrict);
+    if (highValueOnly) filtered = filtered.filter((o) => (o.price || 0) >= Number(highValueThreshold || 0));
 
     switch (sortBy) {
       case "date-desc":
@@ -140,6 +177,27 @@ function RegDeliverymanPage() {
     return orders.slice(start, start + itemsPerPage);
   };
 
+  // Keyboard shortcuts: d = toggle dark, h = toggle history, s = view salary, f = focus search
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target && ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
+      if (e.key === "d") setDarkMode((d) => !d);
+      if (e.key === "h") setShowHistory((s) => !s);
+      if (e.key === "s") fetchSalaryAndShow();
+      if (e.key === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // SESSION caching keys
+  const SESSION_AVAILABLE_KEY = "session_available_orders";
+  const SESSION_MY_KEY = "session_my_orders";
+
   useEffect(() => {
     const fetchDeliverymanData = async () => {
       try {
@@ -161,12 +219,22 @@ function RegDeliverymanPage() {
         }
       } catch (err) {
         console.error("Error fetching deliveryman data:", err);
+        showToast("Failed to fetch user data", "error");
       } finally {
         setLoading(false);
       }
     };
 
+    // load session cache first (improves UX offline/slow)
+    try {
+      const av = sessionStorage.getItem(SESSION_AVAILABLE_KEY);
+      if (av) setAvailableSellerOrders(JSON.parse(av));
+      const my = sessionStorage.getItem(SESSION_MY_KEY);
+      if (my) setMySellerOrders(JSON.parse(my));
+    } catch {}
+
     fetchDeliverymanData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -177,10 +245,18 @@ function RegDeliverymanPage() {
       try {
         setLoading(true);
         const availableSellerResponse = await axios.get(`${BASE_URL}/sellerorder/deliveryman/available`);
-        if (mounted) setAvailableSellerOrders(Array.isArray(availableSellerResponse.data) ? availableSellerResponse.data : []);
+        if (mounted) {
+          const arr = Array.isArray(availableSellerResponse.data) ? availableSellerResponse.data : [];
+          setAvailableSellerOrders(arr);
+          try { sessionStorage.setItem(SESSION_AVAILABLE_KEY, JSON.stringify(arr)); } catch {}
+        }
 
         const mySellerResponse = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
-        if (mounted) setMySellerOrders(Array.isArray(mySellerResponse.data) ? mySellerResponse.data : []);
+        if (mounted) {
+          const arr = Array.isArray(mySellerResponse.data) ? mySellerResponse.data : [];
+          setMySellerOrders(arr);
+          try { sessionStorage.setItem(SESSION_MY_KEY, JSON.stringify(arr)); } catch {}
+        }
 
         try {
           const salaryResponse = await axios.get(`${BASE_URL}/salary/${deliverymanId}`);
@@ -191,6 +267,7 @@ function RegDeliverymanPage() {
         }
       } catch (err) {
         console.error("Error fetching data:", err);
+        showToast("Failed to fetch orders", "error");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -204,14 +281,14 @@ function RegDeliverymanPage() {
     };
   }, [deliverymanId]);
 
-  // preserved actions
+  // preserved actions (use toasts instead of raw alert)
   const handleAcceptDelivery = async (orderId) => {
     if (!deliverymanId) {
-      alert("Please log in to accept orders");
+      showToast("Please log in to accept orders", "error");
       return;
     }
     if (!orderId) {
-      alert("Invalid order id");
+      showToast("Invalid order id", "error");
       return;
     }
     if (acceptingOrder === orderId) return;
@@ -226,15 +303,20 @@ function RegDeliverymanPage() {
         const updatedOrder = { ...acceptedOrder, deliverymanId, acceptedByDeliveryman: true, deliveryStatus: response.data.deliveryStatus || "in-transit" };
         setMySellerOrders((prev) => [...prev, updatedOrder]);
         setAvailableSellerOrders((prev) => prev.filter((o) => o._id !== orderId));
+        try {
+          // update session cache
+          sessionStorage.setItem(SESSION_MY_KEY, JSON.stringify([...mySellerOrders, updatedOrder]));
+          sessionStorage.setItem(SESSION_AVAILABLE_KEY, JSON.stringify(availableSellerOrders.filter((o) => o._id !== orderId)));
+        } catch {}
       }
 
-      alert("✅ Order accepted successfully!");
+      showToast("Order accepted successfully!", "success");
     } catch (err) {
       console.error("Error accepting:", err);
       let msg = "Failed to accept order.";
       if (err.response) msg += ` ${err.response.data?.message || ""}`;
       else msg += ` ${err.message}`;
-      alert(msg);
+      showToast(msg, "error");
     } finally {
       setAcceptingOrder(null);
     }
@@ -242,23 +324,27 @@ function RegDeliverymanPage() {
 
   const handleDeliveryStatus = async (orderId, status) => {
     if (!orderId || !status) {
-      alert("Invalid order or status");
+      showToast("Invalid order or status", "error");
       return;
     }
     try {
       const url = `${BASE_URL}/sellerorder/${orderId}/status`;
       await axios.put(url, { status }, { headers: { "Content-Type": "application/json" }, timeout: 10000 });
-      setMySellerOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, deliveryStatus: status } : o)));
-      alert(`✅ Order status updated to "${status}" successfully!`);
+      setMySellerOrders((prev) => {
+        const updated = prev.map((o) => (o._id === orderId ? { ...o, deliveryStatus: status } : o));
+        try { sessionStorage.setItem(SESSION_MY_KEY, JSON.stringify(updated)); } catch {}
+        return updated;
+      });
+      showToast(`Order status updated to "${status}" successfully!`, "success");
     } catch (err) {
       console.error("Error updating status:", err);
       let msg = "Failed to update status.";
       if (err.response) msg += ` ${err.response.data?.message || ""}`; else msg += ` ${err.message}`;
-      alert(msg);
+      showToast(msg, "error");
     }
   };
 
-  // NEW: logout
+  // NEW: logout (frontend-only)
   const handleLogout = () => {
     try {
       localStorage.removeItem("token");
@@ -269,12 +355,12 @@ function RegDeliverymanPage() {
     navigate("/login", { replace: true });
   };
 
-  // NEW: view salary (uses /user/userdata then /deliveryman/userdata like UserProfile)
+  // NEW: view salary (unchanged endpoints, but toasts used)
   const fetchSalaryAndShow = async () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("Please login to view salary.");
+        showToast("Please login to view salary.", "error");
         return;
       }
 
@@ -298,14 +384,15 @@ function RegDeliverymanPage() {
           setSalary(dmData.data.salary ?? 0);
           setDeliverymanId((prev) => prev || dmData.data._id || dmData.data.id || "");
           setShowSalary(true);
+          showToast("Salary loaded", "success");
           return;
         }
       }
 
-      alert("You are not a deliveryman or salary not available.");
+      showToast("You are not a deliveryman or salary not available.", "error");
     } catch (err) {
       console.error("Error fetching salary:", err);
-      alert("Failed to fetch salary. Please try again later.");
+      showToast("Failed to fetch salary. Please try again later.", "error");
     }
   };
 
@@ -314,11 +401,25 @@ function RegDeliverymanPage() {
     setShowTimeline(true);
   };
 
-  // EXPORT: CSV (unchanged core logic, improved quoting)
+  // Favorites (client-side only)
+  const toggleFavorite = (orderId) => {
+    setFavorites((prev) => {
+      const next = new Set(Array.from(prev));
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      try {
+        localStorage.setItem("fav_orders", JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+    showToast("Updated favorites", "info");
+  };
+
+  // EXPORT: CSV (unchanged core logic, improved quoting) but use toasts not alerts
   const exportHistoryToCSV = () => {
     const history = getDeliveryHistory();
     if (!history.length) {
-      alert("No delivery history to export.");
+      showToast("No delivery history to export.", "info");
       return;
     }
 
@@ -360,20 +461,19 @@ function RegDeliverymanPage() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
     setShowExportMenu(false);
-    alert("✅ Delivery history exported as CSV");
+    showToast("Delivery history exported as CSV", "success");
   };
 
-  // EXPORT: PDF using browser print (open a printable window and call print)
+  // EXPORT: PDF using browser print (open a printable window and call print) - preserved but use blob fallback if popup blocked
   const exportHistoryToPDF = () => {
     const history = getDeliveryHistory();
     if (!history.length) {
-      alert("No delivery history to export.");
+      showToast("No delivery history to export.", "info");
       return;
     }
 
-    // Build HTML table for printing
     const title = `Delivery History - ${new Date().toLocaleDateString()}`;
     let rowsHtml = "";
     history.forEach((order) => {
@@ -445,29 +545,80 @@ function RegDeliverymanPage() {
       </html>
     `;
 
-    // Open new window, write the HTML, trigger print
-    const win = window.open("", "_blank", "noopener,noreferrer");
-    if (!win) {
-      alert("Unable to open print window. Please allow popups for this site.");
+    // Open via blob to avoid "document" null when popup blocked
+    try {
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      let newWindow = null;
+      try {
+        newWindow = window.open(url, "_blank", "noopener,noreferrer");
+      } catch (err) {
+        newWindow = null;
+      }
+
+      if (!newWindow) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        try {
+          newWindow.focus();
+        } catch (err) {
+          // ignore
+        }
+      }
+
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (err) {}
+      }, 10000);
+
+      setShowExportMenu(false);
+      showToast("PDF preview opened (or download started).", "success");
+    } catch (err) {
+      console.error("Error creating print view:", err);
+      showToast("Unable to open print view. Please allow popups.", "error");
+    }
+  };
+
+  // Export visible orders (client-side only) -> CSV
+  const exportVisibleOrdersCSV = (orders, name = "orders") => {
+    const filtered = filterAndSort(orders);
+    if (!filtered.length) {
+      showToast("No orders to export.", "info");
       return;
     }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
 
-    // Wait briefly for content to render, then open print
-    setTimeout(() => {
-      try {
-        win.focus();
-        win.print();
-        // do not close automatically in all browsers; offer to close
-        // win.close();
-      } catch (e) {
-        console.error("Print failed:", e);
-      }
-    }, 500);
+    const headers = ["Item", "Quantity", "Price (Rs.)", "District", "Status", "Order Date"];
+    const rows = [headers.join(",")];
 
-    setShowExportMenu(false);
+    filtered.forEach((order) => {
+      const row = [
+        `"${(order.item || "").replace(/"/g, '""')}"`,
+        `"${order.quantity || ""}"`,
+        order.price ?? "",
+        `"${(order.district || "N/A").replace(/"/g, '""')}"`,
+        `"${order.deliveryStatus || ""}"`,
+        `"${formatDate(order.createdAt)}"`
+      ].join(",");
+      rows.push(row);
+    });
+
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name}_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    showToast("Visible orders exported as CSV", "success");
   };
 
   // escape HTML to avoid injection
@@ -495,6 +646,7 @@ function RegDeliverymanPage() {
     if (status === "delivered") return <span style={{ ...base, backgroundColor: "#28a745" }}><FontAwesomeIcon icon={faCheckCircle} /> Delivered</span>;
     if (status === "not-delivered") return <span style={{ ...base, backgroundColor: "#dc3545" }}><FontAwesomeIcon icon={faTimesCircle} /> Not Delivered</span>;
     if (status === "in-transit") return <span style={{ ...base, backgroundColor: "#ff9800" }}><FontAwesomeIcon icon={faTruck} /> In Transit</span>;
+    if (status === "approved") return <span style={{ ...base, backgroundColor: "#0ea5e9" }}><FontAwesomeIcon icon={faCheckCircle} /> Approved</span>;
     return null;
   };
 
@@ -505,8 +657,15 @@ function RegDeliverymanPage() {
       overflow: "hidden",
       background: darkMode ? "#2d3748" : "white",
       color: darkMode ? "white" : "black",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.06)"
+      boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+      position: "relative"
     }}>
+      <div style={{ position: "absolute", top: 12, left: 12, zIndex: 5 }}>
+        <button title={favorites.has(order._id) ? "Unfavorite" : "Add to favorites"} onClick={() => toggleFavorite(order._id)} style={{ background: "transparent", border: "none", color: favorites.has(order._id) ? "#f59e0b" : (darkMode ? "white" : "#6b7280"), cursor: "pointer", fontSize: 18 }}>
+          <FontAwesomeIcon icon={favorites.has(order._id) ? faStarSolid : faStarRegular} />
+        </button>
+      </div>
+
       <div style={{ position: "relative" }}>
         <img src={getImageUrl(order.productImage)} alt={order.item} style={{ width: "100%", height: 200, objectFit: "cover" }} onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/400x300?text=No+Image"; }} />
         {!isAvailable && <div style={{ position: "absolute", top: 12, right: 12 }}><DeliveryStatusBadge status={order.deliveryStatus} /></div>}
@@ -639,8 +798,6 @@ function RegDeliverymanPage() {
             <button onClick={fetchSalaryAndShow} style={{ padding: "10px 14px", background: "#28a745", color: "white", border: "none", borderRadius: 8, fontWeight: 700 }}>
               <FontAwesomeIcon icon={faMoneyBillWave} /> View Salary
             </button>
-
-            {/* History button intentionally removed from header and moved to floating area as requested */}
           </div>
         </div>
       </div>
@@ -651,7 +808,7 @@ function RegDeliverymanPage() {
           <div style={{ display: "flex", gap: 12 }}>
             <div style={{ position: "relative", flex: 1 }}>
               <FontAwesomeIcon icon={faSearch} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#6b7280" }} />
-              <input value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Search by item or district..." style={{ width: "100%", padding: "10px 12px 10px 36px", borderRadius: 8, border: "1px solid #d1d5db", background: darkMode ? "#374151" : "white", color: darkMode ? "white" : "black" }} />
+              <input ref={searchInputRef} value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Search by item, seller or district..." style={{ width: "100%", padding: "10px 12px 10px 36px", borderRadius: 8, border: "1px solid #d1d5db", background: darkMode ? "#374151" : "white", color: darkMode ? "white" : "black" }} />
             </div>
 
             <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }} style={{ padding: 10, borderRadius: 8, border: "1px solid #d1d5db", background: darkMode ? "#374151" : "white", color: darkMode ? "white" : "black" }}>
@@ -683,6 +840,25 @@ function RegDeliverymanPage() {
               <button onClick={() => setViewMode("grid")} style={{ padding: 10, borderRadius: 8, border: "none", background: viewMode === "grid" ? "#007bff" : (darkMode ? "#374151" : "#f1f5f9"), color: viewMode === "grid" ? "white" : (darkMode ? "white" : "black") }}><FontAwesomeIcon icon={faThLarge} /></button>
               <button onClick={() => setViewMode("list")} style={{ padding: 10, borderRadius: 8, border: "none", background: viewMode === "list" ? "#007bff" : (darkMode ? "#374151" : "#f1f5f9"), color: viewMode === "list" ? "white" : (darkMode ? "white" : "black") }}><FontAwesomeIcon icon={faList} /></button>
             </div>
+          </div>
+        </div>
+
+        {/* Quick filters row */}
+        <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="checkbox" checked={highValueOnly} onChange={(e) => setHighValueOnly(e.target.checked)} />
+            High value orders only
+          </label>
+          {highValueOnly && (
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              Threshold:
+              <input type="number" value={highValueThreshold} onChange={(e) => setHighValueThreshold(Number(e.target.value || 0))} style={{ width: 120, padding: 6, borderRadius: 6 }} />
+            </label>
+          )}
+          <button onClick={() => { setFavorites(new Set()); try { localStorage.removeItem("fav_orders"); } catch {} showToast("Cleared favorites", "info"); }} style={{ padding: "8px 12px", background: "#ef4444", color: "white", border: "none", borderRadius: 8 }}>Clear Favorites</button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button onClick={() => exportVisibleOrdersCSV(availableSellerOrders, "available_orders")} style={{ padding: "8px 12px", background: "#0ea5e9", color: "white", border: "none", borderRadius: 8 }}><FontAwesomeIcon icon={faFileCsv} /> Export Visible Available</button>
+            <button onClick={() => exportVisibleOrdersCSV(mySellerOrders, "my_orders")} style={{ padding: "8px 12px", background: "#06b6d4", color: "white", border: "none", borderRadius: 8 }}><FontAwesomeIcon icon={faFileCsv} /> Export Visible My Orders</button>
           </div>
         </div>
       </div>
@@ -742,7 +918,7 @@ function RegDeliverymanPage() {
                     <FontAwesomeIcon icon={faDownload} /> Export
                   </button>
                   {showExportMenu && (
-                    <div style={{ position: "absolute", right: 0, marginTop: 8, width: 220, background: darkMode ? "#1f2937" : "white", boxShadow: "0 6px 18px rgba(0,0,0,0.12)", borderRadius: 8, overflow: "hidden" }}>
+                    <div style={{ position: "absolute", right: 0, marginTop: 8, width: 260, background: darkMode ? "#1f2937" : "white", boxShadow: "0 6px 18px rgba(0,0,0,0.12)", borderRadius: 8, overflow: "hidden" }}>
                       <button onClick={exportHistoryToCSV} style={{ width: "100%", padding: 12, textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}><FontAwesomeIcon icon={faFileCsv} /> Export as CSV</button>
                       <button onClick={exportHistoryToPDF} style={{ width: "100%", padding: 12, textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}><FontAwesomeIcon icon={faDownload} /> Print / Save as PDF</button>
                     </div>
@@ -825,6 +1001,16 @@ function RegDeliverymanPage() {
         <button onClick={handleLogout} style={{ background: "#ef4444", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
           Logout
         </button>
+      </div>
+
+      {/* Toasts */}
+      <div style={{ position: "fixed", right: 20, bottom: 96, zIndex: 2300, display: "flex", flexDirection: "column", gap: 8 }}>
+        {toasts.map((t) => (
+          <div key={t.id} role="status" aria-live="polite" style={{ background: t.type === "error" ? "#ef4444" : (t.type === "success" ? "#16a34a" : "#0ea5e9"), color: "white", padding: "10px 14px", borderRadius: 8, boxShadow: "0 6px 18px rgba(0,0,0,0.12)", minWidth: 220, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+            <div style={{ flex: 1 }}>{t.message}</div>
+            <button onClick={() => removeToast(t.id)} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}><FontAwesomeIcon icon={faTimes} /></button>
+          </div>
+        ))}
       </div>
 
       <style>{`
