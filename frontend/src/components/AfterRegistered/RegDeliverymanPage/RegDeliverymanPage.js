@@ -311,7 +311,7 @@ function RegDeliverymanPage() {
     navigate("/login", { replace: true });
   };
 
-  // NEW: view salary (unchanged)
+  // FIXED: view salary - robust, uses axios, tries multiple fallbacks and always calls setShowSalary(true) when salary obtained
   const fetchSalaryAndShow = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -320,31 +320,69 @@ function RegDeliverymanPage() {
         return;
       }
 
-      const userRes = await fetch(`${BASE_URL}/user/userdata`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ token }),
-      });
-      const userData = await userRes.json();
-      const role = (userData.data?.role || userData.data?.userRole || "").toString().toLowerCase();
-
-      if (role === "deliveryman" || role === "delivery") {
-        const dmRes = await fetch(`${BASE_URL}/deliveryman/userdata`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-        const dmData = await dmRes.json();
-        if (dmData.status === "ok" && dmData.data) {
-          setSalary(dmData.data.salary ?? 0);
-          setDeliverymanId((prev) => prev || dmData.data._id || dmData.data.id || "");
+      // Attempt 1: try to get deliveryman userdata directly
+      try {
+        const dmRes = await axios.post(`${BASE_URL}/deliveryman/userdata`, { token }, { timeout: 10000 });
+        const dmData = dmRes?.data?.data || dmRes?.data;
+        if (dmData && (dmData.salary !== undefined || dmData._id || dmData.id)) {
+          // found deliveryman info
+          setSalary(dmData.salary ?? dmData.salary === 0 ? dmData.salary : 0);
+          setDeliverymanId((prev) => prev || dmData._id || dmData.id || "");
           setShowSalary(true);
           return;
         }
+      } catch (err) {
+        // continue to other fallbacks
+        console.warn("deliveryman/userdata returned error or no usable data:", err?.message || err);
       }
 
-      alert("You are not a deliveryman or salary not available.");
+      // Attempt 2: get user data to confirm role, then call deliveryman/userdata
+      try {
+        const userRes = await axios.post(`${BASE_URL}/user/userdata`, { token }, { timeout: 10000 });
+        const userData = userRes?.data?.data || userRes?.data;
+        const role = (userData?.role || userData?.userRole || "").toString().toLowerCase();
+
+        if (!role || (role !== "deliveryman" && role !== "delivery")) {
+          // Role not deliveryman; but we still try salary endpoint if deliverymanId exists
+          if (!deliverymanId) {
+            alert("You are not a deliveryman or salary not available.");
+            return;
+          }
+        } else {
+          // role indicates deliveryman - try again to retrieve deliveryman userdata
+          try {
+            const dmRes2 = await axios.post(`${BASE_URL}/deliveryman/userdata`, { token }, { timeout: 10000 });
+            const dmData2 = dmRes2?.data?.data || dmRes2?.data;
+            if (dmData2 && (dmData2.salary !== undefined || dmData2._id || dmData2.id)) {
+              setSalary(dmData2.salary ?? 0);
+              setDeliverymanId((prev) => prev || dmData2._id || dmData2.id || "");
+              setShowSalary(true);
+              return;
+            }
+          } catch (err2) {
+            console.warn("second deliveryman/userdata attempt failed:", err2?.message || err2);
+          }
+        }
+      } catch (err) {
+        console.warn("user/userdata failed:", err?.message || err);
+      }
+
+      // Attempt 3: if we have deliverymanId (from earlier session) try the salary endpoint
+      if (deliverymanId) {
+        try {
+          const salRes = await axios.get(`${BASE_URL}/salary/${deliverymanId}`, { timeout: 10000 });
+          if (salRes?.data && (salRes.data.salary !== undefined)) {
+            setSalary(salRes.data.salary ?? 0);
+            setShowSalary(true);
+            return;
+          }
+        } catch (err) {
+          console.warn("salary endpoint failed:", err?.message || err);
+        }
+      }
+
+      // Nothing worked
+      alert("Salary not available or you are not a deliveryman.");
     } catch (err) {
       console.error("Error fetching salary:", err);
       alert("Failed to fetch salary. Please try again later.");
@@ -957,6 +995,19 @@ function RegDeliverymanPage() {
         .delivery-dark { background: #0f1724 !important; color: #e6eef8 !important; }
         @media (max-width: 640px) { .hidden-mobile { display: none; } }
       `}</style>
+
+      {/* Salary modal */}
+      {showSalary && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 4000 }}>
+          <div style={{ width: "100%", maxWidth: 420, background: darkMode ? "#24303a" : "white", color: darkMode ? "#e6eef8" : "black", padding: 24, borderRadius: 12 }}>
+            <h3 style={{ marginTop: 0 }}>Government Provided Salary</h3>
+            <div style={{ fontSize: 36, fontWeight: 800, color: "#28a745" }}>Rs. {salary?.toLocaleString?.() ?? salary}</div>
+            <div style={{ marginTop: 18, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowSalary(false)} style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#007bff", color: "white" }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
