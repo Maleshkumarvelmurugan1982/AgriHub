@@ -152,6 +152,7 @@ function GovernmentPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
       
       alert("✅ Government report exported as CSV");
       setShowExportMenu(false);
@@ -161,7 +162,7 @@ function GovernmentPage() {
     }
   };
 
-  // NEW: Export to PDF function
+  // NEW: Export to PDF function (fixed to avoid reading document of null window)
   const exportToPDF = async () => {
     try {
       // Fetch all data if not already loaded
@@ -205,13 +206,12 @@ function GovernmentPage() {
         }
       }
 
-      // Create PDF preview window
-      const printWindow = window.open('', '_blank');
-      
+      // Build HTML content for the report
       const htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
+            <meta charset="utf-8" />
             <title>Government AgriHub Report</title>
             <style>
               @media print {
@@ -400,9 +400,7 @@ function GovernmentPage() {
             <!-- Section 4: Delivery History -->
             <div class="section page-break">
               <h2>📦 Delivery History by Deliveryman</h2>
-              ${Object.entries(allDeliveryHistory).map(([dmId, data]) => {
-                const dm = deliveryMen.find(d => d._id === dmId);
-                return `
+              ${Object.entries(allDeliveryHistory).map(([dmId, data]) => `
                   <div style="margin: 30px 0;">
                     <h3 style="color: #333; background-color: #e8f5e9; padding: 10px; border-radius: 5px;">
                       Deliveryman: ${data.name}
@@ -458,8 +456,7 @@ function GovernmentPage() {
                       <p style="color: #666; font-style: italic;">No delivery history found for this deliveryman.</p>
                     `}
                   </div>
-                `;
-              }).join('')}
+                `).join('')}
             </div>
 
             <div class="footer">
@@ -492,10 +489,48 @@ function GovernmentPage() {
         </html>
       `;
 
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      
-      alert("✅ PDF preview opened. Click Print to save as PDF");
+      // Create a blob and open a new window with a blob URL.
+      // This avoids calling document on a null window (popup blocked).
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+
+      // Try to open the new tab/window with the blob URL
+      let newWindow = null;
+      try {
+        newWindow = window.open(url, "_blank");
+      } catch (err) {
+        newWindow = null;
+      }
+
+      // If popup was blocked (newWindow is null), fallback: create an anchor and simulate click.
+      if (!newWindow) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        // Some browsers will still block, but this is a reasonable fallback.
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        // Some browsers may not load the blob immediately into the opened window; focusing is helpful.
+        try {
+          newWindow.focus();
+        } catch (err) {
+          // ignore
+        }
+      }
+
+      // Revoke URL after a delay to free memory
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          // ignore
+        }
+      }, 10000);
+
+      alert("✅ PDF preview opened (or download started). Click Print to save as PDF");
       setShowExportMenu(false);
     } catch (err) {
       console.error("Error exporting PDF:", err);
@@ -593,7 +628,8 @@ function GovernmentPage() {
   const calculateMonthlyStats = (orders) => {
     const stats = {};
     orders.forEach(order => {
-      const date = new Date(order.updatedAt || order.createdAt);
+      const date = new Date(order.updatedAt || order.createdAt || 0);
+      if (isNaN(date.getTime())) return;
       const monthYear = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
       if (!stats[monthYear]) stats[monthYear] = 0;
       stats[monthYear]++;
@@ -604,6 +640,7 @@ function GovernmentPage() {
   const formatDate = (dateString) => {
     if (!dateString) return "Date not available";
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Date not available";
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -809,8 +846,8 @@ function GovernmentPage() {
                     gap: "10px",
                     fontSize: "14px",
                   }}
-                  onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
-                  onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   📄 Export as PDF
                 </button>
@@ -831,8 +868,8 @@ function GovernmentPage() {
                     gap: "10px",
                     fontSize: "14px",
                   }}
-                  onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
-                  onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   📊 Export as CSV
                 </button>
