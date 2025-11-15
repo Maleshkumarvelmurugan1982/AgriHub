@@ -44,7 +44,7 @@ function GovernmentPage() {
     return `${BASE_URL}${imagePath}`;
   };
 
-  // NEW: Export to CSV function
+  // NEW: Export to CSV function (no farmerorder usage)
   const exportToCSV = async () => {
     try {
       // Fetch all data if not already loaded
@@ -63,22 +63,14 @@ function GovernmentPage() {
         }
       }
 
-      // Fetch delivery history for all deliverymen
+      // Fetch delivery history for all deliverymen (only sellerorder endpoint)
       const allDeliveryHistory = {};
       for (const dm of deliveryMen) {
         try {
           const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${dm._id}`);
           const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
-          let farmerOrders = [];
-          try {
-            const farmerOrdersRes = await axios.get(`${BASE_URL}/farmerorder/deliveryman/${dm._id}`);
-            farmerOrders = Array.isArray(farmerOrdersRes.data) ? farmerOrdersRes.data : [];
-          } catch (err) {
-            farmerOrders = [];
-          }
-
-          const allOrders = [...sellerOrders, ...farmerOrders].filter(
+          const allOrders = sellerOrders.filter(
             order => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
           );
 
@@ -162,7 +154,7 @@ function GovernmentPage() {
     }
   };
 
-  // NEW: Export to PDF function (fixed to avoid reading document of null window)
+  // NEW: Export to PDF function (no farmerorder usage)
   const exportToPDF = async () => {
     try {
       // Fetch all data if not already loaded
@@ -181,22 +173,14 @@ function GovernmentPage() {
         }
       }
 
-      // Fetch delivery history for all deliverymen
+      // Fetch delivery history for all deliverymen (only sellerorder endpoint)
       const allDeliveryHistory = {};
       for (const dm of deliveryMen) {
         try {
           const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${dm._id}`);
           const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
-          let farmerOrders = [];
-          try {
-            const farmerOrdersRes = await axios.get(`${BASE_URL}/farmerorder/deliveryman/${dm._id}`);
-            farmerOrders = Array.isArray(farmerOrdersRes.data) ? farmerOrdersRes.data : [];
-          } catch (err) {
-            farmerOrders = [];
-          }
-
-          const allOrders = [...sellerOrders, ...farmerOrders].filter(
+          const allOrders = sellerOrders.filter(
             order => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
           );
 
@@ -490,11 +474,9 @@ function GovernmentPage() {
       `;
 
       // Create a blob and open a new window with a blob URL.
-      // This avoids calling document on a null window (popup blocked).
       const blob = new Blob([htmlContent], { type: "text/html" });
       const url = URL.createObjectURL(blob);
 
-      // Try to open the new tab/window with the blob URL
       let newWindow = null;
       try {
         newWindow = window.open(url, "_blank");
@@ -502,18 +484,15 @@ function GovernmentPage() {
         newWindow = null;
       }
 
-      // If popup was blocked (newWindow is null), fallback: create an anchor and simulate click.
       if (!newWindow) {
         const a = document.createElement("a");
         a.href = url;
         a.target = "_blank";
         a.rel = "noopener noreferrer";
-        // Some browsers will still block, but this is a reasonable fallback.
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
       } else {
-        // Some browsers may not load the blob immediately into the opened window; focusing is helpful.
         try {
           newWindow.focus();
         } catch (err) {
@@ -521,7 +500,6 @@ function GovernmentPage() {
         }
       }
 
-      // Revoke URL after a delay to free memory
       setTimeout(() => {
         try {
           URL.revokeObjectURL(url);
@@ -592,20 +570,13 @@ function GovernmentPage() {
     }
   };
 
+  // fetchDeliveryHistory now uses only sellerorder endpoint (no farmerorder)
   const fetchDeliveryHistory = async (deliverymanId) => {
     try {
       const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
       const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
-      let farmerOrders = [];
-      try {
-        const farmerOrdersRes = await axios.get(`${BASE_URL}/farmerorder/deliveryman/${deliverymanId}`);
-        farmerOrders = Array.isArray(farmerOrdersRes.data) ? farmerOrdersRes.data : [];
-      } catch (err) {
-        console.log("No farmer orders found");
-      }
-
-      const allOrders = [...sellerOrders, ...farmerOrders].filter(
+      const allOrders = sellerOrders.filter(
         order => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
       );
 
