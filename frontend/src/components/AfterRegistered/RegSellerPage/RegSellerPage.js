@@ -28,7 +28,9 @@ import {
   faChevronLeft,
   faCalendar,
   faBox,
-  faCheck
+  faCheck,
+  faCopy,
+  faShareAlt
 } from "@fortawesome/free-solid-svg-icons";
 import TypeWriter from "../../AutoWritingText/TypeWriter";
 
@@ -37,21 +39,24 @@ function RegSellerPage() {
   const [sellerOrders, setSellerOrders] = useState([]);
   const [imageErrors, setImageErrors] = useState({});
   const [toasts, setToasts] = useState([]);
-  const [showAllSellerOrders, setShowAllSellerOrders] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   
-  // New states for search, filter, sort
+  // Search, filter, sort
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [sortBy, setSortBy] = useState("date-desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  
+
+  // Image preview modal state (UI-only, in-memory)
+  const [imageModal, setImageModal] = useState(null); // { src, caption } or null
+
   const ordersPerPage = 8;
   const notifiedOrdersRef = useRef(new Set());
+  const searchInputRef = useRef(null);
 
   const BACKEND_URL = "https://agrihub-2.onrender.com";
   const fallbackProductImage = "https://via.placeholder.com/300x200?text=Product+Image";
@@ -173,6 +178,8 @@ function RegSellerPage() {
         background-color: #2d2d2d;
         color: #e0e0e0;
       }
+
+      @keyframes slideIn { from { transform: translateX(400px); opacity:0; } to { transform: translateX(0); opacity:1; } }
     `;
     const styleEl = document.createElement('style');
     styleEl.id = styleId;
@@ -185,13 +192,31 @@ function RegSellerPage() {
     };
   }, []);
 
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
-    if (imagePath.startsWith('/uploads')) return `${BACKEND_URL}${imagePath}`;
-    if (imagePath.startsWith('uploads/')) return `${BACKEND_URL}/${imagePath}`;
-    return `${BACKEND_URL}/uploads/${imagePath}`;
-  };
+  // keep "time ago" updated (UI nicety)
+  useEffect(() => {
+    const id = setInterval(() => { /* tick to re-render for time displays */ setSellerOrders((s) => [...s]); }, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // keyboard shortcuts: h = history, t = theme, s = focus search, c = clear filters
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = (e.target && e.target.tagName) || "";
+      if (["INPUT","TEXTAREA","SELECT"].includes(tag)) return;
+      if (e.key === "h") setShowHistory((s) => !s);
+      if (e.key === "t") setDarkMode((d) => !d);
+      if (e.key === "s") { if (searchInputRef.current) searchInputRef.current.focus(); }
+      if (e.key === "c") {
+        setSearchTerm("");
+        setFilterStatus("all");
+        setSortBy("date-desc");
+        setCurrentPage(1);
+        showToast("Filters cleared (client-side)", "success");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const showToast = (message, type = 'success') => {
     const id = Date.now() + Math.random();
@@ -200,6 +225,14 @@ function RegSellerPage() {
   };
 
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
+    if (imagePath.startsWith('/uploads')) return `${BACKEND_URL}${imagePath}`;
+    if (imagePath.startsWith('uploads/')) return `${BACKEND_URL}/${imagePath}`;
+    return `${BACKEND_URL}/uploads/${imagePath}`;
+  };
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -486,6 +519,200 @@ function RegSellerPage() {
     );
   };
 
+  // Copy order details (UI only)
+  const copyOrderToClipboard = async (order) => {
+    try {
+      const farmer = order.farmerId && typeof order.farmerId === 'object' ? `${order.farmerId.fname || ''} ${order.farmerId.lname || ''}`.trim() : (order.farmerName || 'Unknown');
+      const deliveryman = order.deliverymanId && typeof order.deliverymanId === 'object' ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() : (order.deliverymanName || 'Assigned');
+      const text = [
+        `Item: ${order.item || ''}`,
+        `Quantity: ${order.quantity || ''} kg`,
+        `Price: Rs.${order.price ?? ''}`,
+        `Order ID: ${order._id || ''}`,
+        `Farmer: ${farmer}`,
+        `Deliveryman: ${deliveryman}`,
+        `Status: ${order.status || 'PENDING'} / ${order.deliveryStatus || ''}`
+      ].join("\n");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        showToast("Order details copied to clipboard", "success");
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); showToast("Order details copied to clipboard", "success"); }
+        catch { showToast("Unable to copy", "error"); }
+        finally { document.body.removeChild(ta); }
+      }
+    } catch (err) { console.error("Copy failed:", err); showToast("Failed to copy order details", "error"); }
+  };
+
+  // Share order (if navigator.share available)
+  const shareOrder = async (order) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Order: ${order.item}`,
+          text: `Order ID: ${order._id}\nItem: ${order.item}\nPrice: Rs.${order.price}`,
+        });
+        showToast("Share dialog opened", "success");
+      } catch (err) {
+        console.warn("Share canceled or failed", err);
+      }
+    } else {
+      showToast("Share not supported in this browser", "error");
+    }
+  };
+
+  // Image modal helpers
+  const openImageModal = (src, caption) => setImageModal({ src, caption });
+  const closeImageModal = () => setImageModal(null);
+
+  // Fetch seller data (initial)
+  useEffect(() => {
+    const fetchSellerData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No token found");
+          showToast("Please log in to view your orders", "error");
+          return;
+        }
+
+        const res = await fetch(`${BACKEND_URL}/seller/userdata`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+
+        const data = await res.json();
+        if (data.status === "ok") {
+          setSellerId(data.data._id);
+          console.log("Seller ID:", data.data._id);
+        } else {
+          console.error("Failed to fetch seller data:", data);
+          showToast("Failed to load user data", "error");
+        }
+      } catch (err) {
+        console.error("Error fetching seller data:", err);
+        showToast("Error loading user data", "error");
+      }
+    };
+
+    fetchSellerData();
+  }, []);
+
+  // Fetch orders (polling every 30s) — always polling when sellerId exists
+  useEffect(() => {
+    if (!sellerId) return;
+    let mounted = true;
+
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = `
+      .delivery-status-badge.in-transit {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 8px 12px;
+        border-radius: 5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: bold;
+        margin-top: 10px;
+        border: 2px solid #ffc107;
+      }
+    `;
+    document.head.appendChild(styleSheet);
+
+    const fetchData = async () => {
+      try {
+        const sellerRes = await fetch(`${BACKEND_URL}/sellerorder/seller/${sellerId}`);
+        
+        if (!sellerRes.ok) {
+          throw new Error(`HTTP error! status: ${sellerRes.status}`);
+        }
+        
+        const sellerData = await sellerRes.json();
+        console.log("Seller Orders Response:", sellerData);
+        
+        let orders = [];
+        if (Array.isArray(sellerData)) {
+          orders = sellerData;
+        } else if (sellerData.data && Array.isArray(sellerData.data)) {
+          orders = sellerData.data;
+        } else if (sellerData.message) {
+          console.error("Backend error:", sellerData.message);
+          orders = [];
+        }
+
+        orders.forEach(order => {
+          if (order.status && !notifiedOrdersRef.current.has(order._id) && 
+              (order.status === "approved" || order.status === "disapproved")) {
+            showToast(
+              `Your order for ${order.item} has been ${order.status}!`, 
+              order.status === "approved" ? "success" : "error"
+            );
+            notifiedOrdersRef.current.add(order._id);
+          }
+
+          if (order.acceptedByDeliveryman && order.deliveryStatus === "in-transit" && 
+              !notifiedOrdersRef.current.has(`in-transit-${order._id}`)) {
+            try {
+              const name = typeof order.deliverymanId === 'object' 
+                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
+                : "Deliveryman";
+              
+              showToast(`Your order for ${order.item} is now in transit! Accepted by ${name}`, "success");
+            } catch (err) {
+              showToast(`Your order for ${order.item} is now in transit!`, "success");
+            }
+            notifiedOrdersRef.current.add(`in-transit-${order._id}`);
+          }
+
+          if (order.acceptedByDeliveryman && order.deliverymanId && 
+              !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
+            try {
+              const name = typeof order.deliverymanId === 'object' 
+                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
+                : "Deliveryman";
+              
+              showToast(`Your order for ${order.item} has been accepted by ${name}!`, "success");
+            } catch (err) {
+              showToast(`Your order for ${order.item} has been accepted by a deliveryman!`, "success");
+            }
+            notifiedOrdersRef.current.add(`delivery-${order._id}`);
+          }
+
+          if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
+              !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
+            showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
+            notifiedOrdersRef.current.add(`delivered-${order._id}`);
+          }
+        });
+
+        if (mounted) setSellerOrders(orders);
+
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        showToast("Error fetching data", "error");
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    
+    return () => { 
+      clearInterval(interval); 
+      if (document.head.contains(styleSheet)) {
+        document.head.removeChild(styleSheet); 
+      }
+      mounted = false;
+    };
+  }, [sellerId]);
+
+  const handleImageError = (id, type) => {
+    setImageErrors(prev => ({ ...prev, [`${type}-${id}`]: true }));
+  };
+
   const exportToCSV = () => {
     if (purchasedItems.length === 0) {
       showToast("No purchase history to export", "error");
@@ -757,150 +984,6 @@ function RegSellerPage() {
     setShowExportMenu(false);
   };
 
-  useEffect(() => {
-    const fetchSellerData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          console.error("No token found");
-          showToast("Please log in to view your orders", "error");
-          return;
-        }
-
-        const res = await fetch(`${BACKEND_URL}/seller/userdata`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-
-        const data = await res.json();
-        if (data.status === "ok") {
-          setSellerId(data.data._id);
-          console.log("Seller ID:", data.data._id);
-        } else {
-          console.error("Failed to fetch seller data:", data);
-          showToast("Failed to load user data", "error");
-        }
-      } catch (err) {
-        console.error("Error fetching seller data:", err);
-        showToast("Error loading user data", "error");
-      }
-    };
-
-    fetchSellerData();
-  }, []);
-
-  useEffect(() => {
-    if (!sellerId) return;
-
-    const styleSheet = document.createElement("style");
-    styleSheet.textContent = `
-      @keyframes slideIn { 
-        from { transform: translateX(400px); opacity:0; } 
-        to { transform: translateX(0); opacity:1; } 
-      }
-      .delivery-status-badge.in-transit {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 8px 12px;
-        border-radius: 5px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: bold;
-        margin-top: 10px;
-        border: 2px solid #ffc107;
-      }
-    `;
-    document.head.appendChild(styleSheet);
-
-    const fetchData = async () => {
-      try {
-        const sellerRes = await fetch(`${BACKEND_URL}/sellerorder/seller/${sellerId}`);
-        
-        if (!sellerRes.ok) {
-          throw new Error(`HTTP error! status: ${sellerRes.status}`);
-        }
-        
-        const sellerData = await sellerRes.json();
-        console.log("Seller Orders Response:", sellerData);
-        
-        let orders = [];
-        if (Array.isArray(sellerData)) {
-          orders = sellerData;
-        } else if (sellerData.data && Array.isArray(sellerData.data)) {
-          orders = sellerData.data;
-        } else if (sellerData.message) {
-          console.error("Backend error:", sellerData.message);
-          orders = [];
-        }
-
-        orders.forEach(order => {
-          if (order.status && !notifiedOrdersRef.current.has(order._id) && 
-              (order.status === "approved" || order.status === "disapproved")) {
-            showToast(
-              `Your order for ${order.item} has been ${order.status}!`, 
-              order.status === "approved" ? "success" : "error"
-            );
-            notifiedOrdersRef.current.add(order._id);
-          }
-        });
-
-        for (const order of orders) {
-          if (order.acceptedByDeliveryman && order.deliveryStatus === "in-transit" && 
-              !notifiedOrdersRef.current.has(`in-transit-${order._id}`)) {
-            try {
-              const name = typeof order.deliverymanId === 'object' 
-                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
-                : "Deliveryman";
-              
-              showToast(`Your order for ${order.item} is now in transit! Accepted by ${name}`, "success");
-            } catch (err) {
-              showToast(`Your order for ${order.item} is now in transit!`, "success");
-            }
-            notifiedOrdersRef.current.add(`in-transit-${order._id}`);
-          }
-
-          if (order.acceptedByDeliveryman && order.deliverymanId && 
-              !notifiedOrdersRef.current.has(`delivery-${order._id}`)) {
-            try {
-              const name = typeof order.deliverymanId === 'object' 
-                ? `${order.deliverymanId.fname || ''} ${order.deliverymanId.lname || ''}`.trim() || "Deliveryman"
-                : "Deliveryman";
-              
-              showToast(`Your order for ${order.item} has been accepted by ${name}!`, "success");
-            } catch (err) {
-              showToast(`Your order for ${order.item} has been accepted by a deliveryman!`, "success");
-            }
-            notifiedOrdersRef.current.add(`delivery-${order._id}`);
-          }
-
-          if ((order.deliveryStatus === "delivered" || order.deliveryStatus === "approved") && 
-              !notifiedOrdersRef.current.has(`delivered-${order._id}`)) {
-            showToast(`Your order for ${order.item} has been delivered successfully!`, "success");
-            notifiedOrdersRef.current.add(`delivered-${order._id}`);
-          }
-        }
-
-        setSellerOrders(orders);
-
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        showToast("Error fetching data", "error");
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    
-    return () => { 
-      clearInterval(interval); 
-      if (document.head.contains(styleSheet)) {
-        document.head.removeChild(styleSheet); 
-      }
-    };
-  }, [sellerId]);
-
   const handleImageError = (id, type) => {
     setImageErrors(prev => ({ ...prev, [`${type}-${id}`]: true }));
   };
@@ -1017,11 +1100,11 @@ function RegSellerPage() {
           }}
           onMouseOver={(e) => {
             e.currentTarget.style.transform = 'translateY(-3px)';
-            e.currentTarget.style.boxShadow = '0 12px 28px rgba(102, 126, 234, 0.4)';
+            e.currentTarget.style.boxShadow = '0 12px 28px rgba(102,126,234,0.4)';
           }}
           onMouseOut={(e) => {
             e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.3)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(102,126,234,0.3)';
           }}
         >
           <FontAwesomeIcon icon={faWallet} style={{ fontSize: '22px' }} />
@@ -1223,8 +1306,10 @@ function RegSellerPage() {
                         width: '100%',
                         height: '150px',
                         objectFit: 'cover',
-                        borderRadius: '8px'
+                        borderRadius: '8px',
+                        cursor: 'pointer'
                       }}
+                      onClick={() => openImageModal(getImageUrl(order.productImage) || fallbackProductImage, order.item)}
                       onError={(e) => {
                         e.target.onerror = null; 
                         e.target.src = fallbackProductImage;
@@ -1314,6 +1399,7 @@ function RegSellerPage() {
               }} 
             />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search orders..."
               value={searchTerm}
@@ -1471,11 +1557,13 @@ function RegSellerPage() {
                     src={displayImage} 
                     alt={order.item || "Product"} 
                     className="order-image"
+                    onClick={() => openImageModal(displayImage, order.item)}
                     onError={(e) => {
                       handleImageError(order._id || index, "order");
                       e.target.onerror = null;
                       e.target.src = fallbackProductImage;
                     }}
+                    style={{ cursor: 'pointer' }}
                   />
                   <p style={{ color: darkMode ? '#e0e0e0' : '#333' }}><strong>{order.item || "Unknown Item"}</strong></p>
                   {order.quantity && <p style={{ color: darkMode ? '#b0b0b0' : '#666' }}>Quantity: {order.quantity}</p>}
@@ -1538,6 +1626,15 @@ function RegSellerPage() {
                         Cancel Order
                       </button>
                     )}
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button title="Copy details" onClick={() => copyOrderToClipboard(order)} style={{ padding: 8, borderRadius: 8, border: "none", background: "#f1f5f9", cursor: "pointer" }}>
+                        <FontAwesomeIcon icon={faCopy} />
+                      </button>
+                      <button title="Share order" onClick={() => shareOrder(order)} style={{ padding: 8, borderRadius: 8, border: "none", background: "#f1f5f9", cursor: "pointer" }}>
+                        <FontAwesomeIcon icon={faShareAlt} />
+                      </button>
+                    </div>
                   </div>
                   
                   {order.status === "approved" && (
@@ -1730,6 +1827,35 @@ function RegSellerPage() {
             setSelectedOrder(null);
           }} 
         />
+      )}
+
+      {/* Image preview modal */}
+      {imageModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 11000
+        }}>
+          <div style={{
+            width: '95%',
+            maxWidth: 900,
+            background: darkMode ? '#0b1220' : 'white',
+            padding: 20,
+            borderRadius: 12,
+            textAlign: 'center',
+            position: 'relative'
+          }}>
+            <button onClick={closeImageModal} style={{ position: 'absolute', top: 12, right: 12, border: 'none', background: 'transparent', color: darkMode ? '#fff' : '#333', fontSize: 22, cursor: 'pointer' }}>
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+            <div style={{ marginBottom: 12, color: darkMode ? '#e0e0e0' : '#111', fontWeight: 700 }}>{imageModal.caption}</div>
+            <img src={imageModal.src} alt={imageModal.caption} style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 8 }} onError={(e) => { e.target.onerror = null; e.target.src = fallbackProductImage; }} />
+          </div>
+        </div>
       )}
 
       <FooterNew />
