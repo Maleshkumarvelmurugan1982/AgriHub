@@ -67,6 +67,32 @@ function RegDeliverymanPage() {
     } catch {}
   }, [darkMode]);
 
+  // update timeAgo every minute to keep UI fresh
+  useEffect(() => {
+    const id = setInterval(() => setTimeTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // keyboard shortcuts for quick actions (client-side only)
+  // IMPORTANT: this hook must be declared unconditionally (not after any early returns)
+  useEffect(() => {
+    const handler = (e) => {
+      // ignore when typing in inputs/textarea/select
+      const tag = (e.target && e.target.tagName) || "";
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(tag)) return;
+
+      if (e.key === "h") {
+        setShowHistory((s) => !s);
+      } else if (e.key === "t") {
+        setDarkMode((d) => !d);
+      } else if (e.key === "f") {
+        if (searchInputRef.current) searchInputRef.current.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const getImageUrl = (imagePath) => {
     if (!imagePath) return "https://via.placeholder.com/150?text=No+Image";
     if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) return imagePath;
@@ -100,12 +126,6 @@ function RegDeliverymanPage() {
     if (days < 7) return `${days}d ago`;
     return d.toLocaleDateString();
   };
-
-  // update timeAgo every minute to keep UI fresh
-  useEffect(() => {
-    const id = setInterval(() => setTimeTick((t) => t + 1), 60000);
-    return () => clearInterval(id);
-  }, []);
 
   const getDeliveryHistory = () => {
     const sellerDeliveries = mySellerOrders.filter(
@@ -717,25 +737,6 @@ function RegDeliverymanPage() {
   }
 
   const deliveryHistory = getDeliveryHistory();
-
-  // keyboard shortcuts for quick actions (client-side only)
-  useEffect(() => {
-    const handler = (e) => {
-      // ignore when typing in inputs/textarea
-      const tag = (e.target && e.target.tagName) || "";
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(tag)) return;
-
-      if (e.key === "h") {
-        setShowHistory((s) => !s);
-      } else if (e.key === "t") {
-        setDarkMode((d) => !d);
-      } else if (e.key === "f") {
-        if (searchInputRef.current) searchInputRef.current.focus();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
 
   // Filtered deliveryHistory for display (same as before)
   const visibleDeliveryHistory = deliveryHistory;
