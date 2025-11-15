@@ -709,6 +709,7 @@ function RegSellerPage() {
     };
   }, [sellerId]);
 
+  // single handleImageError definition (kept)
   const handleImageError = (id, type) => {
     setImageErrors(prev => ({ ...prev, [`${type}-${id}`]: true }));
   };
@@ -982,10 +983,6 @@ function RegSellerPage() {
     
     showToast("PDF preview opened. Click Print to save as PDF", "success");
     setShowExportMenu(false);
-  };
-
-  const handleImageError = (id, type) => {
-    setImageErrors(prev => ({ ...prev, [`${type}-${id}`]: true }));
   };
 
   return (
