@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -21,7 +21,9 @@ import {
   faMoon,
   faSun,
   faClock,
-  faEye
+  faEye,
+  faCopy,
+  faImage
 } from "@fortawesome/free-solid-svg-icons";
 
 const BASE_URL = "https://agrihub-2.onrender.com";
@@ -37,14 +39,8 @@ function RegDeliverymanPage() {
   const [loading, setLoading] = useState(true);
   const [acceptingOrder, setAcceptingOrder] = useState(null);
 
-  // new UI states
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      return localStorage.getItem("delivery_dashboard_theme") === "dark";
-    } catch {
-      return false;
-    }
-  });
+  // new UI states (frontend-only, no localStorage usage)
+  const [darkMode, setDarkMode] = useState(false); // intentionally do NOT persist to localStorage
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDistrict, setFilterDistrict] = useState("all");
@@ -56,12 +52,16 @@ function RegDeliverymanPage() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
+  // New frontend-only features (in-memory only)
+  const [imageModal, setImageModal] = useState(null); // { src, caption } or null
+  const [timeTick, setTimeTick] = useState(0); // used to update relative times
+  const searchInputRef = useRef(null);
+
   const navigate = useNavigate();
 
-  // apply/persist theme
+  // apply theme class on body (no persistence)
   useEffect(() => {
     try {
-      localStorage.setItem("delivery_dashboard_theme", darkMode ? "dark" : "light");
       if (darkMode) document.body.classList.add("delivery-dark");
       else document.body.classList.remove("delivery-dark");
     } catch {}
@@ -76,6 +76,7 @@ function RegDeliverymanPage() {
   const formatDate = (dateString) => {
     if (!dateString) return "Date not available";
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Date not available";
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -84,6 +85,27 @@ function RegDeliverymanPage() {
       minute: "2-digit",
     });
   };
+
+  const timeAgo = (dateString) => {
+    if (!dateString) return "";
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return "";
+    const secs = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.floor(secs / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return d.toLocaleDateString();
+  };
+
+  // update timeAgo every minute to keep UI fresh
+  useEffect(() => {
+    const id = setInterval(() => setTimeTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const getDeliveryHistory = () => {
     const sellerDeliveries = mySellerOrders.filter(
@@ -228,7 +250,7 @@ function RegDeliverymanPage() {
         setAvailableSellerOrders((prev) => prev.filter((o) => o._id !== orderId));
       }
 
-      alert("? Order accepted successfully!");
+      alert("✅ Order accepted successfully!");
     } catch (err) {
       console.error("Error accepting:", err);
       let msg = "Failed to accept order.";
@@ -249,7 +271,7 @@ function RegDeliverymanPage() {
       const url = `${BASE_URL}/sellerorder/${orderId}/status`;
       await axios.put(url, { status }, { headers: { "Content-Type": "application/json" }, timeout: 10000 });
       setMySellerOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, deliveryStatus: status } : o)));
-      alert(`? Order status updated to "${status}" successfully!`);
+      alert(`✅ Order status updated to "${status}" successfully!`);
     } catch (err) {
       console.error("Error updating status:", err);
       let msg = "Failed to update status.";
@@ -258,7 +280,7 @@ function RegDeliverymanPage() {
     }
   };
 
-  // NEW: logout
+  // NEW: logout (unchanged)
   const handleLogout = () => {
     try {
       localStorage.removeItem("token");
@@ -269,7 +291,7 @@ function RegDeliverymanPage() {
     navigate("/login", { replace: true });
   };
 
-  // NEW: view salary (uses /user/userdata then /deliveryman/userdata like UserProfile)
+  // NEW: view salary (unchanged)
   const fetchSalaryAndShow = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -362,10 +384,10 @@ function RegDeliverymanPage() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
-    alert("? Delivery history exported as CSV");
+    alert("✅ Delivery history exported as CSV");
   };
 
-  // EXPORT: PDF using browser print (open a printable window and call print)
+  // EXPORT: PDF using browser print (unchanged)
   const exportHistoryToPDF = () => {
     const history = getDeliveryHistory();
     if (!history.length) {
@@ -460,8 +482,6 @@ function RegDeliverymanPage() {
       try {
         win.focus();
         win.print();
-        // do not close automatically in all browsers; offer to close
-        // win.close();
       } catch (e) {
         console.error("Print failed:", e);
       }
@@ -481,6 +501,54 @@ function RegDeliverymanPage() {
       .replace(/>/g, "&gt;");
   };
 
+  // NEW: Copy order details to clipboard (client-side only)
+  const copyOrderToClipboard = async (order) => {
+    try {
+      const hasFarmer = order.farmerId && typeof order.farmerId === "object";
+      const farmerName = hasFarmer ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : (order.farmerName || "Unknown");
+      const hasSeller = order.sellerId && typeof order.sellerId === "object";
+      const sellerName = hasSeller ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : (order.sellerName || "Unknown");
+
+      const text = [
+        `Item: ${order.item || ""}`,
+        `Quantity: ${order.quantity || ""} kg`,
+        `Price: Rs.${order.price ?? ""}`,
+        `Order Date: ${formatDate(order.createdAt)}`,
+        `Delivery Date: ${formatDate(order.updatedAt)}`,
+        `From: ${farmerName}`,
+        `To: ${sellerName}`,
+        `District: ${order.district || "N/A"}`,
+        `Status: ${order.deliveryStatus || "N/A"}`
+      ].join("\n");
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        alert("✅ Order details copied to clipboard");
+      } else {
+        // fallback
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+          alert("✅ Order details copied to clipboard");
+        } catch {
+          alert("Unable to copy to clipboard");
+        } finally {
+          document.body.removeChild(ta);
+        }
+      }
+    } catch (err) {
+      console.error("Copy failed:", err);
+      alert("Failed to copy order details");
+    }
+  };
+
+  // Image modal
+  const openImageModal = (src, caption) => setImageModal({ src, caption });
+  const closeImageModal = () => setImageModal(null);
+
   // UI helpers
   const DeliveryStatusBadge = ({ status }) => {
     const base = {
@@ -495,59 +563,91 @@ function RegDeliverymanPage() {
     if (status === "delivered") return <span style={{ ...base, backgroundColor: "#28a745" }}><FontAwesomeIcon icon={faCheckCircle} /> Delivered</span>;
     if (status === "not-delivered") return <span style={{ ...base, backgroundColor: "#dc3545" }}><FontAwesomeIcon icon={faTimesCircle} /> Not Delivered</span>;
     if (status === "in-transit") return <span style={{ ...base, backgroundColor: "#ff9800" }}><FontAwesomeIcon icon={faTruck} /> In Transit</span>;
+    if (status === "approved") return <span style={{ ...base, backgroundColor: "#0ea5e9" }}><FontAwesomeIcon icon={faCheckCircle} /> Approved</span>;
     return null;
   };
 
-  const OrderCard = ({ order, isAvailable = false }) => (
-    <div style={{
-      border: "1px solid #e2e8f0",
-      borderRadius: 12,
-      overflow: "hidden",
-      background: darkMode ? "#2d3748" : "white",
-      color: darkMode ? "white" : "black",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.06)"
-    }}>
-      <div style={{ position: "relative" }}>
-        <img src={getImageUrl(order.productImage)} alt={order.item} style={{ width: "100%", height: 200, objectFit: "cover" }} onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/400x300?text=No+Image"; }} />
-        {!isAvailable && <div style={{ position: "absolute", top: 12, right: 12 }}><DeliveryStatusBadge status={order.deliveryStatus} /></div>}
-      </div>
-
-      <div style={{ padding: 16 }}>
-        <h3 style={{ margin: "0 0 8px 0", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{order.item}</h3>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-          <div style={{ background: "#e3f2fd", padding: "6px 10px", borderRadius: 8 }}><strong>{order.quantity} kg</strong></div>
-          <div style={{ background: "#e8f5e9", padding: "6px 10px", borderRadius: 8 }}><strong>Rs. {order.price}</strong></div>
-          {order.district && <div style={{ background: "#fff3e0", padding: "6px 10px", borderRadius: 8 }}>{order.district}</div>}
+  const OrderCard = ({ order, isAvailable = false }) => {
+    return (
+      <div style={{
+        border: "1px solid #e2e8f0",
+        borderRadius: 12,
+        overflow: "hidden",
+        background: darkMode ? "#2d3748" : "white",
+        color: darkMode ? "white" : "black",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%"
+      }}>
+        <div style={{ position: "relative" }}>
+          <img
+            src={getImageUrl(order.productImage)}
+            alt={order.item}
+            style={{ width: "100%", height: 200, objectFit: "cover", cursor: "pointer" }}
+            onClick={() => openImageModal(getImageUrl(order.productImage), order.item)}
+            onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/400x300?text=No+Image"; }}
+          />
+          <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 8, alignItems: "center" }}>
+            {!isAvailable && <div><DeliveryStatusBadge status={order.deliveryStatus} /></div>}
+          </div>
         </div>
-        <div style={{ fontSize: 13, color: darkMode ? "#cbd5e1" : "#6c757d", marginBottom: 12 }}><FontAwesomeIcon icon={faClock} /> {formatDate(order.createdAt)}</div>
 
-        {isAvailable ? (
-          <button onClick={() => handleAcceptDelivery(order._id)} disabled={acceptingOrder === order._id} style={{
-            width: "100%",
-            padding: 12,
-            backgroundColor: acceptingOrder === order._id ? "#9ca3af" : "#20c997",
-            color: "white",
-            border: "none",
-            borderRadius: 8,
-            cursor: acceptingOrder === order._id ? "not-allowed" : "pointer",
-            fontWeight: 700
-          }}>
-            <FontAwesomeIcon icon={faTruck} /> {acceptingOrder === order._id ? "Accepting..." : "Accept Delivery"}
-          </button>
-        ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => openTimeline(order)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: "#007bff", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faEye} /> View Timeline</button>
-            {(order.deliveryStatus === "in-transit" || order.deliveryStatus === "approved") && (
-              <>
-                <button onClick={() => handleDeliveryStatus(order._id, "delivered")} style={{ padding: 10, borderRadius: 8, border: "none", background: "#28a745", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faCheckCircle} /> Delivered</button>
-                <button onClick={() => handleDeliveryStatus(order._id, "not-delivered")} style={{ padding: 10, borderRadius: 8, border: "none", background: "#dc3545", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faTimesCircle} /> Not Delivered</button>
-              </>
+        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+          <div>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{order.item}</h3>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ background: "#e3f2fd", padding: "6px 10px", borderRadius: 8 }}><strong>{order.quantity} kg</strong></div>
+              <div style={{ background: "#e8f5e9", padding: "6px 10px", borderRadius: 8 }}><strong>Rs. {order.price}</strong></div>
+              {order.district && <div style={{ background: "#fff3e0", padding: "6px 10px", borderRadius: 8 }}>{order.district}</div>}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div style={{ fontSize: 13, color: darkMode ? "#cbd5e1" : "#6c757d" }}>
+              <FontAwesomeIcon icon={faClock} /> {formatDate(order.createdAt)} · <span style={{ color: darkMode ? "#94a3b8" : "#6b7280" }}>{timeAgo(order.createdAt)}</span>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button title="Copy details" onClick={() => copyOrderToClipboard(order)} style={{ padding: 8, borderRadius: 8, border: "none", background: "#f1f5f9" }}>
+                <FontAwesomeIcon icon={faCopy} />
+              </button>
+              <button title="Preview image" onClick={() => openImageModal(getImageUrl(order.productImage), order.item)} style={{ padding: 8, borderRadius: 8, border: "none", background: "#f1f5f9" }}>
+                <FontAwesomeIcon icon={faImage} />
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginTop: "auto" }}>
+            {isAvailable ? (
+              <button onClick={() => handleAcceptDelivery(order._id)} disabled={acceptingOrder === order._id} style={{
+                width: "100%",
+                padding: 12,
+                backgroundColor: acceptingOrder === order._id ? "#9ca3af" : "#20c997",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                cursor: acceptingOrder === order._id ? "not-allowed" : "pointer",
+                fontWeight: 700
+              }}>
+                <FontAwesomeIcon icon={faTruck} /> {acceptingOrder === order._id ? "Accepting..." : "Accept Delivery"}
+              </button>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => openTimeline(order)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: "#007bff", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faEye} /> View Timeline</button>
+                {(order.deliveryStatus === "in-transit" || order.deliveryStatus === "approved") && (
+                  <>
+                    <button onClick={() => handleDeliveryStatus(order._id, "delivered")} style={{ padding: 10, borderRadius: 8, border: "none", background: "#28a745", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faCheckCircle} /> Delivered</button>
+                    <button onClick={() => handleDeliveryStatus(order._id, "not-delivered")} style={{ padding: 10, borderRadius: 8, border: "none", background: "#dc3545", color: "white", fontWeight: 700 }}><FontAwesomeIcon icon={faTimesCircle} /> Not Delivered</button>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const OrdersList = ({ orders, isAvailable }) => {
     const filtered = filterAndSort(orders);
@@ -618,6 +718,28 @@ function RegDeliverymanPage() {
 
   const deliveryHistory = getDeliveryHistory();
 
+  // keyboard shortcuts for quick actions (client-side only)
+  useEffect(() => {
+    const handler = (e) => {
+      // ignore when typing in inputs/textarea
+      const tag = (e.target && e.target.tagName) || "";
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(tag)) return;
+
+      if (e.key === "h") {
+        setShowHistory((s) => !s);
+      } else if (e.key === "t") {
+        setDarkMode((d) => !d);
+      } else if (e.key === "f") {
+        if (searchInputRef.current) searchInputRef.current.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // Filtered deliveryHistory for display (same as before)
+  const visibleDeliveryHistory = deliveryHistory;
+
   return (
     <div style={{ minHeight: "100vh", background: darkMode ? "#0f1724" : "#f5f5f5", color: darkMode ? "#e6eef8" : "#111827", fontFamily: "Arial, sans-serif", paddingBottom: 120 }}>
       {/* Header */}
@@ -626,7 +748,7 @@ function RegDeliverymanPage() {
           <div style={{ fontSize: 34, color: "#ff9800" }}><FontAwesomeIcon icon={faTruck} /></div>
           <div>
             <h1 style={{ margin: 0, fontSize: 24 }}>Delivery Dashboard</h1>
-            <div style={{ fontSize: 13, color: darkMode ? "#94a3b8" : "#6b7280" }}>Manage orders & deliveries</div>
+            <div style={{ fontSize: 13, color: darkMode ? "#94a3b8" : "#6b7280" }}>Manage orders & deliveries — shortcuts: (h)istory (t)heme (f)ocus search</div>
           </div>
         </div>
 
@@ -639,8 +761,6 @@ function RegDeliverymanPage() {
             <button onClick={fetchSalaryAndShow} style={{ padding: "10px 14px", background: "#28a745", color: "white", border: "none", borderRadius: 8, fontWeight: 700 }}>
               <FontAwesomeIcon icon={faMoneyBillWave} /> View Salary
             </button>
-
-            {/* History button intentionally removed from header and moved to floating area as requested */}
           </div>
         </div>
       </div>
@@ -651,7 +771,13 @@ function RegDeliverymanPage() {
           <div style={{ display: "flex", gap: 12 }}>
             <div style={{ position: "relative", flex: 1 }}>
               <FontAwesomeIcon icon={faSearch} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#6b7280" }} />
-              <input value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Search by item or district..." style={{ width: "100%", padding: "10px 12px 10px 36px", borderRadius: 8, border: "1px solid #d1d5db", background: darkMode ? "#374151" : "white", color: darkMode ? "white" : "black" }} />
+              <input
+                ref={searchInputRef}
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                placeholder="Search by item or district..."
+                style={{ width: "100%", padding: "10px 12px 10px 36px", borderRadius: 8, border: "1px solid #d1d5db", background: darkMode ? "#374151" : "white", color: darkMode ? "white" : "black" }}
+              />
             </div>
 
             <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }} style={{ padding: 10, borderRadius: 8, border: "1px solid #d1d5db", background: darkMode ? "#374151" : "white", color: darkMode ? "white" : "black" }}>
@@ -672,11 +798,11 @@ function RegDeliverymanPage() {
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: 10, borderRadius: 8, border: "1px solid #d1d5db", background: darkMode ? "#374151" : "white", color: darkMode ? "white" : "black" }}>
               <option value="date-desc">Date (Newest)</option>
               <option value="date-asc">Date (Oldest)</option>
-              <option value="price-desc">Price (High  Low)</option>
-              <option value="price-asc">Price (Low  High)</option>
-              <option value="quantity-desc">Quantity (High  Low)</option>
-              <option value="quantity-asc">Quantity (Low  High)</option>
-              <option value="district">District (A  Z)</option>
+              <option value="price-desc">Price (High → Low)</option>
+              <option value="price-asc">Price (Low → High)</option>
+              <option value="quantity-desc">Quantity (High → Low)</option>
+              <option value="quantity-asc">Quantity (Low → High)</option>
+              <option value="district">District (A → Z)</option>
             </select>
 
             <div style={{ display: "flex", gap: 8 }}>
@@ -704,14 +830,16 @@ function RegDeliverymanPage() {
         </section>
       </div>
 
-      {/* Salary modal */}
-      {showSalary && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-          <div style={{ width: "100%", maxWidth: 420, background: darkMode ? "#24303a" : "white", color: darkMode ? "#e6eef8" : "black", padding: 24, borderRadius: 12 }}>
-            <h3 style={{ marginTop: 0 }}>Government Provided Salary</h3>
-            <div style={{ fontSize: 36, fontWeight: 800, color: "#28a745" }}>Rs. {salary?.toLocaleString?.() ?? salary}</div>
-            <div style={{ marginTop: 18, display: "flex", gap: 8 }}>
-              <button onClick={() => setShowSalary(false)} style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#007bff", color: "white" }}>Close</button>
+      {/* Image modal */}
+      {imageModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
+          <div style={{ width: "90%", maxWidth: 900, background: darkMode ? "#0b1220" : "white", padding: 20, borderRadius: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ color: darkMode ? "#e6eef8" : "#111827", fontWeight: 700 }}>{imageModal.caption}</div>
+              <button onClick={closeImageModal} style={{ border: "none", background: "transparent", color: darkMode ? "white" : "black", fontSize: 18 }}><FontAwesomeIcon icon={faTimes} /></button>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <img src={imageModal.src} alt={imageModal.caption} style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain" }} onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/800x600?text=No+Image"; }} />
             </div>
           </div>
         </div>
@@ -753,17 +881,17 @@ function RegDeliverymanPage() {
             </div>
 
             <div style={{ marginTop: 18 }}>
-              {deliveryHistory.length === 0 ? (
+              {visibleDeliveryHistory.length === 0 ? (
                 <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>No delivery history yet</div>
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
-                  {deliveryHistory.map((order) => {
+                  {visibleDeliveryHistory.map((order) => {
                     const farmerName = order.farmerId && typeof order.farmerId === "object" ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : (order.farmerName || "Unknown Farmer");
                     const sellerName = order.sellerId && typeof order.sellerId === "object" ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : (order.sellerName || "Unknown Seller");
                     return (
                       <div key={order._id} style={{ background: darkMode ? "#111827" : "#f8fafc", borderRadius: 8, padding: 12 }}>
                         <div style={{ display: "flex", gap: 12 }}>
-                          <img src={getImageUrl(order.productImage)} alt={order.item} style={{ width: 140, height: 100, objectFit: "cover", borderRadius: 8 }} onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/150?text=No+Image"; }} />
+                          <img src={getImageUrl(order.productImage)} alt={order.item} style={{ width: 140, height: 100, objectFit: "cover", borderRadius: 8, cursor: "pointer" }} onClick={() => openImageModal(getImageUrl(order.productImage), order.item)} onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/150?text=No+Image"; }} />
                           <div style={{ flex: 1 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <h4 style={{ margin: 0 }}>{order.item}</h4>
@@ -807,21 +935,18 @@ function RegDeliverymanPage() {
         </div>
       )}
 
-      {/* Floating bottom-right buttons group: History (left), View Salary, Logout (right) */}
+      {/* Floating bottom-right buttons group */}
       <div style={{ position: "fixed", right: 20, bottom: 20, display: "flex", gap: 12, alignItems: "center", zIndex: 2200 }}>
-        {/* History button (left-most) */}
         <button onClick={() => setShowHistory((s) => !s)} aria-label="View Delivery History" title="View Delivery History" style={{ background: "#ff9800", color: "white", padding: "12px 14px", borderRadius: 999, border: "none", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
           <FontAwesomeIcon icon={faHistory} />
           <span className="hidden-mobile">History</span>
           <span style={{ background: "white", color: "#ff9800", padding: "2px 8px", borderRadius: 12, fontSize: 12, fontWeight: 800 }}>{deliveryHistory.length}</span>
         </button>
 
-        {/* View Salary */}
         <button onClick={fetchSalaryAndShow} style={{ background: "#16a34a", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
           <FontAwesomeIcon icon={faMoneyBillWave} /> <span className="hidden-mobile">View Salary</span>
         </button>
 
-        {/* Logout */}
         <button onClick={handleLogout} style={{ background: "#ef4444", color: "white", padding: "12px 16px", borderRadius: 999, border: "none", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
           Logout
         </button>
@@ -847,6 +972,7 @@ function TimelineView({ order, darkMode }) {
   const formatDateLocal = (d) => {
     if (!d) return null;
     const date = new Date(d);
+    if (isNaN(date.getTime())) return null;
     return date.toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
@@ -856,7 +982,7 @@ function TimelineView({ order, darkMode }) {
         <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ width: 44, height: 44, borderRadius: 22, display: "flex", alignItems: "center", justifyContent: "center", background: s.status === "completed" ? "#16a34a" : (s.status === "active" ? "#0ea5e9" : "#6b7280"), color: "white" }}>
-              {s.status === "completed" ? "{" : (s.status === "active" ? "?" : (i+1))}
+              {s.status === "completed" ? "✓" : (s.status === "active" ? "⏳" : (i+1))}
             </div>
             {i < steps.length - 1 && <div style={{ width: 2, height: 64, background: s.status === "completed" ? "#16a34a" : "#6b7280", marginTop: 8 }} />}
           </div>
