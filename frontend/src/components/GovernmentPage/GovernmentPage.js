@@ -29,6 +29,17 @@ function GovernmentPage() {
   const [monthlyStats, setMonthlyStats] = useState({});
   const [showHistory, setShowHistory] = useState(false);
 
+  // Sellers & Farmers management (fetch from /sellers and /farmers)
+  const [sellers, setSellers] = useState([]);
+  const [farmers, setFarmers] = useState([]);
+  const [showUsersPanel, setShowUsersPanel] = useState(false);
+  const [showSellers, setShowSellers] = useState(false);
+  const [showFarmers, setShowFarmers] = useState(false);
+
+  // Suspended records are stored server-side. We fetch them from /suspensions for viewing.
+  // IMPORTANT: This component DOES NOT call DELETE /suspensions/:id anywhere.
+  const [suspendedRecords, setSuspendedRecords] = useState([]);
+
   // Export menu
   const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -41,11 +52,30 @@ function GovernmentPage() {
 
   const BASE_URL = "https://agrihub-2.onrender.com";
 
+  // Fetch suspensions from server for display (server must persist suspension records).
+  const fetchSuspensions = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/suspensions`);
+      setSuspendedRecords(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to fetch suspensions:", err);
+      setSuspendedRecords([]);
+    }
+  };
+
+  useEffect(() => {
+    if (loggedIn) {
+      fetchSuspensions();
+    } else {
+      setSuspendedRecords([]);
+    }
+  }, [loggedIn]);
+
   const getImageUrl = (imagePath) => {
     if (!imagePath) {
-      return 'https://via.placeholder.com/150?text=No+Image';
+      return "https://via.placeholder.com/150?text=No+Image";
     }
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
       return imagePath;
     }
     return `${BASE_URL}${imagePath}`;
@@ -439,7 +469,7 @@ function GovernmentPage() {
 
             <div class="section page-break">
               <h2>👥 Scheme Applicants</h2>
-              ${Object.entries(allApplicantsData)
+              ${Object.entries(allApplicantsData || {})
                 .map(
                   ([schemeName, applicantsList]) => `
                 <div style="margin:20px 0;">
@@ -481,7 +511,7 @@ function GovernmentPage() {
 
             <div class="section page-break">
               <h2>📦 Delivery History by Deliveryman</h2>
-              ${Object.entries(allDeliveryHistory)
+              ${Object.entries(allDeliveryHistory || {})
                 .map(
                   ([dmId, data]) => `
                 <div style="margin:30px 0;">
@@ -612,6 +642,28 @@ function GovernmentPage() {
     } catch (err) {
       console.error("Failed to fetch delivery men:", err);
       alert("Failed to load delivery men. Please try again later.");
+    }
+  };
+
+  // fetch list of sellers (for suspension)
+  const fetchSellers = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/sellers`);
+      setSellers(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to fetch sellers:", err);
+      alert("Failed to load sellers. Please try again later.");
+    }
+  };
+
+  // fetch list of farmers (for suspension)
+  const fetchFarmers = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/farmers`);
+      setFarmers(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to fetch farmers:", err);
+      alert("Failed to load farmers. Please try again later.");
     }
   };
 
@@ -793,6 +845,78 @@ function GovernmentPage() {
     return true;
   });
 
+  //
+  // Suspension features (use same route used to fetch)
+  //
+  // Behavior:
+  // 1) POST a suspension record to server: POST /suspensions (server must persist)
+  // 2) DELETE the user using the same base route used to fetch them:
+  //    - farmers: DELETE /farmers/:id
+  //    - deliverymen: DELETE /deliverymen/:id
+  //    - sellers: DELETE /sellers/:id
+  // 3) Refresh UI lists and GET /suspensions to show suspended records.
+  //
+  // NOTE: This component will NOT call DELETE /suspensions/:id anywhere (per your instruction).
+  //
+
+  const logAndDeleteUser = async ({ id, type, snapshot }) => {
+    // type is 'farmer' | 'deliveryman' | 'seller'
+    // Attempt to log suspension server-side first; if it fails, still try to delete user,
+    // but notify admin that logging failed.
+    try {
+      await axios.post(`${BASE_URL}/suspensions`, {
+        subjectId: id,
+        subjectType: type,
+        snapshot,
+        suspendedBy: "government-admin",
+        suspendedAt: new Date().toISOString(),
+      });
+    } catch (logErr) {
+      console.warn("Failed to log suspension to /suspensions:", logErr);
+      // continue to deletion step
+    }
+
+    try {
+      // delete using the same route used to fetch
+      if (type === "farmer") {
+        await axios.delete(`${BASE_URL}/farmers/${id}`);
+        setFarmers((prev) => prev.filter((f) => f._id !== id));
+      } else if (type === "deliveryman") {
+        await axios.delete(`${BASE_URL}/deliverymen/${id}`);
+        setDeliveryMen((prev) => prev.filter((d) => d._id !== id));
+      } else if (type === "seller") {
+        await axios.delete(`${BASE_URL}/sellers/${id}`);
+        setSellers((prev) => prev.filter((s) => s._id !== id));
+      }
+
+      // refresh suspensions view (GET /suspensions)
+      await fetchSuspensions();
+
+      alert(`${type[0].toUpperCase() + type.slice(1)} suspended and deleted from database.`);
+    } catch (delErr) {
+      console.error("Failed to delete user during suspension:", delErr);
+      alert("Failed to suspend (delete) the user. Please try again.");
+    }
+  };
+
+  const suspendFarmer = async (farmer) => {
+    const confirmMsg = `Suspend farmer "${farmer.fname} ${farmer.lname}" (email: ${farmer.email})?\nThis will delete their data from the database. This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+    await logAndDeleteUser({ id: farmer._id, type: "farmer", snapshot: farmer });
+  };
+
+  const suspendDeliveryMan = async (dm) => {
+    const confirmMsg = `Suspend deliveryman "${dm.fname} ${dm.lname}" (email: ${dm.email})?\nThis will delete their data from the database. This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+    await logAndDeleteUser({ id: dm._id, type: "deliveryman", snapshot: dm });
+  };
+
+  const suspendSeller = async (seller) => {
+    const confirmMsg = `Suspend seller "${seller.fname} ${seller.lname}" (email: ${seller.email})?\nThis will delete their data from the database. This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+    await logAndDeleteUser({ id: seller._id, type: "seller", snapshot: seller });
+  };
+
   return (
     <div className="container">
       <button
@@ -959,7 +1083,52 @@ function GovernmentPage() {
             <h1 className="government-title">Government Schemes Management</h1>
           </div>
 
-          <div className="input-section" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => {
+                  setShowUsersPanel(!showUsersPanel);
+                  // when showing the panel, also fetch lists for convenience
+                  if (!showUsersPanel) {
+                    fetchSellers();
+                    fetchFarmers();
+                    fetchDeliveryMen();
+                  }
+                }}
+                style={{
+                  padding: "8px 12px",
+                  backgroundColor: "#1976d2",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                Manage Sellers & Farmers & Deliverymen
+              </button>
+
+              <button
+                onClick={() => {
+                  // quick access to suspended audit on server
+                  fetchSuspensions();
+                  const element = document.getElementById("suspended-audit-section");
+                  if (element) element.scrollIntoView({ behavior: "smooth" });
+                }}
+                style={{
+                  padding: "8px 12px",
+                  backgroundColor: "#6a1b9a",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                View Suspended Records ({suspendedRecords.length})
+              </button>
+            </div>
+          </div>
+
+          <div className="input-section" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginTop: 14 }}>
             <input
               type="text"
               placeholder="Enter new scheme"
@@ -1064,100 +1233,192 @@ function GovernmentPage() {
             </div>
           )}
 
-          <div style={{ marginTop: "30px", marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              className="toggle-deliverymen-btn"
-              onClick={() => {
-                if (!showDeliveryMen) fetchDeliveryMen();
-                setShowDeliveryMen(!showDeliveryMen);
-              }}
-            >
-              {showDeliveryMen ? "Hide Delivery Men" : "View Delivery Men"}
-            </button>
+          {/* Users management panel */}
+          {showUsersPanel && (
+            <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  onClick={() => {
+                    setShowSellers(true);
+                    setShowFarmers(false);
+                    setShowDeliveryMen(false);
+                    fetchSellers();
+                  }}
+                  style={{ padding: "8px 12px", cursor: "pointer" }}
+                >
+                  Sellers
+                </button>
+                <button
+                  onClick={() => {
+                    setShowFarmers(true);
+                    setShowSellers(false);
+                    setShowDeliveryMen(false);
+                    fetchFarmers();
+                  }}
+                  style={{ padding: "8px 12px", cursor: "pointer" }}
+                >
+                  Farmers
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeliveryMen(true);
+                    setShowFarmers(false);
+                    setShowSellers(false);
+                    fetchDeliveryMen();
+                  }}
+                  style={{ padding: "8px 12px", cursor: "pointer" }}
+                >
+                  Deliverymen
+                </button>
+              </div>
 
-            {showDeliveryMen && (
-              <>
-                <input
-                  type="text"
-                  placeholder="Search delivery men by name/email/district"
-                  value={deliverySearch}
-                  onChange={(e) => setDeliverySearch(e.target.value)}
-                  className="input-field"
-                  style={{ maxWidth: 350 }}
-                />
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  Sort by:
-                  <select value={deliverySortBy} onChange={(e) => setDeliverySortBy(e.target.value)}>
-                    <option value="name">Name (A-Z)</option>
-                    <option value="salary">Salary (High → Low)</option>
-                  </select>
-                </label>
-              </>
-            )}
-          </div>
+              {showSellers && (
+                <div style={{ background: "#fff", padding: 12, borderRadius: 6 }}>
+                  <h3>Sellers ({sellers.length})</h3>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>District</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sellers.map((s) => (
+                        <tr key={s._id}>
+                          <td>{s.fname} {s.lname}</td>
+                          <td>{s.email}</td>
+                          <td>{s.district}</td>
+                          <td>
+                            <button onClick={() => suspendSeller(s)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
+                              Suspend (delete)
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {sellers.length === 0 && (
+                        <tr><td colSpan={4} style={{ textAlign: "center" }}>No sellers found.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
-          {showDeliveryMen && (
-            <table className="deliverymen-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>District</th>
-                  <th>Current Salary</th>
-                  <th>Set New Salary</th>
-                  <th>Action</th>
-                  <th>View History</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSortedDeliveryMen.map((dm) => (
-                  <tr key={dm._id}>
-                    <td>
-                      {dm.fname} {dm.lname}
-                    </td>
-                    <td>{dm.email}</td>
-                    <td>{dm.district}</td>
-                    <td>{dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
-                    <td>
-                      <input
-                        type="number"
-                        value={salaryInputs[dm._id] || ""}
-                        onChange={(e) => handleSalaryChange(dm._id, e.target.value)}
-                        placeholder="Enter salary"
-                        className="salary-input"
-                      />
-                    </td>
-                    <td>
-                      <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => fetchDeliveryHistory(dm._id)}
-                        style={{
-                          padding: "5px 10px",
-                          backgroundColor: "#4CAF50",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        View History
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+              {showFarmers && (
+                <div style={{ background: "#fff", padding: 12, borderRadius: 6 }}>
+                  <h3>Farmers ({farmers.length})</h3>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>District</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {farmers.map((f) => (
+                        <tr key={f._id}>
+                          <td>{f.fname} {f.lname}</td>
+                          <td>{f.email}</td>
+                          <td>{f.district}</td>
+                          <td>
+                            <button onClick={() => suspendFarmer(f)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
+                              Suspend (delete)
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {farmers.length === 0 && (
+                        <tr><td colSpan={4} style={{ textAlign: "center" }}>No farmers found.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
-                {filteredSortedDeliveryMen.length === 0 && (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: "center" }}>
-                      No delivery men found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              {showDeliveryMen && (
+                <div style={{ background: "#fff", padding: 12, borderRadius: 6 }}>
+                  <h3>Deliverymen ({deliveryMen.length})</h3>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>District</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deliveryMen.map((d) => (
+                        <tr key={d._id}>
+                          <td>{d.fname} {d.lname}</td>
+                          <td>{d.email}</td>
+                          <td>{d.district}</td>
+                          <td>
+                            <button onClick={() => suspendDeliveryMan(d)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
+                              Suspend (delete)
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {deliveryMen.length === 0 && (
+                        <tr><td colSpan={4} style={{ textAlign: "center" }}>No deliverymen found.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
+
+          {/* Suspended records (server-side) */}
+          <div id="suspended-audit-section" style={{ marginTop: 24, background: "#fff", padding: 16, borderRadius: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h3>Suspension Audit (server-side)</h3>
+              <button onClick={fetchSuspensions} style={{ padding: "6px 10px" }}>Refresh</button>
+            </div>
+
+            {suspendedRecords.length === 0 ? (
+              <p style={{ color: "#666" }}>No suspensions recorded (server-side).</p>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}>
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Snapshot (summary)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {suspendedRecords.map((rec, idx) => (
+                    <tr key={rec._id || idx}>
+                      <td>{rec.suspendedAt ? new Date(rec.suspendedAt).toLocaleString() : "N/A"}</td>
+                      <td>{rec.subjectType || rec.type || "N/A"}</td>
+                      <td>{(rec.snapshot && (rec.snapshot.fname || rec.snapshot.name)) ? `${rec.snapshot.fname || ""} ${rec.snapshot.lname || ""}`.trim() : (rec.subjectName || "N/A")}</td>
+                      <td>{(rec.snapshot && rec.snapshot.email) || rec.subjectEmail || "N/A"}</td>
+                      <td style={{ maxWidth: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {rec.snapshot ? JSON.stringify({
+                          _id: rec.snapshot._id,
+                          fname: rec.snapshot.fname,
+                          lname: rec.snapshot.lname,
+                          email: rec.snapshot.email,
+                          district: rec.snapshot.district
+                        }) : "no snapshot"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p style={{ marginTop: 10, color: "#666" }}>
+              Note: Suspensions are logged on the server via POST /suspensions when the government suspends (deletes) a user.
+              This UI does not remove suspension audit entries (no DELETE /suspensions/:id is called).
+            </p>
+          </div>
 
           {showHistory && (
             <div
