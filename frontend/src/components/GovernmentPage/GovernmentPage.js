@@ -29,17 +29,6 @@ function GovernmentPage() {
   const [monthlyStats, setMonthlyStats] = useState({});
   const [showHistory, setShowHistory] = useState(false);
 
-  // Sellers & Farmers management (fetch from /sellers and /farmers)
-  const [sellers, setSellers] = useState([]);
-  const [farmers, setFarmers] = useState([]);
-  const [showUsersPanel, setShowUsersPanel] = useState(false);
-  const [showSellers, setShowSellers] = useState(false);
-  const [showFarmers, setShowFarmers] = useState(false);
-
-  // Suspended records are stored server-side. We fetch them from /suspensions for viewing.
-  // IMPORTANT: This component DOES NOT call DELETE /suspensions/:id anywhere.
-  const [suspendedRecords, setSuspendedRecords] = useState([]);
-
   // Export menu
   const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -52,33 +41,14 @@ function GovernmentPage() {
 
   const BASE_URL = "https://agrihub-2.onrender.com";
 
-  // Fetch suspensions from server for display (server must persist suspension records).
-  const fetchSuspensions = async () => {
-    try {
-      const res = await axios.get(`${BASE_URL}/suspensions`);
-      setSuspendedRecords(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Failed to fetch suspensions:", err);
-      setSuspendedRecords([]);
-    }
-  };
-
-  useEffect(() => {
-    if (loggedIn) {
-      fetchSuspensions();
-    } else {
-      setSuspendedRecords([]);
-    }
-  }, [loggedIn]);
-
   const getImageUrl = (imagePath) => {
     if (!imagePath) {
-      return "https://via.placeholder.com/150?text=No+Image";
+      return 'https://via.placeholder.com/150?text=No+Image';
     }
-    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    return `${BASE_URL}${imagePath}`;
+    return ${BASE_URL}${imagePath};
   };
 
   // Helper: safe date parse
@@ -98,7 +68,7 @@ function GovernmentPage() {
       const q = deliverySearch.trim().toLowerCase();
       if (!q) return true;
       return (
-        `${dm.fname || ""} ${dm.lname || ""}`.toLowerCase().includes(q) ||
+        ${dm.fname || ""} ${dm.lname || ""}.toLowerCase().includes(q) ||
         (dm.email || "").toLowerCase().includes(q) ||
         (dm.district || "").toLowerCase().includes(q)
       );
@@ -110,8 +80,8 @@ function GovernmentPage() {
         return sb - sa; // descending salary
       }
       // default: sort by name asc
-      const na = `${a.fname || ""} ${a.lname || ""}`.toLowerCase();
-      const nb = `${b.fname || ""} ${b.lname || ""}`.toLowerCase();
+      const na = ${a.fname || ""} ${a.lname || ""}.toLowerCase();
+      const nb = ${b.fname || ""} ${b.lname || ""}.toLowerCase();
       return na.localeCompare(nb);
     });
 
@@ -144,23 +114,23 @@ function GovernmentPage() {
         return true;
       });
 
-      let csv = `Delivery History - ${dm.fname} ${dm.lname}\n\n`;
+      let csv = Delivery History - ${dm.fname} ${dm.lname}\n\n;
       csv += "Item,Quantity (kg),Price (Rs.),Delivery Date,From (Farmer),To (Seller),District,Status\n";
 
       filtered.forEach((order) => {
         const hasFarmerInfo = order.farmerId && typeof order.farmerId === "object";
-        const farmerName = hasFarmerInfo ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown";
+        const farmerName = hasFarmerInfo ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() : "Unknown";
         const hasSellerInfo = order.sellerId && typeof order.sellerId === "object";
-        const sellerName = hasSellerInfo ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown";
+        const sellerName = hasSellerInfo ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() : "Unknown";
         const date = formatDate(order.updatedAt || order.createdAt);
-        csv += `"${order.item || ""}","${order.quantity || ""}","${order.price || ""}","${date}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n`;
+        csv += "${order.item || ""}","${order.quantity || ""}","${order.price || ""}","${date}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n;
       });
 
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `delivery_history_${dm.fname}_${dm.lname}_${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = delivery_history_${dm.fname}_${dm.lname}_${new Date().toISOString().split("T")[0]}.csv;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -200,15 +170,15 @@ function GovernmentPage() {
         return true;
       });
 
-      let csv = `Delivery History - ${dm.fname} ${dm.lname}\n\n`;
+      let csv = Delivery History - ${dm.fname} ${dm.lname}\n\n;
       csv += "Item,Quantity (kg),Price (Rs.),Delivery Date,From (Farmer),To (Seller),District,Status\n";
       filtered.forEach((order) => {
         const hasFarmerInfo = order.farmerId && typeof order.farmerId === "object";
-        const farmerName = hasFarmerInfo ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown";
+        const farmerName = hasFarmerInfo ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() : "Unknown";
         const hasSellerInfo = order.sellerId && typeof order.sellerId === "object";
-        const sellerName = hasSellerInfo ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown";
+        const sellerName = hasSellerInfo ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() : "Unknown";
         const date = formatDate(order.updatedAt || order.createdAt);
-        csv += `"${order.item || ""}","${order.quantity || ""}","${order.price || ""}","${date}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n`;
+        csv += "${order.item || ""}","${order.quantity || ""}","${order.price || ""}","${date}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n;
       });
 
       await navigator.clipboard.writeText(csv);
@@ -229,7 +199,7 @@ function GovernmentPage() {
       const allApplicantsData = {};
       for (const scheme of schemes) {
         try {
-          const res = await axios.get(`${BASE_URL}/schemes/${scheme._id}/applicants`);
+          const res = await axios.get(${BASE_URL}/schemes/${scheme._id}/applicants);
           allApplicantsData[scheme.name] = res.data;
         } catch (err) {
           allApplicantsData[scheme.name] = [];
@@ -239,16 +209,16 @@ function GovernmentPage() {
       const allDeliveryHistory = {};
       for (const dm of deliveryMen) {
         try {
-          const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${dm._id}`);
+          const sellerOrdersRes = await axios.get(${BASE_URL}/sellerorder/deliveryman/${dm._id});
           const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
           const allOrders = sellerOrders.filter(
             (order) => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
           );
 
-          allDeliveryHistory[`${dm.fname} ${dm.lname}`] = allOrders;
+          allDeliveryHistory[${dm.fname} ${dm.lname}] = allOrders;
         } catch (err) {
-          allDeliveryHistory[`${dm.fname} ${dm.lname}`] = [];
+          allDeliveryHistory[${dm.fname} ${dm.lname}] = [];
         }
       }
 
@@ -257,18 +227,18 @@ function GovernmentPage() {
       csvContent += "=== GOVERNMENT SCHEMES ===\n";
       csvContent += "Scheme Name\n";
       schemes.forEach((scheme) => {
-        csvContent += `"${scheme.name}"\n`;
+        csvContent += "${scheme.name}"\n;
       });
-      csvContent += `\nTotal Schemes: ${schemes.length}\n\n`;
+      csvContent += \nTotal Schemes: ${schemes.length}\n\n;
 
       csvContent += "=== SCHEME APPLICANTS ===\n";
       for (const [schemeName, applicantsList] of Object.entries(allApplicantsData)) {
-        csvContent += `\nScheme: "${schemeName}"\n`;
+        csvContent += \nScheme: "${schemeName}"\n;
         csvContent += "Username,Role\n";
         applicantsList.forEach((app) => {
-          csvContent += `"${app.username}","${app.role}"\n`;
+          csvContent += "${app.username}","${app.role}"\n;
         });
-        csvContent += `Total Applicants: ${applicantsList.length}\n`;
+        csvContent += Total Applicants: ${applicantsList.length}\n;
       }
       csvContent += "\n";
 
@@ -276,22 +246,22 @@ function GovernmentPage() {
       csvContent += "Name,Email,District,Current Salary (Rs.)\n";
       deliveryMen.forEach((dm) => {
         const salary = dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set";
-        csvContent += `"${dm.fname} ${dm.lname}","${dm.email}","${dm.district}",${salary}\n`;
+        csvContent += "${dm.fname} ${dm.lname}","${dm.email}","${dm.district}",${salary}\n;
       });
-      csvContent += `\nTotal Delivery Men: ${deliveryMen.length}\n\n`;
+      csvContent += \nTotal Delivery Men: ${deliveryMen.length}\n\n;
 
       csvContent += "=== DELIVERY HISTORY ===\n";
       for (const [dmName, orders] of Object.entries(allDeliveryHistory)) {
-        csvContent += `\nDeliveryman: "${dmName}"\n`;
+        csvContent += \nDeliveryman: "${dmName}"\n;
         csvContent += "Item,Quantity,Price (Rs.),Delivery Date,From (Farmer),To (Seller),District,Status\n";
         orders.forEach((order) => {
           const hasFarmerInfo = order.farmerId && typeof order.farmerId === "object";
-          const farmerName = hasFarmerInfo ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown";
+          const farmerName = hasFarmerInfo ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() : "Unknown";
           const hasSellerInfo = order.sellerId && typeof order.sellerId === "object";
-          const sellerName = hasSellerInfo ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown";
-          csvContent += `"${order.item}","${order.quantity} kg",${order.price},"${formatDate(order.updatedAt || order.createdAt)}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n`;
+          const sellerName = hasSellerInfo ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() : "Unknown";
+          csvContent += "${order.item}","${order.quantity} kg",${order.price},"${formatDate(order.updatedAt || order.createdAt)}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n;
         });
-        csvContent += `Total Deliveries: ${orders.length}\n`;
+        csvContent += Total Deliveries: ${orders.length}\n;
       }
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -299,7 +269,7 @@ function GovernmentPage() {
       const url = URL.createObjectURL(blob);
 
       link.setAttribute("href", url);
-      link.setAttribute("download", `government_report_${new Date().toISOString().split("T")[0]}.csv`);
+      link.setAttribute("download", government_report_${new Date().toISOString().split("T")[0]}.csv);
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
@@ -324,7 +294,7 @@ function GovernmentPage() {
       const allApplicantsData = {};
       for (const scheme of schemes) {
         try {
-          const res = await axios.get(`${BASE_URL}/schemes/${scheme._id}/applicants`);
+          const res = await axios.get(${BASE_URL}/schemes/${scheme._id}/applicants);
           allApplicantsData[scheme.name] = res.data;
         } catch (err) {
           allApplicantsData[scheme.name] = [];
@@ -334,16 +304,16 @@ function GovernmentPage() {
       const allDeliveryHistory = {};
       for (const dm of deliveryMen) {
         try {
-          const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${dm._id}`);
+          const sellerOrdersRes = await axios.get(${BASE_URL}/sellerorder/deliveryman/${dm._id});
           const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
           const allOrders = sellerOrders.filter(
             (order) => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
           );
 
-          allDeliveryHistory[dm._id] = { name: `${dm.fname} ${dm.lname}`, orders: allOrders };
+          allDeliveryHistory[dm._id] = { name: ${dm.fname} ${dm.lname}, orders: allOrders };
         } catch (err) {
-          allDeliveryHistory[dm._id] = { name: `${dm.fname} ${dm.lname}`, orders: [] };
+          allDeliveryHistory[dm._id] = { name: ${dm.fname} ${dm.lname}, orders: [] };
         }
       }
 
@@ -438,7 +408,7 @@ function GovernmentPage() {
           </head>
           <body>
             <div class="header">
-              <h1>🏛️ Government AgriHub Complete Report</h1>
+              <h1>🏛 Government AgriHub Complete Report</h1>
               <p>Generated on: ${new Date().toLocaleDateString("en-US", {
                 year: "numeric",
                 month: "long",
@@ -469,7 +439,7 @@ function GovernmentPage() {
 
             <div class="section page-break">
               <h2>👥 Scheme Applicants</h2>
-              ${Object.entries(allApplicantsData || {})
+              ${Object.entries(allApplicantsData)
                 .map(
                   ([schemeName, applicantsList]) => `
                 <div style="margin:20px 0;">
@@ -478,10 +448,10 @@ function GovernmentPage() {
                     applicantsList.length > 0
                       ? `<table><thead><tr><th>#</th><th>Username</th><th>Role</th></tr></thead><tbody>${applicantsList
                           .map(
-                            (app, idx) => `<tr><td>${idx + 1}</td><td>${app.username}</td><td>${app.role}</td></tr>`
+                            (app, idx) => <tr><td>${idx + 1}</td><td>${app.username}</td><td>${app.role}</td></tr>
                           )
                           .join("")}</tbody></table><div class="summary-box"><strong>Total Applicants:</strong> ${applicantsList.length}</div>`
-                      : `<p style="color:#666; font-style:italic;">No applicants yet for this scheme.</p>`
+                      : <p style="color:#666; font-style:italic;">No applicants yet for this scheme.</p>
                   }
                 </div>`
                 )
@@ -511,7 +481,7 @@ function GovernmentPage() {
 
             <div class="section page-break">
               <h2>📦 Delivery History by Deliveryman</h2>
-              ${Object.entries(allDeliveryHistory || {})
+              ${Object.entries(allDeliveryHistory)
                 .map(
                   ([dmId, data]) => `
                 <div style="margin:30px 0;">
@@ -520,20 +490,20 @@ function GovernmentPage() {
                     data.orders.length > 0
                       ? data.orders
                           .map((order, idx) => {
-                            const farmerName = (order.farmerId && typeof order.farmerId === "object") ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown Farmer";
-                            const sellerName = (order.sellerId && typeof order.sellerId === "object") ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown Seller";
+                            const farmerName = (order.farmerId && typeof order.farmerId === "object") ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() : "Unknown Farmer";
+                            const sellerName = (order.sellerId && typeof order.sellerId === "object") ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() : "Unknown Seller";
                             return `<div class="delivery-item">
                             <h4 style="margin:0 0 10px 0;">Delivery #${idx + 1}: ${order.item}</h4>
                             <table>
                               <tr><td><strong>Quantity:</strong></td><td>${order.quantity} kg</td><td><strong>Price:</strong></td><td>Rs.${order.price}</td></tr>
                               <tr><td><strong>Status:</strong></td><td style="color:green; font-weight:bold;">✓ DELIVERED</td><td><strong>Delivery Date:</strong></td><td>${formatDate(order.updatedAt || order.createdAt)}</td></tr>
                               <tr><td><strong>From (Farmer):</strong></td><td>${farmerName}</td><td><strong>To (Seller):</strong></td><td>${sellerName}</td></tr>
-                              ${order.district ? `<tr><td><strong>District:</strong></td><td colspan="3">${order.district}</td></tr>` : ""}
+                              ${order.district ? <tr><td><strong>District:</strong></td><td colspan="3">${order.district}</td></tr> : ""}
                             </table>
                           </div>`;
                           })
                           .join("")
-                      : `<p style="color:#666; font-style:italic;">No delivery history found for this deliveryman.</p>`
+                      : <p style="color:#666; font-style:italic;">No delivery history found for this deliveryman.</p>
                   }
                   <div class="summary-box"><strong>Total Deliveries by ${data.name}:</strong> ${data.orders.length}</div>
                 </div>`
@@ -627,7 +597,7 @@ function GovernmentPage() {
 
   const fetchSchemes = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/schemes`);
+      const res = await axios.get(${BASE_URL}/schemes);
       setSchemes(res.data);
     } catch (err) {
       console.error("Failed to fetch schemes:", err);
@@ -637,7 +607,7 @@ function GovernmentPage() {
 
   const fetchDeliveryMen = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/deliverymen`);
+      const res = await axios.get(${BASE_URL}/deliverymen);
       setDeliveryMen(res.data);
     } catch (err) {
       console.error("Failed to fetch delivery men:", err);
@@ -645,32 +615,10 @@ function GovernmentPage() {
     }
   };
 
-  // fetch list of sellers (for suspension)
-  const fetchSellers = async () => {
-    try {
-      const res = await axios.get(`${BASE_URL}/sellers`);
-      setSellers(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Failed to fetch sellers:", err);
-      alert("Failed to load sellers. Please try again later.");
-    }
-  };
-
-  // fetch list of farmers (for suspension)
-  const fetchFarmers = async () => {
-    try {
-      const res = await axios.get(`${BASE_URL}/farmers`);
-      setFarmers(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Failed to fetch farmers:", err);
-      alert("Failed to load farmers. Please try again later.");
-    }
-  };
-
   // fetchDeliveryHistory uses only sellerorder endpoint (no farmerorder)
   const fetchDeliveryHistory = async (deliverymanId) => {
     try {
-      const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
+      const sellerOrdersRes = await axios.get(${BASE_URL}/sellerorder/deliveryman/${deliverymanId});
       const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
       const allOrders = sellerOrders.filter(
@@ -698,7 +646,7 @@ function GovernmentPage() {
     orders.forEach((order) => {
       const date = new Date(order.updatedAt || order.createdAt || 0);
       if (isNaN(date.getTime())) return;
-      const monthYear = `${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
+      const monthYear = ${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()};
       if (!stats[monthYear]) stats[monthYear] = 0;
       stats[monthYear]++;
     });
@@ -724,7 +672,7 @@ function GovernmentPage() {
       return;
     }
     try {
-      const res = await axios.post(`${BASE_URL}/schemes`, { name: newScheme.trim() });
+      const res = await axios.post(${BASE_URL}/schemes, { name: newScheme.trim() });
       setSchemes((prev) => [...prev, res.data]);
       setNewScheme("");
     } catch (err) {
@@ -745,7 +693,7 @@ function GovernmentPage() {
     }
     const scheme = schemes[index];
     try {
-      const res = await axios.put(`${BASE_URL}/schemes/${scheme._id}`, { name: editScheme.trim() });
+      const res = await axios.put(${BASE_URL}/schemes/${scheme._id}, { name: editScheme.trim() });
       const updatedSchemes = [...schemes];
       updatedSchemes[index] = res.data;
       setSchemes(updatedSchemes);
@@ -759,7 +707,7 @@ function GovernmentPage() {
   const handleDeleteScheme = async (index) => {
     const scheme = schemes[index];
     try {
-      await axios.delete(`${BASE_URL}/schemes/${scheme._id}`);
+      await axios.delete(${BASE_URL}/schemes/${scheme._id});
       setSchemes((prev) => prev.filter((_, i) => i !== index));
     } catch (err) {
       console.error("Error deleting scheme:", err);
@@ -782,7 +730,7 @@ function GovernmentPage() {
       return;
     }
     try {
-      await axios.put(`${BASE_URL}/deliverymen/${id}/salary`, { salary: numericSalary });
+      await axios.put(${BASE_URL}/deliverymen/${id}/salary, { salary: numericSalary });
       alert("Salary updated successfully!");
       fetchDeliveryMen();
     } catch (err) {
@@ -793,7 +741,7 @@ function GovernmentPage() {
 
   const fetchApplicants = async (schemeId) => {
     try {
-      const res = await axios.get(`${BASE_URL}/schemes/${schemeId}/applicants`);
+      const res = await axios.get(${BASE_URL}/schemes/${schemeId}/applicants);
       setApplicants(res.data);
       setShowApplicantsFor(schemeId);
     } catch (err) {
@@ -844,78 +792,6 @@ function GovernmentPage() {
     }
     return true;
   });
-
-  //
-  // Suspension features (use same route used to fetch)
-  //
-  // Behavior:
-  // 1) POST a suspension record to server: POST /suspensions (server must persist)
-  // 2) DELETE the user using the same base route used to fetch them:
-  //    - farmers: DELETE /farmers/:id
-  //    - deliverymen: DELETE /deliverymen/:id
-  //    - sellers: DELETE /sellers/:id
-  // 3) Refresh UI lists and GET /suspensions to show suspended records.
-  //
-  // NOTE: This component will NOT call DELETE /suspensions/:id anywhere (per your instruction).
-  //
-
-  const logAndDeleteUser = async ({ id, type, snapshot }) => {
-    // type is 'farmer' | 'deliveryman' | 'seller'
-    // Attempt to log suspension server-side first; if it fails, still try to delete user,
-    // but notify admin that logging failed.
-    try {
-      await axios.post(`${BASE_URL}/suspensions`, {
-        subjectId: id,
-        subjectType: type,
-        snapshot,
-        suspendedBy: "government-admin",
-        suspendedAt: new Date().toISOString(),
-      });
-    } catch (logErr) {
-      console.warn("Failed to log suspension to /suspensions:", logErr);
-      // continue to deletion step
-    }
-
-    try {
-      // delete using the same route used to fetch
-      if (type === "farmer") {
-        await axios.delete(`${BASE_URL}/farmers/${id}`);
-        setFarmers((prev) => prev.filter((f) => f._id !== id));
-      } else if (type === "deliveryman") {
-        await axios.delete(`${BASE_URL}/deliverymen/${id}`);
-        setDeliveryMen((prev) => prev.filter((d) => d._id !== id));
-      } else if (type === "seller") {
-        await axios.delete(`${BASE_URL}/sellers/${id}`);
-        setSellers((prev) => prev.filter((s) => s._id !== id));
-      }
-
-      // refresh suspensions view (GET /suspensions)
-      await fetchSuspensions();
-
-      alert(`${type[0].toUpperCase() + type.slice(1)} suspended and deleted from database.`);
-    } catch (delErr) {
-      console.error("Failed to delete user during suspension:", delErr);
-      alert("Failed to suspend (delete) the user. Please try again.");
-    }
-  };
-
-  const suspendFarmer = async (farmer) => {
-    const confirmMsg = `Suspend farmer "${farmer.fname} ${farmer.lname}" (email: ${farmer.email})?\nThis will delete their data from the database. This action cannot be undone.`;
-    if (!window.confirm(confirmMsg)) return;
-    await logAndDeleteUser({ id: farmer._id, type: "farmer", snapshot: farmer });
-  };
-
-  const suspendDeliveryMan = async (dm) => {
-    const confirmMsg = `Suspend deliveryman "${dm.fname} ${dm.lname}" (email: ${dm.email})?\nThis will delete their data from the database. This action cannot be undone.`;
-    if (!window.confirm(confirmMsg)) return;
-    await logAndDeleteUser({ id: dm._id, type: "deliveryman", snapshot: dm });
-  };
-
-  const suspendSeller = async (seller) => {
-    const confirmMsg = `Suspend seller "${seller.fname} ${seller.lname}" (email: ${seller.email})?\nThis will delete their data from the database. This action cannot be undone.`;
-    if (!window.confirm(confirmMsg)) return;
-    await logAndDeleteUser({ id: seller._id, type: "seller", snapshot: seller });
-  };
 
   return (
     <div className="container">
@@ -1083,52 +959,7 @@ function GovernmentPage() {
             <h1 className="government-title">Government Schemes Management</h1>
           </div>
 
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 16, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => {
-                  setShowUsersPanel(!showUsersPanel);
-                  // when showing the panel, also fetch lists for convenience
-                  if (!showUsersPanel) {
-                    fetchSellers();
-                    fetchFarmers();
-                    fetchDeliveryMen();
-                  }
-                }}
-                style={{
-                  padding: "8px 12px",
-                  backgroundColor: "#1976d2",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
-              >
-                Manage Sellers & Farmers & Deliverymen
-              </button>
-
-              <button
-                onClick={() => {
-                  // quick access to suspended audit on server
-                  fetchSuspensions();
-                  const element = document.getElementById("suspended-audit-section");
-                  if (element) element.scrollIntoView({ behavior: "smooth" });
-                }}
-                style={{
-                  padding: "8px 12px",
-                  backgroundColor: "#6a1b9a",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
-              >
-                View Suspended Records ({suspendedRecords.length})
-              </button>
-            </div>
-          </div>
-
-          <div className="input-section" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginTop: 14 }}>
+          <div className="input-section" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
             <input
               type="text"
               placeholder="Enter new scheme"
@@ -1233,192 +1064,100 @@ function GovernmentPage() {
             </div>
           )}
 
-          {/* Users management panel */}
-          {showUsersPanel && (
-            <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <button
-                  onClick={() => {
-                    setShowSellers(true);
-                    setShowFarmers(false);
-                    setShowDeliveryMen(false);
-                    fetchSellers();
-                  }}
-                  style={{ padding: "8px 12px", cursor: "pointer" }}
-                >
-                  Sellers
-                </button>
-                <button
-                  onClick={() => {
-                    setShowFarmers(true);
-                    setShowSellers(false);
-                    setShowDeliveryMen(false);
-                    fetchFarmers();
-                  }}
-                  style={{ padding: "8px 12px", cursor: "pointer" }}
-                >
-                  Farmers
-                </button>
-                <button
-                  onClick={() => {
-                    setShowDeliveryMen(true);
-                    setShowFarmers(false);
-                    setShowSellers(false);
-                    fetchDeliveryMen();
-                  }}
-                  style={{ padding: "8px 12px", cursor: "pointer" }}
-                >
-                  Deliverymen
-                </button>
-              </div>
+          <div style={{ marginTop: "30px", marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              className="toggle-deliverymen-btn"
+              onClick={() => {
+                if (!showDeliveryMen) fetchDeliveryMen();
+                setShowDeliveryMen(!showDeliveryMen);
+              }}
+            >
+              {showDeliveryMen ? "Hide Delivery Men" : "View Delivery Men"}
+            </button>
 
-              {showSellers && (
-                <div style={{ background: "#fff", padding: 12, borderRadius: 6 }}>
-                  <h3>Sellers ({sellers.length})</h3>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>District</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sellers.map((s) => (
-                        <tr key={s._id}>
-                          <td>{s.fname} {s.lname}</td>
-                          <td>{s.email}</td>
-                          <td>{s.district}</td>
-                          <td>
-                            <button onClick={() => suspendSeller(s)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
-                              Suspend (delete)
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {sellers.length === 0 && (
-                        <tr><td colSpan={4} style={{ textAlign: "center" }}>No sellers found.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {showFarmers && (
-                <div style={{ background: "#fff", padding: 12, borderRadius: 6 }}>
-                  <h3>Farmers ({farmers.length})</h3>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>District</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {farmers.map((f) => (
-                        <tr key={f._id}>
-                          <td>{f.fname} {f.lname}</td>
-                          <td>{f.email}</td>
-                          <td>{f.district}</td>
-                          <td>
-                            <button onClick={() => suspendFarmer(f)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
-                              Suspend (delete)
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {farmers.length === 0 && (
-                        <tr><td colSpan={4} style={{ textAlign: "center" }}>No farmers found.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {showDeliveryMen && (
-                <div style={{ background: "#fff", padding: 12, borderRadius: 6 }}>
-                  <h3>Deliverymen ({deliveryMen.length})</h3>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>District</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {deliveryMen.map((d) => (
-                        <tr key={d._id}>
-                          <td>{d.fname} {d.lname}</td>
-                          <td>{d.email}</td>
-                          <td>{d.district}</td>
-                          <td>
-                            <button onClick={() => suspendDeliveryMan(d)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
-                              Suspend (delete)
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {deliveryMen.length === 0 && (
-                        <tr><td colSpan={4} style={{ textAlign: "center" }}>No deliverymen found.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Suspended records (server-side) */}
-          <div id="suspended-audit-section" style={{ marginTop: 24, background: "#fff", padding: 16, borderRadius: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h3>Suspension Audit (server-side)</h3>
-              <button onClick={fetchSuspensions} style={{ padding: "6px 10px" }}>Refresh</button>
-            </div>
-
-            {suspendedRecords.length === 0 ? (
-              <p style={{ color: "#666" }}>No suspensions recorded (server-side).</p>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}>
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Type</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Snapshot (summary)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {suspendedRecords.map((rec, idx) => (
-                    <tr key={rec._id || idx}>
-                      <td>{rec.suspendedAt ? new Date(rec.suspendedAt).toLocaleString() : "N/A"}</td>
-                      <td>{rec.subjectType || rec.type || "N/A"}</td>
-                      <td>{(rec.snapshot && (rec.snapshot.fname || rec.snapshot.name)) ? `${rec.snapshot.fname || ""} ${rec.snapshot.lname || ""}`.trim() : (rec.subjectName || "N/A")}</td>
-                      <td>{(rec.snapshot && rec.snapshot.email) || rec.subjectEmail || "N/A"}</td>
-                      <td style={{ maxWidth: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {rec.snapshot ? JSON.stringify({
-                          _id: rec.snapshot._id,
-                          fname: rec.snapshot.fname,
-                          lname: rec.snapshot.lname,
-                          email: rec.snapshot.email,
-                          district: rec.snapshot.district
-                        }) : "no snapshot"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {showDeliveryMen && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Search delivery men by name/email/district"
+                  value={deliverySearch}
+                  onChange={(e) => setDeliverySearch(e.target.value)}
+                  className="input-field"
+                  style={{ maxWidth: 350 }}
+                />
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  Sort by:
+                  <select value={deliverySortBy} onChange={(e) => setDeliverySortBy(e.target.value)}>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="salary">Salary (High → Low)</option>
+                  </select>
+                </label>
+              </>
             )}
-            <p style={{ marginTop: 10, color: "#666" }}>
-              Note: Suspensions are logged on the server via POST /suspensions when the government suspends (deletes) a user.
-              This UI does not remove suspension audit entries (no DELETE /suspensions/:id is called).
-            </p>
           </div>
+
+          {showDeliveryMen && (
+            <table className="deliverymen-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>District</th>
+                  <th>Current Salary</th>
+                  <th>Set New Salary</th>
+                  <th>Action</th>
+                  <th>View History</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSortedDeliveryMen.map((dm) => (
+                  <tr key={dm._id}>
+                    <td>
+                      {dm.fname} {dm.lname}
+                    </td>
+                    <td>{dm.email}</td>
+                    <td>{dm.district}</td>
+                    <td>{dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
+                    <td>
+                      <input
+                        type="number"
+                        value={salaryInputs[dm._id] || ""}
+                        onChange={(e) => handleSalaryChange(dm._id, e.target.value)}
+                        placeholder="Enter salary"
+                        className="salary-input"
+                      />
+                    </td>
+                    <td>
+                      <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => fetchDeliveryHistory(dm._id)}
+                        style={{
+                          padding: "5px 10px",
+                          backgroundColor: "#4CAF50",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        View History
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredSortedDeliveryMen.length === 0 && (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: "center" }}>
+                      No delivery men found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
 
           {showHistory && (
             <div
@@ -1549,10 +1288,10 @@ function GovernmentPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
                     {visibleDeliveryHistory.map((order) => {
                       const hasFarmerInfo = order.farmerId && typeof order.farmerId === "object";
-                      const farmerName = hasFarmerInfo ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() || "Unknown Farmer" : "Unknown Farmer";
+                      const farmerName = hasFarmerInfo ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() || "Unknown Farmer" : "Unknown Farmer";
 
                       const hasSellerInfo = order.sellerId && typeof order.sellerId === "object";
-                      const sellerName = hasSellerInfo ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() || "Unknown Seller" : "Unknown Seller";
+                      const sellerName = hasSellerInfo ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() || "Unknown Seller" : "Unknown Seller";
 
                       return (
                         <div
