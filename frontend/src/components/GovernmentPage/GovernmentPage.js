@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./GovernmentPage.css";
 import Navbar from "../Navbar/Navbar";
@@ -29,40 +30,25 @@ function GovernmentPage() {
   const [monthlyStats, setMonthlyStats] = useState({});
   const [showHistory, setShowHistory] = useState(false);
 
-  // Users management (new panel)
-  const [showUsersPanel, setShowUsersPanel] = useState(false);
-  const [showSellers, setShowSellers] = useState(false);
-  const [showFarmers, setShowFarmers] = useState(false);
-  const [showDeliveryMenPanel, setShowDeliveryMenPanel] = useState(false);
-  const [sellers, setSellers] = useState([]);
-  const [farmers, setFarmers] = useState([]);
-
   // Export menu
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // UI-only states
+  // New UI-only states (client-side features; do not change backend)
   const [schemeSearch, setSchemeSearch] = useState("");
   const [deliverySearch, setDeliverySearch] = useState("");
   const [deliverySortBy, setDeliverySortBy] = useState("name"); // 'name' | 'salary'
   const [historyStartDate, setHistoryStartDate] = useState("");
   const [historyEndDate, setHistoryEndDate] = useState("");
 
-  // Simple toast notification system
-  const [toasts, setToasts] = useState([]);
-  const toastId = useRef(0);
-  const addToast = (message, type = "info", ttl = 5000) => {
-    const id = ++toastId.current;
-    setToasts((t) => [...t, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((t) => t.filter((x) => x.id !== id));
-    }, ttl);
-  };
-
   const BASE_URL = "https://agrihub-2.onrender.com";
 
   const getImageUrl = (imagePath) => {
-    if (!imagePath) return "https://via.placeholder.com/150?text=No+Image";
-    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) return imagePath;
+    if (!imagePath) {
+      return "https://via.placeholder.com/150?text=No+Image";
+    }
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath;
+    }
     return `${BASE_URL}${imagePath}`;
   };
 
@@ -101,29 +87,28 @@ function GovernmentPage() {
       return na.localeCompare(nb);
     });
 
-  // CSV helper
+  // small helper to escape CSV values
   const csvEscape = (v) => {
     if (v === null || v === undefined) return '""';
     const s = String(v);
     return `"${s.replace(/"/g, '""')}"`;
   };
 
-  // -----------------------
-  // Exports: visible history CSV / copy
-  // -----------------------
+  // NEW: export only currently-visible delivery history to CSV
   const exportVisibleHistoryToCSV = async () => {
     try {
       if (!selectedDeliverymanId) {
-        addToast("No deliveryman selected for history export.", "warning");
+        alert("No deliveryman selected for history export.");
         return;
       }
 
       const dm = deliveryMen.find((d) => d._id === selectedDeliverymanId);
       if (!dm) {
-        addToast("Selected deliveryman not found.", "error");
+        alert("Selected deliveryman not found.");
         return;
       }
 
+      // Filter deliveryHistory by date range if provided (client-side)
       const filtered = deliveryHistory.filter((order) => {
         const d = parseDateSafe(order.updatedAt || order.createdAt);
         if (!d) return false;
@@ -176,22 +161,23 @@ function GovernmentPage() {
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 10000);
 
-      addToast("Visible delivery history exported as CSV", "success");
+      alert("✅ Visible delivery history exported as CSV");
     } catch (err) {
       console.error("Error exporting visible history:", err);
-      addToast("Failed to export visible history. See console.", "error");
+      alert("Failed to export visible history. Please try again.");
     }
   };
 
+  // NEW: copy visible history CSV to clipboard
   const copyVisibleHistoryToClipboard = async () => {
     try {
       if (!selectedDeliverymanId) {
-        addToast("No deliveryman selected.", "warning");
+        alert("No deliveryman selected.");
         return;
       }
       const dm = deliveryMen.find((d) => d._id === selectedDeliverymanId);
       if (!dm) {
-        addToast("Selected deliveryman not found.", "error");
+        alert("Selected deliveryman not found.");
         return;
       }
 
@@ -238,16 +224,14 @@ function GovernmentPage() {
 
       const csv = lines.join("\n");
       await navigator.clipboard.writeText(csv);
-      addToast("Visible delivery history copied to clipboard", "success");
+      alert("✅ Visible delivery history copied to clipboard");
     } catch (err) {
       console.error("Failed to copy:", err);
-      addToast("Failed to copy to clipboard. Your browser may block access.", "error");
+      alert("Failed to copy to clipboard. Your browser may block clipboard access.");
     }
   };
 
-  // -----------------------
-  // Full exports (CSV & PDF) kept as before, but use toasts instead of alerts
-  // -----------------------
+  // Keep previous full CSV export (unchanged, still only sellerorder)
   const exportToCSV = async () => {
     try {
       if (!showDeliveryMen) {
@@ -351,15 +335,15 @@ function GovernmentPage() {
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 10000);
 
-      addToast("Government report exported as CSV", "success");
+      alert("✅ Government report exported as CSV");
       setShowExportMenu(false);
     } catch (err) {
       console.error("Error exporting CSV:", err);
-      addToast("Failed to export CSV. Please try again.", "error");
+      alert("Failed to export CSV. Please try again.");
     }
   };
 
-  // Export to PDF (keeps the same approach)
+  // Export to PDF preserves blob fallback approach (no farmerorder)
   const exportToPDF = async () => {
     try {
       if (!showDeliveryMen) {
@@ -392,7 +376,7 @@ function GovernmentPage() {
         }
       }
 
-      // Build HTML for PDF preview
+      // Build a simple HTML report string
       const applicantsHtml = Object.entries(allApplicantsData)
         .map(([schemeName, applicantsList]) => {
           if (applicantsList.length === 0) {
@@ -443,31 +427,116 @@ function GovernmentPage() {
             <meta charset="utf-8" />
             <title>Government AgriHub Report</title>
             <style>
-              @media print { body { margin: 0; padding: 20px; } .no-print { display: none; } .page-break { page-break-before: always; } }
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4CAF50; padding-bottom: 20px; }
-              .header h1 { margin: 0; color: #4CAF50; font-size: 32px; }
-              .section { margin: 30px 0; padding: 20px; background-color: #f9f9f9; border-radius: 8px; page-break-inside: avoid; }
-              table { width: 100%; border-collapse: collapse; margin: 15px 0; background-color: white; }
-              th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-              th { background-color: #4CAF50; color: white; font-weight: bold; }
-              tr:nth-child(even) { background-color: #f2f2f2; }
-              .summary-box { background-color: #e8f5e9; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #4CAF50; }
-              .delivery-item { margin: 15px 0; padding: 15px; background-color: white; border-radius: 5px; border: 1px solid #ddd; }
-              .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }
+              @media print {
+                body { margin: 0; padding: 20px; }
+                .no-print { display: none; }
+                .page-break { page-break-before: always; }
+              }
+              body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 30px;
+                border-bottom: 3px solid #4CAF50;
+                padding-bottom: 20px;
+              }
+              .header h1 {
+                margin: 0;
+                color: #4CAF50;
+                font-size: 32px;
+              }
+              .header p {
+                margin: 5px 0;
+                color: #666;
+                font-size: 14px;
+              }
+              .section {
+                margin: 30px 0;
+                padding: 20px;
+                background-color: #f9f9f9;
+                border-radius: 8px;
+                page-break-inside: avoid;
+              }
+              .section h2 {
+                margin-top: 0;
+                color: #4CAF50;
+                border-bottom: 2px solid #4CAF50;
+                padding-bottom: 10px;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 15px 0;
+                background-color: white;
+              }
+              th, td {
+                border: 1px solid #ddd;
+                padding: 12px;
+                text-align: left;
+              }
+              th {
+                background-color: #4CAF50;
+                color: white;
+                font-weight: bold;
+              }
+              tr:nth-child(even) {
+                background-color: #f2f2f2;
+              }
+              .summary-box {
+                background-color: #e8f5e9;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 10px 0;
+                border-left: 4px solid #4CAF50;
+              }
+              .delivery-item {
+                margin: 15px 0;
+                padding: 15px;
+                background-color: white;
+                border-radius: 5px;
+                border: 1px solid #ddd;
+              }
+              .footer {
+                margin-top: 40px;
+                text-align: center;
+                font-size: 12px;
+                color: #666;
+                border-top: 1px solid #ddd;
+                padding-top: 20px;
+              }
             </style>
           </head>
           <body>
             <div class="header">
-              <h1>🏛️ Government AgriHub Complete Report</h1>
-              <p>Generated on: ${new Date().toLocaleString()}</p>
+              <h1>🏛 Government AgriHub Complete Report</h1>
+              <p>Generated on: ${new Date().toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}</p>
             </div>
 
             <div class="section">
               <h2>📋 Government Schemes</h2>
-              <table><thead><tr><th>#</th><th>Scheme Name</th></tr></thead><tbody>
-                ${schemes.map((s, i) => `<tr><td>${i+1}</td><td>${s.name}</td></tr>`).join("")}
-              </tbody></table>
+              <table>
+                <thead><tr><th>#</th><th>Scheme Name</th></tr></thead>
+                <tbody>
+                  ${schemes
+                    .map(
+                      (scheme, index) => `
+                    <tr>
+                      <td>${index + 1}</td>
+                      <td>${scheme.name}</td>
+                    </tr>`
+                    )
+                    .join("")}
+                </tbody>
+              </table>
               <div class="summary-box"><strong>Total Schemes:</strong> ${schemes.length}</div>
             </div>
 
@@ -478,9 +547,12 @@ function GovernmentPage() {
 
             <div class="section page-break">
               <h2>🚚 Delivery Men & Salaries</h2>
-              <table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>District</th><th>Current Salary (Rs.)</th></tr></thead><tbody>
-                ${deliveryMenRows}
-              </tbody></table>
+              <table>
+                <thead><tr><th>#</th><th>Name</th><th>Email</th><th>District</th><th>Current Salary (Rs.)</th></tr></thead>
+                <tbody>
+                  ${deliveryMenRows}
+                </tbody>
+              </table>
               <div class="summary-box"><strong>Total Delivery Men:</strong> ${deliveryMen.length}</div>
             </div>
 
@@ -531,17 +603,14 @@ function GovernmentPage() {
         }
       }, 10000);
 
-      addToast("PDF preview opened (or download started). Click Print to save as PDF", "success");
+      alert("✅ PDF preview opened (or download started). Click Print to save as PDF");
       setShowExportMenu(false);
     } catch (err) {
       console.error("Error exporting PDF:", err);
-      addToast("Failed to export PDF. Please try again.", "error");
+      alert("Failed to export PDF. Please try again.");
     }
   };
 
-  // -----------------------
-  // Prevent back navigation (kept)
-  // -----------------------
   useEffect(() => {
     const preventNavigation = () => {
       try {
@@ -568,170 +637,97 @@ function GovernmentPage() {
     };
   }, []);
 
-  // -----------------------
-  // Fetchers (aligned to your routers)
-  // - Farmers: GET /farmer, DELETE /farmer/delete/:id
-  // - Sellers: GET /seller, DELETE /seller/delete/:id
-  // - Deliverymen: GET /deliveryman, DELETE /deliveryman/delete/:id
-  // Note: I keep console logs for debugging as requested.
-  // -----------------------
-  const fetchDeliveryMen = async () => {
-    console.log("[GovernmentPage] fetchDeliveryMen -> GET /deliveryman");
-    try {
-      const res = await axios.get(`${BASE_URL}/deliveryman`);
-      setDeliveryMen(Array.isArray(res.data) ? res.data : []);
-      console.log("[GovernmentPage] deliveryMen count:", Array.isArray(res.data) ? res.data.length : 0);
-    } catch (err) {
-      console.error("Failed to fetch delivery men:", err);
-      addToast("Failed to load deliverymen. Check server and CORS.", "error");
-      setDeliveryMen([]);
-    }
-  };
-
-  const fetchSellers = async () => {
-    console.log("[GovernmentPage] fetchSellers -> GET /seller");
-    try {
-      const res = await axios.get(`${BASE_URL}/seller`);
-      setSellers(Array.isArray(res.data) ? res.data : []);
-      console.log("[GovernmentPage] sellers count:", Array.isArray(res.data) ? res.data.length : 0);
-    } catch (err) {
-      console.error("Failed to fetch sellers:", err);
-      addToast("Failed to load sellers. Check server and CORS.", "error");
-      setSellers([]);
-    }
-  };
-
-  const fetchFarmers = async () => {
-    console.log("[GovernmentPage] fetchFarmers -> GET /farmer");
-    try {
-      const res = await axios.get(`${BASE_URL}/farmer`);
-      setFarmers(Array.isArray(res.data) ? res.data : []);
-      console.log("[GovernmentPage] farmers count:", Array.isArray(res.data) ? res.data.length : 0);
-    } catch (err) {
-      console.error("Failed to fetch farmers:", err);
-      addToast("Failed to load farmers. Check server and CORS.", "error");
-      setFarmers([]);
-    }
-  };
-
-  // -----------------------
-  // Suspension (hard delete) functions using same resource routes used to fetch
-  // -----------------------
-  const suspendFarmer = async (farmer) => {
-    const confirmMsg = `Suspend farmer "${farmer.fname || ""} ${farmer.lname || ""}" (email: ${farmer.email || "N/A"})?\nThis will permanently delete their data from the database.`;
-    if (!window.confirm(confirmMsg)) return;
-
-    try {
-      console.log("[GovernmentPage] DELETE /farmer/delete/" + farmer._id);
-      await axios.delete(`${BASE_URL}/farmer/delete/${farmer._id}`);
-      setFarmers((prev) => prev.filter((f) => f._id !== farmer._id));
-      addToast("Farmer suspended and deleted from database.", "success");
-    } catch (err) {
-      console.error("Failed to suspend farmer:", err);
-      addToast("Failed to suspend (delete) farmer. See console.", "error");
-    }
-  };
-
-  const suspendSeller = async (seller) => {
-    const confirmMsg = `Suspend seller "${seller.fname || ""} ${seller.lname || ""}" (email: ${seller.email || "N/A"})?\nThis will permanently delete their data from the database.`;
-    if (!window.confirm(confirmMsg)) return;
-
-    try {
-      console.log("[GovernmentPage] DELETE /seller/delete/" + seller._id);
-      await axios.delete(`${BASE_URL}/seller/delete/${seller._id}`);
-      setSellers((prev) => prev.filter((s) => s._id !== seller._id));
-      addToast("Seller suspended and deleted from database.", "success");
-    } catch (err) {
-      console.error("Failed to suspend seller:", err);
-      addToast("Failed to suspend (delete) seller. See console.", "error");
-    }
-  };
-
-  const suspendDeliveryMan = async (dm) => {
-    const confirmMsg = `Suspend deliveryman "${dm.fname || ""} ${dm.lname || ""}" (email: ${dm.email || "N/A"})?\nThis will permanently delete their data from the database.`;
-    if (!window.confirm(confirmMsg)) return;
-
-    try {
-      console.log("[GovernmentPage] DELETE /deliveryman/delete/" + dm._id);
-      await axios.delete(`${BASE_URL}/deliveryman/delete/${dm._id}`);
-      setDeliveryMen((prev) => prev.filter((d) => d._id !== dm._id));
-      addToast("Deliveryman suspended and deleted from database.", "success");
-    } catch (err) {
-      console.error("Failed to suspend deliveryman:", err);
-      addToast("Failed to suspend (delete) deliveryman. See console.", "error");
-    }
-  };
-
-  // -----------------------
-  // Salary update: use /deliveryman/update/:id per your router
-  // -----------------------
-  const provideSalaryHandler = async (id) => {
-    if (!salaryInputs[id]) {
-      addToast("Please enter a salary amount", "warning");
-      return;
-    }
-    const numericSalary = Number(salaryInputs[id]);
-    if (isNaN(numericSalary)) {
-      addToast("Salary must be a valid number", "warning");
-      return;
-    }
-    try {
-      await axios.put(`${BASE_URL}/deliveryman/update/${id}`, { salary: numericSalary });
-      addToast("Salary updated successfully!", "success");
-      fetchDeliveryMen();
-    } catch (err) {
-      console.error("Failed to update salary:", err);
-      addToast("Failed to update salary. Check server endpoint /deliveryman/update/:id", "error");
-    }
-  };
-
-  // -----------------------
-  // Manage Users panel handler
-  // -----------------------
-  const handleOpenUsersPanel = () => {
-    console.log("[GovernmentPage] Manage Users clicked. showUsersPanel:", showUsersPanel);
-    const willShow = !showUsersPanel;
-    setShowUsersPanel(willShow);
-    if (willShow) {
-      // default tab: Sellers
-      setShowSellers(true);
-      setShowFarmers(false);
-      setShowDeliveryMenPanel(false);
-      // fetch lists
-      fetchSellers().catch(() => {});
-      fetchFarmers().catch(() => {});
-      fetchDeliveryMen().catch(() => {});
-    }
-  };
-
-  // -----------------------
-  // Lifecycle: fetch schemes when logged in
-  // -----------------------
   useEffect(() => {
     if (loggedIn) {
       fetchSchemes();
     } else {
       setSchemes([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn]);
 
-  // -----------------------
-  // Remaining handlers unchanged but use toasts instead of alerts
-  // -----------------------
+  const fetchSchemes = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/schemes`);
+      setSchemes(res.data);
+    } catch (err) {
+      console.error("Failed to fetch schemes:", err);
+      alert("Failed to load schemes. Please try again later.");
+    }
+  };
+
+  const fetchDeliveryMen = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/deliverymen`);
+      setDeliveryMen(res.data);
+    } catch (err) {
+      console.error("Failed to fetch delivery men:", err);
+      alert("Failed to load delivery men. Please try again later.");
+    }
+  };
+
+  // fetchDeliveryHistory uses only sellerorder endpoint (no farmerorder)
+  const fetchDeliveryHistory = async (deliverymanId) => {
+    try {
+      const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
+      const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
+
+      const allOrders = sellerOrders.filter(
+        (order) => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
+      );
+
+      allOrders.sort((a, b) => {
+        const dateA = new Date(a.updatedAt || a.createdAt || 0);
+        const dateB = new Date(b.updatedAt || b.createdAt || 0);
+        return dateB - dateA;
+      });
+
+      setDeliveryHistory(allOrders);
+      calculateMonthlyStats(allOrders);
+      setSelectedDeliverymanId(deliverymanId);
+      setShowHistory(true);
+    } catch (err) {
+      console.error("Failed to fetch delivery history:", err);
+      alert("Failed to fetch delivery history. Please try again.");
+    }
+  };
+
+  const calculateMonthlyStats = (orders) => {
+    const stats = {};
+    orders.forEach((order) => {
+      const date = new Date(order.updatedAt || order.createdAt || 0);
+      if (isNaN(date.getTime())) return;
+      const monthYear = `${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
+      if (!stats[monthYear]) stats[monthYear] = 0;
+      stats[monthYear]++;
+    });
+    setMonthlyStats(stats);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "Date not available";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Date not available";
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const handleAddScheme = async () => {
     if (!newScheme.trim()) {
-      addToast("Please enter a scheme name", "warning");
+      alert("Please enter a scheme name");
       return;
     }
     try {
       const res = await axios.post(`${BASE_URL}/schemes`, { name: newScheme.trim() });
       setSchemes((prev) => [...prev, res.data]);
       setNewScheme("");
-      addToast("Scheme added", "success");
     } catch (err) {
       console.error("Error adding scheme:", err);
-      addToast("Failed to add scheme. See console.", "error");
+      alert("Failed to add scheme. Please try again.");
     }
   };
 
@@ -742,7 +738,7 @@ function GovernmentPage() {
 
   const handleSaveEdit = async (index) => {
     if (!editScheme.trim()) {
-      addToast("Scheme name cannot be empty", "warning");
+      alert("Scheme name cannot be empty");
       return;
     }
     const scheme = schemes[index];
@@ -752,28 +748,45 @@ function GovernmentPage() {
       updatedSchemes[index] = res.data;
       setSchemes(updatedSchemes);
       setEditIndex(null);
-      addToast("Scheme updated", "success");
     } catch (err) {
       console.error("Error updating scheme:", err);
-      addToast("Failed to update scheme. See console.", "error");
+      alert("Failed to update scheme. Please try again.");
     }
   };
 
   const handleDeleteScheme = async (index) => {
     const scheme = schemes[index];
-    if (!window.confirm(`Delete scheme "${scheme.name}"?`)) return;
     try {
       await axios.delete(`${BASE_URL}/schemes/${scheme._id}`);
       setSchemes((prev) => prev.filter((_, i) => i !== index));
-      addToast("Scheme deleted", "success");
     } catch (err) {
       console.error("Error deleting scheme:", err);
-      addToast("Failed to delete scheme. See console.", "error");
+      alert("Failed to delete scheme. Please try again.");
     }
   };
 
   const handleSalaryChange = (id, value) => {
     setSalaryInputs((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const provideSalary = async (id) => {
+    if (!salaryInputs[id]) {
+      alert("Please enter a salary amount");
+      return;
+    }
+    const numericSalary = Number(salaryInputs[id]);
+    if (isNaN(numericSalary)) {
+      alert("Salary must be a valid number");
+      return;
+    }
+    try {
+      await axios.put(`${BASE_URL}/deliverymen/${id}/salary`, { salary: numericSalary });
+      alert("Salary updated successfully!");
+      fetchDeliveryMen();
+    } catch (err) {
+      console.error("Failed to update salary:", err);
+      alert("Failed to update salary. Please try again.");
+    }
   };
 
   const fetchApplicants = async (schemeId) => {
@@ -783,8 +796,7 @@ function GovernmentPage() {
       setShowApplicantsFor(schemeId);
     } catch (err) {
       console.error("Failed to fetch applicants:", err);
-      addToast("Failed to fetch applicants. See console.", "error");
-      setApplicants([]);
+      alert("Failed to fetch applicants. Please try again.");
     }
   };
 
@@ -796,10 +808,8 @@ function GovernmentPage() {
       setLoginError("");
       setUsername("");
       setPassword("");
-      addToast("Logged in", "success");
     } else {
       setLoginError("Invalid username or password");
-      addToast("Invalid username or password", "warning");
     }
   };
 
@@ -816,7 +826,6 @@ function GovernmentPage() {
     setDeliveryHistory([]);
     setSelectedDeliverymanId(null);
     navigate("/");
-    addToast("Logged out", "info");
   };
 
   // Filtered deliveryHistory for display (applies date filters)
@@ -834,31 +843,8 @@ function GovernmentPage() {
     return true;
   });
 
-  // -----------------------
-  // Render
-  // -----------------------
   return (
     <div className="container">
-      {/* Toasts */}
-      <div style={{ position: "fixed", top: 16, right: 16, zIndex: 99999 }}>
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            style={{
-              marginBottom: 8,
-              padding: "10px 14px",
-              backgroundColor: t.type === "success" ? "#4caf50" : t.type === "error" ? "#f44336" : t.type === "warning" ? "#ff9800" : "#2196f3",
-              color: "white",
-              borderRadius: 6,
-              boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-              minWidth: 220,
-            }}
-          >
-            {t.message}
-          </div>
-        ))}
-      </div>
-
       <button
         style={{
           backgroundColor: "black",
@@ -913,6 +899,7 @@ function GovernmentPage() {
             >
               📥 Export Report
             </button>
+
             {showExportMenu && (
               <div
                 style={{
@@ -941,10 +928,14 @@ function GovernmentPage() {
                     gap: "10px",
                     fontSize: "14px",
                   }}
+                  onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#f5f5f5")}
+                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
                   📄 Export as PDF
                 </button>
+
                 <div style={{ height: "1px", backgroundColor: "#eee", margin: "0 10px" }} />
+
                 <button
                   onClick={exportToCSV}
                   style={{
@@ -959,6 +950,8 @@ function GovernmentPage() {
                     gap: "10px",
                     fontSize: "14px",
                   }}
+                  onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#f5f5f5")}
+                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
                   📊 Export as CSV
                 </button>
@@ -1016,128 +1009,7 @@ function GovernmentPage() {
             <h1 className="government-title">Government Schemes Management</h1>
           </div>
 
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 16, flexWrap: "wrap" }}>
-            <button
-              onClick={handleOpenUsersPanel}
-              style={{
-                padding: "8px 12px",
-                backgroundColor: "#1976d2",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Manage Sellers, Farmers & Deliverymen
-            </button>
-          </div>
-
-          {/* Users panel */}
-          {showUsersPanel && (
-            <div style={{ marginTop: 20, padding: 12, borderRadius: 6, background: "#fff", border: "2px solid #1976d2" }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button onClick={() => { setShowSellers(true); setShowFarmers(false); setShowDeliveryMenPanel(false); fetchSellers(); }} style={{ padding: "6px 10px" }}>Sellers</button>
-                <button onClick={() => { setShowFarmers(true); setShowSellers(false); setShowDeliveryMenPanel(false); fetchFarmers(); }} style={{ padding: "6px 10px" }}>Farmers</button>
-                <button onClick={() => { setShowDeliveryMenPanel(true); setShowFarmers(false); setShowSellers(false); fetchDeliveryMen(); }} style={{ padding: "6px 10px" }}>Deliverymen</button>
-              </div>
-
-              {showSellers && (
-                <div>
-                  <h3>Sellers ({sellers.length})</h3>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>District</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sellers.map((s) => (
-                        <tr key={s._id}>
-                          <td>{s.fname} {s.lname}</td>
-                          <td>{s.email}</td>
-                          <td>{s.district}</td>
-                          <td>
-                            <button onClick={() => suspendSeller(s)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
-                              Suspend (delete)
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {sellers.length === 0 && <tr><td colSpan={4} style={{ textAlign: "center" }}>No sellers found.</td></tr>}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {showFarmers && (
-                <div>
-                  <h3>Farmers ({farmers.length})</h3>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>District</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {farmers.map((f) => (
-                        <tr key={f._id}>
-                          <td>{f.fname} {f.lname}</td>
-                          <td>{f.email}</td>
-                          <td>{f.district}</td>
-                          <td>
-                            <button onClick={() => suspendFarmer(f)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
-                              Suspend (delete)
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {farmers.length === 0 && <tr><td colSpan={4} style={{ textAlign: "center" }}>No farmers found.</td></tr>}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {showDeliveryMenPanel && (
-                <div>
-                  <h3>Deliverymen ({deliveryMen.length})</h3>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>District</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {deliveryMen.map((d) => (
-                        <tr key={d._id}>
-                          <td>{d.fname} {d.lname}</td>
-                          <td>{d.email}</td>
-                          <td>{d.district}</td>
-                          <td>
-                            <button onClick={() => suspendDeliveryMan(d)} style={{ background: "#c00", color: "#fff", padding: "6px 10px", border: "none", borderRadius: 4 }}>
-                              Suspend (delete)
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {deliveryMen.length === 0 && <tr><td colSpan={4} style={{ textAlign: "center" }}>No deliverymen found.</td></tr>}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Schemes and rest of the UI retained (unchanged behavior) */}
-          <div className="input-section" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginTop: 14 }}>
+          <div className="input-section" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
             <input
               type="text"
               placeholder="Enter new scheme"
@@ -1306,7 +1178,7 @@ function GovernmentPage() {
                       />
                     </td>
                     <td>
-                      <button onClick={() => provideSalaryHandler(dm._id)}>Provide Salary</button>
+                      <button onClick={() => provideSalary(dm._id)}>Provide Salary</button>
                     </td>
                     <td>
                       <button
