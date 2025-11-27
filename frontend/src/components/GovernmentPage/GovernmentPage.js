@@ -43,12 +43,12 @@ function GovernmentPage() {
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) {
-      return 'https://via.placeholder.com/150?text=No+Image';
+      return "https://via.placeholder.com/150?text=No+Image";
     }
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
       return imagePath;
     }
-    return ${BASE_URL}${imagePath};
+    return `${BASE_URL}${imagePath}`;
   };
 
   // Helper: safe date parse
@@ -60,15 +60,16 @@ function GovernmentPage() {
 
   // Client-side filtered lists
   const filteredSchemes = schemes.filter((s) =>
-    s.name?.toLowerCase().includes(schemeSearch.trim().toLowerCase())
+    (s.name || "").toLowerCase().includes(schemeSearch.trim().toLowerCase())
   );
 
   const filteredSortedDeliveryMen = deliveryMen
     .filter((dm) => {
       const q = deliverySearch.trim().toLowerCase();
       if (!q) return true;
+      const fullName = `${dm.fname || ""} ${dm.lname || ""}`.toLowerCase();
       return (
-        ${dm.fname || ""} ${dm.lname || ""}.toLowerCase().includes(q) ||
+        fullName.includes(q) ||
         (dm.email || "").toLowerCase().includes(q) ||
         (dm.district || "").toLowerCase().includes(q)
       );
@@ -80,10 +81,17 @@ function GovernmentPage() {
         return sb - sa; // descending salary
       }
       // default: sort by name asc
-      const na = ${a.fname || ""} ${a.lname || ""}.toLowerCase();
-      const nb = ${b.fname || ""} ${b.lname || ""}.toLowerCase();
+      const na = `${a.fname || ""} ${a.lname || ""}`.toLowerCase();
+      const nb = `${b.fname || ""} ${b.lname || ""}`.toLowerCase();
       return na.localeCompare(nb);
     });
+
+  // small helper to escape CSV values
+  const csvEscape = (v) => {
+    if (v === null || v === undefined) return '""';
+    const s = String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
 
   // NEW: export only currently-visible delivery history to CSV
   const exportVisibleHistoryToCSV = async () => {
@@ -114,23 +122,39 @@ function GovernmentPage() {
         return true;
       });
 
-      let csv = Delivery History - ${dm.fname} ${dm.lname}\n\n;
-      csv += "Item,Quantity (kg),Price (Rs.),Delivery Date,From (Farmer),To (Seller),District,Status\n";
+      const lines = [];
+      lines.push(`Delivery History - ${dm.fname || ""} ${dm.lname || ""}`);
+      lines.push("");
+      lines.push(
+        ["Item", "Quantity (kg)", "Price (Rs.)", "Delivery Date", "From (Farmer)", "To (Seller)", "District", "Status"]
+          .map(csvEscape)
+          .join(",")
+      );
 
       filtered.forEach((order) => {
         const hasFarmerInfo = order.farmerId && typeof order.farmerId === "object";
-        const farmerName = hasFarmerInfo ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() : "Unknown";
+        const farmerName = hasFarmerInfo ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown";
         const hasSellerInfo = order.sellerId && typeof order.sellerId === "object";
-        const sellerName = hasSellerInfo ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() : "Unknown";
+        const sellerName = hasSellerInfo ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown";
         const date = formatDate(order.updatedAt || order.createdAt);
-        csv += "${order.item || ""}","${order.quantity || ""}","${order.price || ""}","${date}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n;
+        lines.push([
+          order.item || "",
+          order.quantity || "",
+          order.price || "",
+          date,
+          farmerName,
+          sellerName,
+          order.district || "N/A",
+          "DELIVERED",
+        ].map(csvEscape).join(","));
       });
 
+      const csv = lines.join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = delivery_history_${dm.fname}_${dm.lname}_${new Date().toISOString().split("T")[0]}.csv;
+      link.download = `delivery_history_${(dm.fname || "")}_${(dm.lname || "")}_${new Date().toISOString().split("T")[0]}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -170,17 +194,34 @@ function GovernmentPage() {
         return true;
       });
 
-      let csv = Delivery History - ${dm.fname} ${dm.lname}\n\n;
-      csv += "Item,Quantity (kg),Price (Rs.),Delivery Date,From (Farmer),To (Seller),District,Status\n";
+      const lines = [];
+      lines.push(`Delivery History - ${dm.fname || ""} ${dm.lname || ""}`);
+      lines.push("");
+      lines.push(
+        ["Item", "Quantity (kg)", "Price (Rs.)", "Delivery Date", "From (Farmer)", "To (Seller)", "District", "Status"]
+          .map(csvEscape)
+          .join(",")
+      );
+
       filtered.forEach((order) => {
         const hasFarmerInfo = order.farmerId && typeof order.farmerId === "object";
-        const farmerName = hasFarmerInfo ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() : "Unknown";
+        const farmerName = hasFarmerInfo ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown";
         const hasSellerInfo = order.sellerId && typeof order.sellerId === "object";
-        const sellerName = hasSellerInfo ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() : "Unknown";
+        const sellerName = hasSellerInfo ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown";
         const date = formatDate(order.updatedAt || order.createdAt);
-        csv += "${order.item || ""}","${order.quantity || ""}","${order.price || ""}","${date}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n;
+        lines.push([
+          order.item || "",
+          order.quantity || "",
+          order.price || "",
+          date,
+          farmerName,
+          sellerName,
+          order.district || "N/A",
+          "DELIVERED",
+        ].map(csvEscape).join(","));
       });
 
+      const csv = lines.join("\n");
       await navigator.clipboard.writeText(csv);
       alert("✅ Visible delivery history copied to clipboard");
     } catch (err) {
@@ -199,7 +240,7 @@ function GovernmentPage() {
       const allApplicantsData = {};
       for (const scheme of schemes) {
         try {
-          const res = await axios.get(${BASE_URL}/schemes/${scheme._id}/applicants);
+          const res = await axios.get(`${BASE_URL}/schemes/${scheme._id}/applicants`);
           allApplicantsData[scheme.name] = res.data;
         } catch (err) {
           allApplicantsData[scheme.name] = [];
@@ -209,67 +250,84 @@ function GovernmentPage() {
       const allDeliveryHistory = {};
       for (const dm of deliveryMen) {
         try {
-          const sellerOrdersRes = await axios.get(${BASE_URL}/sellerorder/deliveryman/${dm._id});
+          const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${dm._id}`);
           const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
           const allOrders = sellerOrders.filter(
             (order) => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
           );
 
-          allDeliveryHistory[${dm.fname} ${dm.lname}] = allOrders;
+          allDeliveryHistory[`${dm.fname} ${dm.lname}`] = allOrders;
         } catch (err) {
-          allDeliveryHistory[${dm.fname} ${dm.lname}] = [];
+          allDeliveryHistory[`${dm.fname} ${dm.lname}`] = [];
         }
       }
 
-      let csvContent = "Government AgriHub Complete Report\n\n";
-
-      csvContent += "=== GOVERNMENT SCHEMES ===\n";
-      csvContent += "Scheme Name\n";
+      const lines = [];
+      lines.push("Government AgriHub Complete Report");
+      lines.push("");
+      lines.push("=== GOVERNMENT SCHEMES ===");
+      lines.push("Scheme Name");
       schemes.forEach((scheme) => {
-        csvContent += "${scheme.name}"\n;
+        lines.push(csvEscape(scheme.name));
       });
-      csvContent += \nTotal Schemes: ${schemes.length}\n\n;
+      lines.push("");
+      lines.push(`Total Schemes: ${schemes.length}`);
+      lines.push("");
+      lines.push("=== SCHEME APPLICANTS ===");
 
-      csvContent += "=== SCHEME APPLICANTS ===\n";
       for (const [schemeName, applicantsList] of Object.entries(allApplicantsData)) {
-        csvContent += \nScheme: "${schemeName}"\n;
-        csvContent += "Username,Role\n";
+        lines.push("");
+        lines.push(`Scheme: ${schemeName}`);
+        lines.push(["Username", "Role"].map(csvEscape).join(","));
         applicantsList.forEach((app) => {
-          csvContent += "${app.username}","${app.role}"\n;
+          lines.push([app.username, app.role].map(csvEscape).join(","));
         });
-        csvContent += Total Applicants: ${applicantsList.length}\n;
+        lines.push(`Total Applicants: ${applicantsList.length}`);
       }
-      csvContent += "\n";
 
-      csvContent += "=== DELIVERY MEN ===\n";
-      csvContent += "Name,Email,District,Current Salary (Rs.)\n";
+      lines.push("");
+      lines.push("=== DELIVERY MEN ===");
+      lines.push(["Name", "Email", "District", "Current Salary (Rs.)"].map(csvEscape).join(","));
       deliveryMen.forEach((dm) => {
         const salary = dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set";
-        csvContent += "${dm.fname} ${dm.lname}","${dm.email}","${dm.district}",${salary}\n;
+        lines.push([`${dm.fname} ${dm.lname}`, dm.email || "", dm.district || "", salary].map(csvEscape).join(","));
       });
-      csvContent += \nTotal Delivery Men: ${deliveryMen.length}\n\n;
+      lines.push("");
+      lines.push(`Total Delivery Men: ${deliveryMen.length}`);
+      lines.push("");
+      lines.push("=== DELIVERY HISTORY ===");
 
-      csvContent += "=== DELIVERY HISTORY ===\n";
       for (const [dmName, orders] of Object.entries(allDeliveryHistory)) {
-        csvContent += \nDeliveryman: "${dmName}"\n;
-        csvContent += "Item,Quantity,Price (Rs.),Delivery Date,From (Farmer),To (Seller),District,Status\n";
+        lines.push("");
+        lines.push(`Deliveryman: ${dmName}`);
+        lines.push(["Item", "Quantity", "Price (Rs.)", "Delivery Date", "From (Farmer)", "To (Seller)", "District", "Status"].map(csvEscape).join(","));
         orders.forEach((order) => {
           const hasFarmerInfo = order.farmerId && typeof order.farmerId === "object";
-          const farmerName = hasFarmerInfo ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() : "Unknown";
+          const farmerName = hasFarmerInfo ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown";
           const hasSellerInfo = order.sellerId && typeof order.sellerId === "object";
-          const sellerName = hasSellerInfo ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() : "Unknown";
-          csvContent += "${order.item}","${order.quantity} kg",${order.price},"${formatDate(order.updatedAt || order.createdAt)}","${farmerName}","${sellerName}","${order.district || "N/A"}","DELIVERED"\n;
+          const sellerName = hasSellerInfo ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown";
+          lines.push([
+            order.item || "",
+            `${order.quantity} kg` || "",
+            order.price || "",
+            formatDate(order.updatedAt || order.createdAt),
+            farmerName,
+            sellerName,
+            order.district || "N/A",
+            "DELIVERED",
+          ].map(csvEscape).join(","));
         });
-        csvContent += Total Deliveries: ${orders.length}\n;
+        lines.push(`Total Deliveries: ${orders.length}`);
       }
 
+      const csvContent = lines.join("\n");
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
 
       link.setAttribute("href", url);
-      link.setAttribute("download", government_report_${new Date().toISOString().split("T")[0]}.csv);
+      link.setAttribute("download", `government_report_${new Date().toISOString().split("T")[0]}.csv`);
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
@@ -294,7 +352,7 @@ function GovernmentPage() {
       const allApplicantsData = {};
       for (const scheme of schemes) {
         try {
-          const res = await axios.get(${BASE_URL}/schemes/${scheme._id}/applicants);
+          const res = await axios.get(`${BASE_URL}/schemes/${scheme._id}/applicants`);
           allApplicantsData[scheme.name] = res.data;
         } catch (err) {
           allApplicantsData[scheme.name] = [];
@@ -304,18 +362,62 @@ function GovernmentPage() {
       const allDeliveryHistory = {};
       for (const dm of deliveryMen) {
         try {
-          const sellerOrdersRes = await axios.get(${BASE_URL}/sellerorder/deliveryman/${dm._id});
+          const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${dm._id}`);
           const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
           const allOrders = sellerOrders.filter(
             (order) => order.deliveryStatus === "delivered" || order.deliveryStatus === "approved"
           );
 
-          allDeliveryHistory[dm._id] = { name: ${dm.fname} ${dm.lname}, orders: allOrders };
+          allDeliveryHistory[dm._id] = { name: `${dm.fname} ${dm.lname}`, orders: allOrders };
         } catch (err) {
-          allDeliveryHistory[dm._id] = { name: ${dm.fname} ${dm.lname}, orders: [] };
+          allDeliveryHistory[dm._id] = { name: `${dm.fname} ${dm.lname}`, orders: [] };
         }
       }
+
+      // Build a simple HTML report string
+      const applicantsHtml = Object.entries(allApplicantsData)
+        .map(([schemeName, applicantsList]) => {
+          if (applicantsList.length === 0) {
+            return `<div style="margin:20px 0;"><h3 style="color:#333; margin-bottom:10px;">Scheme: ${schemeName}</h3><p style="color:#666; font-style:italic;">No applicants yet for this scheme.</p></div>`;
+          }
+          const rows = applicantsList
+            .map((app, idx) => `<tr><td>${idx + 1}</td><td>${app.username}</td><td>${app.role}</td></tr>`)
+            .join("");
+          return `<div style="margin:20px 0;"><h3 style="color:#333; margin-bottom:10px;">Scheme: ${schemeName}</h3><table><thead><tr><th>#</th><th>Username</th><th>Role</th></tr></thead><tbody>${rows}</tbody></table><div class="summary-box"><strong>Total Applicants:</strong> ${applicantsList.length}</div></div>`;
+        })
+        .join("");
+
+      const deliveryMenRows = deliveryMen
+        .map((dm, index) => {
+          const salary = dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set";
+          return `<tr><td>${index + 1}</td><td>${dm.fname} ${dm.lname}</td><td>${dm.email}</td><td>${dm.district}</td><td>${salary}</td></tr>`;
+        })
+        .join("");
+
+      const historyHtml = Object.entries(allDeliveryHistory)
+        .map(([dmId, data]) => {
+          if (!data.orders || data.orders.length === 0) {
+            return `<div style="margin:30px 0;"><h3 style="color:#333; background-color:#e8f5e9; padding:10px; border-radius:5px;">Deliveryman: ${data.name}</h3><p style="color:#666; font-style:italic;">No delivery history found for this deliveryman.</p><div class="summary-box"><strong>Total Deliveries by ${data.name}:</strong> 0</div></div>`;
+          }
+          const ordersHtml = data.orders
+            .map((order, idx) => {
+              const farmerName = (order.farmerId && typeof order.farmerId === "object") ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() : "Unknown Farmer";
+              const sellerName = (order.sellerId && typeof order.sellerId === "object") ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() : "Unknown Seller";
+              return `<div class="delivery-item">
+                        <h4 style="margin:0 0 10px 0;">Delivery #${idx + 1}: ${order.item}</h4>
+                        <table>
+                          <tr><td><strong>Quantity:</strong></td><td>${order.quantity} kg</td><td><strong>Price:</strong></td><td>Rs.${order.price}</td></tr>
+                          <tr><td><strong>Status:</strong></td><td style="color:green; font-weight:bold;">✓ DELIVERED</td><td><strong>Delivery Date:</strong></td><td>${formatDate(order.updatedAt || order.createdAt)}</td></tr>
+                          <tr><td><strong>From (Farmer):</strong></td><td>${farmerName}</td><td><strong>To (Seller):</strong></td><td>${sellerName}</td></tr>
+                          ${order.district ? `<tr><td><strong>District:</strong></td><td colspan="3">${order.district}</td></tr>` : ""}
+                        </table>
+                      </div>`;
+            })
+            .join("");
+          return `<div style="margin:30px 0;"><h3 style="color:#333; background-color:#e8f5e9; padding:10px; border-radius:5px;">Deliveryman: ${data.name}</h3>${ordersHtml}<div class="summary-box"><strong>Total Deliveries by ${data.name}:</strong> ${data.orders.length}</div></div>`;
+        })
+        .join("");
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -439,23 +541,7 @@ function GovernmentPage() {
 
             <div class="section page-break">
               <h2>👥 Scheme Applicants</h2>
-              ${Object.entries(allApplicantsData)
-                .map(
-                  ([schemeName, applicantsList]) => `
-                <div style="margin:20px 0;">
-                  <h3 style="color:#333; margin-bottom:10px;">Scheme: ${schemeName}</h3>
-                  ${
-                    applicantsList.length > 0
-                      ? `<table><thead><tr><th>#</th><th>Username</th><th>Role</th></tr></thead><tbody>${applicantsList
-                          .map(
-                            (app, idx) => <tr><td>${idx + 1}</td><td>${app.username}</td><td>${app.role}</td></tr>
-                          )
-                          .join("")}</tbody></table><div class="summary-box"><strong>Total Applicants:</strong> ${applicantsList.length}</div>`
-                      : <p style="color:#666; font-style:italic;">No applicants yet for this scheme.</p>
-                  }
-                </div>`
-                )
-                .join("")}
+              ${applicantsHtml}
             </div>
 
             <div class="section page-break">
@@ -463,17 +549,7 @@ function GovernmentPage() {
               <table>
                 <thead><tr><th>#</th><th>Name</th><th>Email</th><th>District</th><th>Current Salary (Rs.)</th></tr></thead>
                 <tbody>
-                  ${deliveryMen
-                    .map(
-                      (dm, index) => `<tr>
-                      <td>${index + 1}</td>
-                      <td>${dm.fname} ${dm.lname}</td>
-                      <td>${dm.email}</td>
-                      <td>${dm.district}</td>
-                      <td>${dm.salary !== null && dm.salary !== undefined ? dm.salary : "Not set"}</td>
-                    </tr>`
-                    )
-                    .join("")}
+                  ${deliveryMenRows}
                 </tbody>
               </table>
               <div class="summary-box"><strong>Total Delivery Men:</strong> ${deliveryMen.length}</div>
@@ -481,34 +557,7 @@ function GovernmentPage() {
 
             <div class="section page-break">
               <h2>📦 Delivery History by Deliveryman</h2>
-              ${Object.entries(allDeliveryHistory)
-                .map(
-                  ([dmId, data]) => `
-                <div style="margin:30px 0;">
-                  <h3 style="color:#333; background-color:#e8f5e9; padding:10px; border-radius:5px;">Deliveryman: ${data.name}</h3>
-                  ${
-                    data.orders.length > 0
-                      ? data.orders
-                          .map((order, idx) => {
-                            const farmerName = (order.farmerId && typeof order.farmerId === "object") ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() : "Unknown Farmer";
-                            const sellerName = (order.sellerId && typeof order.sellerId === "object") ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() : "Unknown Seller";
-                            return `<div class="delivery-item">
-                            <h4 style="margin:0 0 10px 0;">Delivery #${idx + 1}: ${order.item}</h4>
-                            <table>
-                              <tr><td><strong>Quantity:</strong></td><td>${order.quantity} kg</td><td><strong>Price:</strong></td><td>Rs.${order.price}</td></tr>
-                              <tr><td><strong>Status:</strong></td><td style="color:green; font-weight:bold;">✓ DELIVERED</td><td><strong>Delivery Date:</strong></td><td>${formatDate(order.updatedAt || order.createdAt)}</td></tr>
-                              <tr><td><strong>From (Farmer):</strong></td><td>${farmerName}</td><td><strong>To (Seller):</strong></td><td>${sellerName}</td></tr>
-                              ${order.district ? <tr><td><strong>District:</strong></td><td colspan="3">${order.district}</td></tr> : ""}
-                            </table>
-                          </div>`;
-                          })
-                          .join("")
-                      : <p style="color:#666; font-style:italic;">No delivery history found for this deliveryman.</p>
-                  }
-                  <div class="summary-box"><strong>Total Deliveries by ${data.name}:</strong> ${data.orders.length}</div>
-                </div>`
-                )
-                .join("")}
+              ${historyHtml}
             </div>
 
             <div class="footer">
@@ -597,7 +646,7 @@ function GovernmentPage() {
 
   const fetchSchemes = async () => {
     try {
-      const res = await axios.get(${BASE_URL}/schemes);
+      const res = await axios.get(`${BASE_URL}/schemes`);
       setSchemes(res.data);
     } catch (err) {
       console.error("Failed to fetch schemes:", err);
@@ -607,7 +656,7 @@ function GovernmentPage() {
 
   const fetchDeliveryMen = async () => {
     try {
-      const res = await axios.get(${BASE_URL}/deliverymen);
+      const res = await axios.get(`${BASE_URL}/deliverymen`);
       setDeliveryMen(res.data);
     } catch (err) {
       console.error("Failed to fetch delivery men:", err);
@@ -618,7 +667,7 @@ function GovernmentPage() {
   // fetchDeliveryHistory uses only sellerorder endpoint (no farmerorder)
   const fetchDeliveryHistory = async (deliverymanId) => {
     try {
-      const sellerOrdersRes = await axios.get(${BASE_URL}/sellerorder/deliveryman/${deliverymanId});
+      const sellerOrdersRes = await axios.get(`${BASE_URL}/sellerorder/deliveryman/${deliverymanId}`);
       const sellerOrders = Array.isArray(sellerOrdersRes.data) ? sellerOrdersRes.data : [];
 
       const allOrders = sellerOrders.filter(
@@ -646,7 +695,7 @@ function GovernmentPage() {
     orders.forEach((order) => {
       const date = new Date(order.updatedAt || order.createdAt || 0);
       if (isNaN(date.getTime())) return;
-      const monthYear = ${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()};
+      const monthYear = `${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
       if (!stats[monthYear]) stats[monthYear] = 0;
       stats[monthYear]++;
     });
@@ -672,7 +721,7 @@ function GovernmentPage() {
       return;
     }
     try {
-      const res = await axios.post(${BASE_URL}/schemes, { name: newScheme.trim() });
+      const res = await axios.post(`${BASE_URL}/schemes`, { name: newScheme.trim() });
       setSchemes((prev) => [...prev, res.data]);
       setNewScheme("");
     } catch (err) {
@@ -693,7 +742,7 @@ function GovernmentPage() {
     }
     const scheme = schemes[index];
     try {
-      const res = await axios.put(${BASE_URL}/schemes/${scheme._id}, { name: editScheme.trim() });
+      const res = await axios.put(`${BASE_URL}/schemes/${scheme._id}`, { name: editScheme.trim() });
       const updatedSchemes = [...schemes];
       updatedSchemes[index] = res.data;
       setSchemes(updatedSchemes);
@@ -707,7 +756,7 @@ function GovernmentPage() {
   const handleDeleteScheme = async (index) => {
     const scheme = schemes[index];
     try {
-      await axios.delete(${BASE_URL}/schemes/${scheme._id});
+      await axios.delete(`${BASE_URL}/schemes/${scheme._id}`);
       setSchemes((prev) => prev.filter((_, i) => i !== index));
     } catch (err) {
       console.error("Error deleting scheme:", err);
@@ -730,7 +779,7 @@ function GovernmentPage() {
       return;
     }
     try {
-      await axios.put(${BASE_URL}/deliverymen/${id}/salary, { salary: numericSalary });
+      await axios.put(`${BASE_URL}/deliverymen/${id}/salary`, { salary: numericSalary });
       alert("Salary updated successfully!");
       fetchDeliveryMen();
     } catch (err) {
@@ -741,7 +790,7 @@ function GovernmentPage() {
 
   const fetchApplicants = async (schemeId) => {
     try {
-      const res = await axios.get(${BASE_URL}/schemes/${schemeId}/applicants);
+      const res = await axios.get(`${BASE_URL}/schemes/${schemeId}/applicants`);
       setApplicants(res.data);
       setShowApplicantsFor(schemeId);
     } catch (err) {
@@ -1288,10 +1337,10 @@ function GovernmentPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
                     {visibleDeliveryHistory.map((order) => {
                       const hasFarmerInfo = order.farmerId && typeof order.farmerId === "object";
-                      const farmerName = hasFarmerInfo ? ${order.farmerId.fname || ""} ${order.farmerId.lname || ""}.trim() || "Unknown Farmer" : "Unknown Farmer";
+                      const farmerName = hasFarmerInfo ? `${order.farmerId.fname || ""} ${order.farmerId.lname || ""}`.trim() || "Unknown Farmer" : "Unknown Farmer";
 
                       const hasSellerInfo = order.sellerId && typeof order.sellerId === "object";
-                      const sellerName = hasSellerInfo ? ${order.sellerId.fname || ""} ${order.sellerId.lname || ""}.trim() || "Unknown Seller" : "Unknown Seller";
+                      const sellerName = hasSellerInfo ? `${order.sellerId.fname || ""} ${order.sellerId.lname || ""}`.trim() || "Unknown Seller" : "Unknown Seller";
 
                       return (
                         <div
