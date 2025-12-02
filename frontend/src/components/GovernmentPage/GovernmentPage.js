@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./GovernmentPage.css";
@@ -789,6 +788,27 @@ function GovernmentPage() {
     }
   };
 
+  // SUSPEND DELIVERYMAN (Delete From Database)
+  const suspendDeliveryman = async (id) => {
+    if (!window.confirm("Are you sure you want to SUSPEND this deliveryman? This action is PERMANENT and will DELETE them from the system.")) {
+      return;
+    }
+    try {
+      await axios.delete(`${BASE_URL}/deliverymen/${id}`);
+      alert("Deliveryman suspended (deleted) successfully!");
+      fetchDeliveryMen(); // Refresh list after deletion
+      // Optionally cleanup state if history for deleted DM was shown
+      if (selectedDeliverymanId === id) {
+        setShowHistory(false);
+        setDeliveryHistory([]);
+        setSelectedDeliverymanId(null);
+      }
+    } catch (err) {
+      console.error("Failed to suspend deliveryman:", err);
+      alert("Failed to suspend (delete) deliveryman. Please try again.");
+    }
+  };
+
   const fetchApplicants = async (schemeId) => {
     try {
       const res = await axios.get(`${BASE_URL}/schemes/${schemeId}/applicants`);
@@ -1156,7 +1176,7 @@ function GovernmentPage() {
                   <th>Current Salary</th>
                   <th>Set New Salary</th>
                   <th>Action</th>
-                  <th>View History</th>
+                  <th>History & Suspension</th>
                 </tr>
               </thead>
               <tbody>
@@ -1190,9 +1210,24 @@ function GovernmentPage() {
                           border: "none",
                           borderRadius: "4px",
                           cursor: "pointer",
+                          marginRight: "6px",
                         }}
                       >
                         View History
+                      </button>
+                      <button
+                        onClick={() => suspendDeliveryman(dm._id)}
+                        title="Suspends and deletes this deliveryman PERMANENTLY"
+                        style={{
+                          padding: "5px 10px",
+                          backgroundColor: "#c00",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Suspend
                       </button>
                     </td>
                   </tr>
