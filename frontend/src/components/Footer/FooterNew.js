@@ -79,14 +79,6 @@ function FooterNew() {
             <FontAwesomeIcon icon={faTwitter} />
           </a>
           <a
-            href="https://www.instagram.com/thalapathy_rasigan1277/"
-            className="icon"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <FontAwesomeIcon icon={faInstagram} />
-          </a>
-          <a
             href="https://www.linkedin.com/in/maleshkumar-v-8311aa333/"
             className="icon"
             target="_blank"
